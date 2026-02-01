@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from api.calendar_logic import check_meeting_conflicts
-
+from .calendar_logic import check_meeting_conflicts
 app = FastAPI()
 
 class MeetingRequest(BaseModel):
