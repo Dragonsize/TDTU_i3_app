@@ -58,26 +58,10 @@ export default function Calendar() {
             <NavItem icon="calendar_month" label="Calendar" isExpanded={isExpanded} href="/calendar" active />
             <NavItem icon="storefront" label="Marketplace" isExpanded={isExpanded} href="/marketplace" />
             <NavItem icon="inventory_2" label="My Listings" isExpanded={isExpanded} href="/listings" />
+            <NavItem icon="account_circle" label="Settings" isExpanded={isExpanded} href="/settings" />
           </div>
 
-          <div className="flex flex-col items-center gap-6 w-full px-4">
-            <div className={`flex items-center ${isExpanded ? 'w-full justify-between' : 'justify-center'} px-2 transition-all`}>
-              {isExpanded && <span className="text-slate-600 dark:text-slate-300 font-medium whitespace-nowrap">Dark Mode</span>}
-              <button
-                onClick={() => setIsDark(!isDark)}
-                className={`relative w-12 h-6 rounded-full transition-colors duration-300 focus:outline-none ${isDark ? 'bg-primary' : 'bg-slate-300'}`}
-                title="Toggle Theme"
-              >
-                <div
-                  className={`absolute top-1 left-1 bg-white rounded-full w-4 h-4 shadow-md transform transition-transform duration-300 flex items-center justify-center ${isDark ? 'translate-x-6' : 'translate-x-0'}`}
-                >
-                  <span className="material-symbols-outlined text-[10px] text-slate-800">
-                    {isDark ? 'dark_mode' : 'light_mode'}
-                  </span>
-                </div>
-              </button>
-            </div>
-          </div>
+          <div className="flex flex-col items-center gap-6 w-full px-4" />
         </div>
       </nav>
 

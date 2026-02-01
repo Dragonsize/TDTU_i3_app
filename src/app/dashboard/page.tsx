@@ -95,45 +95,31 @@ export default function Dashboard() {
             <NavItem icon="calendar_month" label="Calendar" isExpanded={isExpanded} href="/calendar" />
             <NavItem icon="storefront" label="Marketplace" isExpanded={isExpanded} href="/marketplace" />
             <NavItem icon="inventory_2" label="My Listings" isExpanded={isExpanded} href="/listings" />
+            <NavItem icon="account_circle" label="Settings" isExpanded={isExpanded} href="/settings" />
           </div>
 
-          <div className="flex flex-col items-center gap-6 w-full px-4">
-            <div className={`flex items-center ${isExpanded ? 'w-full justify-between' : 'justify-center'} px-2 transition-all`}>
-              {isExpanded && <span className="text-slate-600 dark:text-slate-300 font-medium whitespace-nowrap">Dark Mode</span>}
-              <button
-                onClick={() => setIsDark(!isDark)}
-                className={`relative w-12 h-6 rounded-full transition-colors duration-300 focus:outline-none ${isDark ? 'bg-primary' : 'bg-slate-300'}`}
-                title="Toggle Theme"
-              >
-                <div
-                  className={`absolute top-1 left-1 bg-white rounded-full w-4 h-4 shadow-md transform transition-transform duration-300 flex items-center justify-center ${isDark ? 'translate-x-6' : 'translate-x-0'}`}
-                >
-                  <span className="material-symbols-outlined text-[10px] text-slate-800">
-                    {isDark ? 'dark_mode' : 'light_mode'}
-                  </span>
-                </div>
-              </button>
-            </div>
-
-            <button
-              onClick={handleLogout}
-              className={`bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all hover:scale-105 shadow-lg shadow-red-500/20 flex items-center justify-center gap-2 ${isExpanded ? 'w-full py-3 px-4' : 'w-12 h-12'}`}
-            >
-              <span className="material-symbols-outlined text-xl">logout</span>
-              {isExpanded && <span className="font-bold whitespace-nowrap overflow-hidden animate-fade-in">Logout</span>}
-            </button>
+          <div className="flex flex-col items-center gap-6 w-full px-4" />
           </div>
         </div>
       </nav>
 
       <main className="px-4 lg:px-40 py-12 relative">
-        <div className="mb-12">
-          <h1 className="text-4xl lg:text-6xl font-black mb-4 tracking-tight text-slate-900 dark:text-white">
+        <div className="mb-12 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div>
+            <h1 className="text-4xl lg:text-6xl font-black mb-4 tracking-tight text-slate-900 dark:text-white">
             Welcome back, <span className="text-gradient">{profile.fullname?.split(' ').pop() || 'Student'}</span>
-          </h1>
-          <p className="text-slate-600 dark:text-white/60 text-lg">
-            Your personalized hub for AI assistance, calendar management, and marketplace activity.
-          </p>
+            </h1>
+            <p className="text-slate-600 dark:text-white/60 text-lg">
+              Your personalized hub for AI assistance, calendar management, and marketplace activity.
+            </p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all hover:scale-105 shadow-lg shadow-red-500/20 flex items-center justify-center gap-2 px-5 py-3 font-bold"
+          >
+            <span className="material-symbols-outlined text-xl">logout</span>
+            <span>Logout</span>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">

@@ -50,11 +50,11 @@ def scrape_profile(username: str, password: str):
     r_edit = session.get(EDIT_PROFILE_URL)
     edit_soup = BeautifulSoup(r_edit.text, "html.parser")
     
-    # Extract lastname (Họ)
+    # Extract lastname 
     lastname_input = edit_soup.find("input", {"id": "id_lastname"})
     lastname = lastname_input.get("value", "") if lastname_input else ""
     
-    # Extract firstname (Tên đệm và tên)
+    # Extract firstname 
     firstname_input = edit_soup.find("input", {"id": "id_firstname"})
     firstname = firstname_input.get("value", "") if firstname_input else ""
     
