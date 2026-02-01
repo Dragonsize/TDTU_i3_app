@@ -80,10 +80,10 @@ export default function Dashboard() {
 
           <div className="flex flex-col gap-2 w-full px-4">
             <NavItem icon="dashboard" label="Dashboard" isExpanded={isExpanded} href="/dashboard" active />
-            <NavItem icon="smart_toy" label="AI Chatbot" isExpanded={isExpanded} href="#" />
-            <NavItem icon="calendar_month" label="Calendar" isExpanded={isExpanded} href="#" />
-            <NavItem icon="storefront" label="Marketplace" isExpanded={isExpanded} href="#" />
-            <NavItem icon="inventory_2" label="My Listings" isExpanded={isExpanded} href="#" />
+            <NavItem icon="smart_toy" label="AI Chatbot" isExpanded={isExpanded} href="/chatbot" />
+            <NavItem icon="calendar_month" label="Calendar" isExpanded={isExpanded} href="/calendar" />
+            <NavItem icon="storefront" label="Marketplace" isExpanded={isExpanded} href="/marketplace" />
+            <NavItem icon="inventory_2" label="My Listings" isExpanded={isExpanded} href="/listings" />
           </div>
 
           <div className="flex flex-col items-center gap-6 w-full px-4">
@@ -118,7 +118,7 @@ export default function Dashboard() {
       <main className="px-4 lg:px-40 py-12 relative">
         <div className="mb-12">
           <h1 className="text-4xl lg:text-6xl font-black mb-4 tracking-tight text-slate-900 dark:text-white">
-            Welcome back, <span className="text-gradient">{profile.fullname?.split(' ')[-1] || 'Student'}</span>
+            Welcome back, <span className="text-gradient">{profile.fullname?.split(' ').pop() || 'Student'}</span>
           </h1>
           <p className="text-slate-600 dark:text-white/60 text-lg">
             Your personalized hub for AI assistance, calendar management, and marketplace activity.
