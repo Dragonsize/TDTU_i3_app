@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -8,6 +8,8 @@ export default function Marketplace() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [listings, setListings] = useState([]);
+  const [fetchingListings, setFetchingListings] = useState(true);
 
   React.useEffect(() => {
     const savedTheme = localStorage.getItem('darkMode');
@@ -20,6 +22,26 @@ export default function Marketplace() {
     document.documentElement.classList.toggle('dark', isDark);
     localStorage.setItem('darkMode', isDark.toString());
   }, [isDark]);
+
+  // Fetch listings on mount
+  React.useEffect(() => {
+    fetchListings();
+  }, []);
+
+  const fetchListings = async () => {
+    setFetchingListings(true);
+    try {
+      const response = await fetch('/api/marketplace');
+      const data = await response.json();
+      if (data.success) {
+        setListings(data.listings);
+      }
+    } catch (error) {
+      console.error('Failed to fetch listings:', error);
+    } finally {
+      setFetchingListings(false);
+    }
+  };
 
   const handleAddProduct = async () => {
     setLoading(true);
@@ -41,6 +63,8 @@ export default function Marketplace() {
       
       if (data.success) {
         alert('✅ Success!\n\nListing created successfully!\n\nData: ' + JSON.stringify(data.data, null, 2));
+        // Refresh listings after adding
+        fetchListings();
       } else {
         alert('❌ Error!\n\nMessage: ' + data.message + '\n\nFull response: ' + JSON.stringify(data, null, 2));
       }
@@ -98,33 +122,93 @@ export default function Marketplace() {
       </nav>
 
       <main className="px-4 lg:px-40 py-12 relative">
-        <div className="mb-12">
-          <h1 className="text-4xl lg:text-6xl font-black mb-4 tracking-tight text-slate-900 dark:text-white">
-            Student <span className="text-gradient">Marketplace</span>
-          </h1>
-          <p className="text-slate-600 dark:text-white/60 text-lg">
-            Buy and sell textbooks, notes, and other study materials with fellow students.
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl lg:text-5xl font-black mb-2 tracking-tight text-slate-900 dark:text-white">
+              Student <span className="text-gradient">Marketplace</span>
+            </h1>
+            <p className="text-slate-600 dark:text-white/60">
+              Buy and sell with fellow students
+            </p>
+          </div>
+          <button
+            onClick={handleAddProduct}
+            disabled={loading}
+            className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-white font-semibold rounded-lg transition-all duration-200 flex items-center gap-2"
+          >
+            <span className="material-symbols-outlined text-xl">add</span>
+            {loading ? 'Adding...' : 'Test Add'}
+          </button>
         </div>
 
-        <div className="bg-white/50 dark:bg-transparent dark:glass-effect border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-none rounded-2xl p-12">
-          <div className="text-center space-y-6">
-            <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-primary/20 text-primary">
-              <span className="material-symbols-outlined text-5xl">storefront</span>
+        {fetchingListings ? (
+          <div className="flex items-center justify-center py-24">
+            <div className="text-center">
+              <div className="inline-block w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4"></div>
+              <p className="text-slate-600 dark:text-slate-400">Loading listings...</p>
             </div>
-            <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Coming Soon</h2>
-            <p className="text-slate-600 dark:text-slate-400 max-w-lg mx-auto">
-              We're creating a peer-to-peer marketplace where students can buy, sell, and exchange educational resources safely and easily.
-            </p>
-            <button
-              onClick={handleAddProduct}
-              disabled={loading}
-              className="mt-8 px-6 py-3 bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-white font-semibold rounded-lg transition-all duration-200"
-            >
-              {loading ? 'Adding...' : 'Add Test Product to Database'}
-            </button>
           </div>
-        </div>
+        ) : listings.length === 0 ? (
+          <div className="bg-white/50 dark:bg-transparent dark:glass-effect border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-none rounded-2xl p-12">
+            <div className="text-center space-y-4">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400">
+                <span className="material-symbols-outlined text-4xl">inventory_2</span>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">No listings yet</h2>
+              <p className="text-slate-600 dark:text-slate-400 max-w-md mx-auto">
+                Be the first to list an item! Click "Test Add" to create a sample listing.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {listings.map((listing: any) => (
+              <div
+                key={listing.id}
+                className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-white/10 rounded-xl overflow-hidden hover:shadow-lg dark:hover:shadow-primary/10 transition-all cursor-pointer group"
+              >
+                {/* Image placeholder */}
+                <div className="w-full aspect-square bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-6xl text-primary/40">image</span>
+                </div>
+                
+                {/* Content */}
+                <div className="p-4">
+                  <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-1 line-clamp-2 group-hover:text-primary transition-colors">
+                    {listing.title}
+                  </h3>
+                  <p className="text-2xl font-black text-primary mb-2">
+                    ${listing.price.toFixed(2)}
+                  </p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-3">
+                    {listing.description}
+                  </p>
+                  
+                  {/* Seller info */}
+                  {listing.profiles && (
+                    <div className="flex items-center gap-2 pt-3 border-t border-slate-200 dark:border-slate-700">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xs font-bold">
+                        {listing.profiles.username?.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="text-xs text-slate-600 dark:text-slate-400">
+                        {listing.profiles.username}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Category badge */}
+                  {listing.category && (
+                    <div className="mt-2">
+                      <span className="inline-block px-2 py-1 text-xs rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                        {listing.category}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );

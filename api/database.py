@@ -93,7 +93,7 @@ def get_all_marketplace_listings():
     """Get all active marketplace listings with seller profile info"""
     try:
         response = supabase.table("marketplace").select(
-            "*, profiles!seller_id(username, major, level_taekwondo)"
+            "*, profiles!seller_id(username, major)"
         ).eq("status", "active").execute()
         return response.data
     except Exception as e:
