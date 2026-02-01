@@ -8,7 +8,7 @@
 }
 
 body {
-  @apply bg-[#f8f7fb] text-[#0f172a] transition-colors duration-300 font-sans;
+  @apply bg-[#f7f6f8] text-[#0f172a] transition-colors duration-300 font-sans;
 }
 
 .dark body {
@@ -25,5 +25,31 @@ body {
 }
 
 .glass-effect {
-  @apply backdrop-blur-xl bg-white/10 border border-white/10 shadow-2xl;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: #19102299;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.font-display {
+  font-family: Inter, sans-serif;
+}
+
+.hero-gradient {
+  background: radial-gradient(circle at 50% 50%, rgba(127, 19, 236, 0.15) 0%, transparent 70%);
+}
+
+.animate-fade-in {
+  animation: fade-in 0.25s ease-in-out both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
