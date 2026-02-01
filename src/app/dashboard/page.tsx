@@ -99,7 +99,6 @@ export default function Dashboard() {
           </div>
 
           <div className="flex flex-col items-center gap-6 w-full px-4" />
-          </div>
         </div>
       </nav>
 
