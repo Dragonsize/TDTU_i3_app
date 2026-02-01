@@ -2,9 +2,11 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from '@/lib/useTranslations';
 
 export default function Dashboard() {
   const router = useRouter();
+  const { t } = useTranslations();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const [profile, setProfile] = useState<any>(null);
@@ -59,7 +61,7 @@ export default function Dashboard() {
 
   return (
     <div
-      className={`font-display bg-[#f7f6f8] dark:bg-[#050505] text-slate-900 dark:text-white transition-all duration-300 min-h-screen relative ${isExpanded ? 'md:pr-64' : 'md:pr-20'} pr-0`}
+      className={`font-display bg-[#f7f6f8] dark:bg-[#050505] text-slate-900 dark:text-white min-h-screen relative ${isExpanded ? 'md:pr-64' : 'md:pr-20'} pr-0 transition-[padding-right] duration-300`}
     >
       <div className="fixed inset-0 grid-bg pointer-events-none z-0"></div>
 
@@ -90,12 +92,12 @@ export default function Dashboard() {
           </div>
 
           <div className="flex flex-col gap-2 w-full px-4">
-            <NavItem icon="dashboard" label="Dashboard" isExpanded={isExpanded} href="/dashboard" active />
-            <NavItem icon="smart_toy" label="AI Chatbot" isExpanded={isExpanded} href="/chatbot" />
-            <NavItem icon="calendar_month" label="Calendar" isExpanded={isExpanded} href="/calendar" />
-            <NavItem icon="storefront" label="Marketplace" isExpanded={isExpanded} href="/marketplace" />
-            <NavItem icon="inventory_2" label="My Listings" isExpanded={isExpanded} href="/listings" />
-            <NavItem icon="account_circle" label="Settings" isExpanded={isExpanded} href="/settings" />
+            <NavItem icon="dashboard" label={t('dashboard')} isExpanded={isExpanded} href="/dashboard" active />
+            <NavItem icon="smart_toy" label={t('aiChatbot')} isExpanded={isExpanded} href="/chatbot" />
+            <NavItem icon="calendar_month" label={t('calendar')} isExpanded={isExpanded} href="/calendar" />
+            <NavItem icon="storefront" label={t('marketplace')} isExpanded={isExpanded} href="/marketplace" />
+            <NavItem icon="inventory_2" label={t('myListings')} isExpanded={isExpanded} href="/listings" />
+            <NavItem icon="account_circle" label={t('settings')} isExpanded={isExpanded} href="/settings" />
           </div>
 
           <div className="flex flex-col items-center gap-6 w-full px-4" />
@@ -104,27 +106,27 @@ export default function Dashboard() {
 
       <main className="px-4 lg:px-40 py-12 relative">
         <div className="mb-12 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div>
-            <h1 className="text-4xl lg:text-6xl font-black mb-4 tracking-tight text-slate-900 dark:text-white">
-            Welcome back, <span className="text-gradient">{profile.fullname?.split(' ').pop() || 'Student'}</span>
+          <div className="flex-1">
+            <h1 className="text-4xl lg:text-6xl font-black mb-4 tracking-tight text-slate-900 dark:text-white break-words">
+              {t('welcomeBack')}, <span className="text-gradient inline-block">{profile.fullname?.split(' ').pop() || 'Student'}</span>
             </h1>
             <p className="text-slate-600 dark:text-white/60 text-lg">
-              Your personalized hub for AI assistance, calendar management, and marketplace activity.
+              {t('personalizedHub')}
             </p>
           </div>
           <button
             onClick={handleLogout}
-            className="bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all hover:scale-105 shadow-lg shadow-red-500/20 flex items-center justify-center gap-2 px-5 py-3 font-bold"
+            className="bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all hover:scale-105 shadow-lg shadow-red-500/20 flex items-center justify-center gap-2 px-5 py-3 font-bold whitespace-nowrap"
           >
             <span className="material-symbols-outlined text-xl">logout</span>
-            <span>Logout</span>
+            <span>{t('logout')}</span>
           </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
-          <StatCard icon="chat" label="AI Conversations" value="0" color="primary" />
-          <StatCard icon="event" label="Upcoming Events" value="0" color="secondary" />
-          <StatCard icon="sell" label="Active Listings" value="0" color="primary" />
+          <StatCard icon="chat" label={t('aiConversations')} value="0" color="primary" />
+          <StatCard icon="event" label={t('upcomingEvents')} value="0" color="secondary" />
+          <StatCard icon="sell" label={t('activeListings')} value="0" color="primary" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -132,13 +134,13 @@ export default function Dashboard() {
             <div className="bg-white/50 dark:bg-transparent dark:glass-effect border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-none rounded-2xl p-6">
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary">person</span>
-                Profile Information
+                {t('profileInformation')}
               </h2>
               <div className="space-y-4">
-                <ProfileField label="Full Name" value={profile.fullname} />
-                <ProfileField label="Email" value={profile.email} />
-                <ProfileField label="Location" value={`${profile.city}, ${profile.country}`} />
-                <ProfileField label="Timezone" value={profile.timezone} />
+                <ProfileField label={t('fullName')} value={profile.fullname} />
+                <ProfileField label={t('email')} value={profile.email} />
+                <ProfileField label={t('location')} value={`${profile.city}, ${profile.country}`} />
+                <ProfileField label={t('timezone')} value={profile.timezone} />
               </div>
             </div>
           </div>
@@ -147,9 +149,9 @@ export default function Dashboard() {
             <div className="bg-white/50 dark:bg-transparent dark:glass-effect border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-none rounded-2xl p-6">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary">calendar_today</span>
-                Calendar Events
+                {t('calendarEvents')}
               </h2>
-              <p className="text-slate-500 dark:text-slate-400 text-sm">No upcoming events scheduled.</p>
+              <p className="text-slate-500 dark:text-slate-400 text-sm">{t('noUpcomingEvents')}</p>
             </div>
 
             <div className="bg-white/50 dark:bg-transparent dark:glass-effect border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-none rounded-2xl p-6">

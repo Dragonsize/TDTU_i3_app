@@ -2,9 +2,11 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from '@/lib/useTranslations';
 
 export default function Settings() {
   const router = useRouter();
+  const { t } = useTranslations();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const [language, setLanguage] = useState('vi');
@@ -85,12 +87,12 @@ export default function Settings() {
           </div>
 
           <div className="flex flex-col gap-2 w-full px-4">
-            <NavItem icon="dashboard" label="Dashboard" isExpanded={isExpanded} href="/dashboard" />
-            <NavItem icon="smart_toy" label="AI Chatbot" isExpanded={isExpanded} href="/chatbot" />
-            <NavItem icon="calendar_month" label="Calendar" isExpanded={isExpanded} href="/calendar" />
-            <NavItem icon="storefront" label="Marketplace" isExpanded={isExpanded} href="/marketplace" />
-            <NavItem icon="inventory_2" label="My Listings" isExpanded={isExpanded} href="/listings" />
-            <NavItem icon="account_circle" label="Settings" isExpanded={isExpanded} href="/settings" active />
+            <NavItem icon="dashboard" label={t('dashboard')} isExpanded={isExpanded} href="/dashboard" />
+            <NavItem icon="smart_toy" label={t('aiChatbot')} isExpanded={isExpanded} href="/chatbot" />
+            <NavItem icon="calendar_month" label={t('calendar')} isExpanded={isExpanded} href="/calendar" />
+            <NavItem icon="storefront" label={t('marketplace')} isExpanded={isExpanded} href="/marketplace" />
+            <NavItem icon="inventory_2" label={t('myListings')} isExpanded={isExpanded} href="/listings" />
+            <NavItem icon="account_circle" label={t('settings')} isExpanded={isExpanded} href="/settings" active />
           </div>
 
           <div className="flex flex-col items-center gap-6 w-full px-4" />
@@ -101,32 +103,29 @@ export default function Settings() {
         <div className="mb-12 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div>
             <h1 className="text-4xl lg:text-6xl font-black mb-4 tracking-tight text-slate-900 dark:text-white">
-            Account <span className="text-gradient">Settings</span>
+              {t('accountSettings')}
             </h1>
             <p className="text-slate-600 dark:text-white/60 text-lg">
-              Manage your profile preferences and account options here.
+              {t('manageProfile')}
             </p>
           </div>
           <button
             onClick={handleLogout}
-            className="bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all hover:scale-105 shadow-lg shadow-red-500/20 flex items-center justify-center gap-2 px-5 py-3 font-bold"
+            className="bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all hover:scale-105 shadow-lg shadow-red-500/20 flex items-center justify-center gap-2 px-5 py-3 font-bold whitespace-nowrap"
           >
             <span className="material-symbols-outlined text-xl">logout</span>
-            <span>Logout</span>
-          </button>
-        </div>
-
+            <span>{t('logout')}</span>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white/50 dark:bg-transparent dark:glass-effect border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-none rounded-2xl p-6">
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary">palette</span>
-                Appearance
+                {t('appearance')}
               </h2>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-slate-900 dark:text-white font-semibold">Theme</p>
-                  <p className="text-slate-600 dark:text-white/50 text-sm">Switch between light and dark mode.</p>
+                  <p className="text-slate-900 dark:text-white font-semibold">{t('theme')}</p>
+                  <p className="text-slate-600 dark:text-white/50 text-sm">{t('switchTheme')}</p>
                 </div>
                 <button
                   onClick={() => setIsDark(!isDark)}
@@ -147,25 +146,25 @@ export default function Settings() {
             <div className="bg-white/50 dark:bg-transparent dark:glass-effect border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-none rounded-2xl p-6">
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary">translate</span>
-                Language
+                {t('language')}
               </h2>
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
-                  <p className="text-slate-900 dark:text-white font-semibold">App Language</p>
-                  <p className="text-slate-600 dark:text-white/50 text-sm">Choose English or Vietnamese.</p>
+                  <p className="text-slate-900 dark:text-white font-semibold">{t('appLanguage')}</p>
+                  <p className="text-slate-600 dark:text-white/50 text-sm">{t('chooseLanguage')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setLanguage('en')}
                     className={`px-4 py-2 rounded-xl border transition-all ${language === 'en' ? 'bg-primary text-white border-primary' : 'bg-white/70 dark:bg-white/10 text-slate-700 dark:text-white/80 border-slate-200 dark:border-white/10'}`}
                   >
-                    English
+                    {t('english')}
                   </button>
                   <button
                     onClick={() => setLanguage('vi')}
                     className={`px-4 py-2 rounded-xl border transition-all ${language === 'vi' ? 'bg-primary text-white border-primary' : 'bg-white/70 dark:bg-white/10 text-slate-700 dark:text-white/80 border-slate-200 dark:border-white/10'}`}
                   >
-                    Tiếng Việt
+                    {t('vietnamese')}
                   </button>
                 </div>
               </div>
@@ -174,25 +173,25 @@ export default function Settings() {
             <div className="bg-white/50 dark:bg-transparent dark:glass-effect border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-none rounded-2xl p-6">
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary">shield_lock</span>
-                Privacy
+                {t('privacy')}
               </h2>
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
-                  <p className="text-slate-900 dark:text-white font-semibold">Profile Visibility</p>
-                  <p className="text-slate-600 dark:text-white/50 text-sm">Default is public to build trust in the marketplace.</p>
+                  <p className="text-slate-900 dark:text-white font-semibold">{t('profileVisibility')}</p>
+                  <p className="text-slate-600 dark:text-white/50 text-sm">{t('defaultPublic')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setProfileVisibility('public')}
                     className={`px-4 py-2 rounded-xl border transition-all ${profileVisibility === 'public' ? 'bg-primary text-white border-primary' : 'bg-white/70 dark:bg-white/10 text-slate-700 dark:text-white/80 border-slate-200 dark:border-white/10'}`}
                   >
-                    Public
+                    {t('public')}
                   </button>
                   <button
                     onClick={() => setProfileVisibility('private')}
                     className={`px-4 py-2 rounded-xl border transition-all ${profileVisibility === 'private' ? 'bg-primary text-white border-primary' : 'bg-white/70 dark:bg-white/10 text-slate-700 dark:text-white/80 border-slate-200 dark:border-white/10'}`}
                   >
-                    Private
+                    {t('private')}
                   </button>
                 </div>
               </div>
@@ -203,10 +202,10 @@ export default function Settings() {
             <div className="bg-white/50 dark:bg-transparent dark:glass-effect border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-none rounded-2xl p-6">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary">info</span>
-                Notes
+                {t('notes')}
               </h2>
               <p className="text-slate-600 dark:text-slate-400 text-sm">
-                Settings are saved locally for now. Language and privacy controls will apply to marketplace and profile pages when those features go live.
+                {t('settingsSaved')}
               </p>
             </div>
           </div>
