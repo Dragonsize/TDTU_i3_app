@@ -33,8 +33,8 @@ export default function Login() {
         throw new Error('Invalid credentials - profile not found');
       }
 
-      // Store profile in sessionStorage
-      sessionStorage.setItem('userProfile', JSON.stringify(data.profile));
+      // Store profile in localStorage
+      localStorage.setItem('userProfile', JSON.stringify(data.profile));
       
       // Redirect to dashboard
       window.location.href = '/dashboard';
