@@ -3,10 +3,23 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export default function Chatbot() {
   const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDark, setIsDark] = useState(true);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: 'assistant',
+      content: 'Xin chào! Tôi có thể giúp bạn với các câu hỏi về cách sử dụng app. Hãy hỏi tôi bất kỳ điều gì!'
+    }
+  ]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   React.useEffect(() => {
     const savedTheme = localStorage.getItem('darkMode');
@@ -19,6 +32,40 @@ export default function Chatbot() {
     document.documentElement.classList.toggle('dark', isDark);
     localStorage.setItem('darkMode', isDark.toString());
   }, [isDark]);
+
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
+
+    const userMessage: Message = { role: 'user', content: input };
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/chatbot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: input })
+      });
+
+      const data = await response.json();
+      
+      const assistantMessage: Message = {
+        role: 'assistant',
+        content: data.answer || 'Xin lỗi, tôi không hiểu câu hỏi của bạn.'
+      };
+      
+      setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error('Error:', error);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại.'
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div
@@ -71,19 +118,88 @@ export default function Chatbot() {
             AI <span className="text-gradient">Chatbot</span>
           </h1>
           <p className="text-slate-600 dark:text-white/60 text-lg">
-            Your AI-powered assistant for academic and technical support.
+            Ask me anything about how to use this app!
           </p>
         </div>
 
-        <div className="bg-white/50 dark:bg-transparent dark:glass-effect border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-none rounded-2xl p-12">
-          <div className="text-center space-y-6">
-            <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-primary/20 text-primary">
-              <span className="material-symbols-outlined text-5xl">smart_toy</span>
+        <div className="bg-white/50 dark:bg-transparent dark:glass-effect border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-none rounded-2xl overflow-hidden">
+          {/* Messages Area */}
+          <div className="h-[500px] overflow-y-auto p-6 space-y-4">
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] rounded-2xl px-6 py-4 ${
+                    message.role === 'user'
+                      ? 'bg-primary text-white'
+                      : 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    {message.role === 'assistant' && (
+                      <span className="material-symbols-outlined mt-1">smart_toy</span>
+                    )}
+                    <p className="whitespace-pre-wrap">{message.content}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-slate-200 dark:bg-slate-800 rounded-2xl px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined animate-spin">refresh</span>
+                    <span className="text-slate-600 dark:text-slate-400">Thinking...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Input Area */}
+          <div className="border-t border-slate-200 dark:border-white/10 p-6">
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                placeholder="Ask a question... (e.g., How to create a project?)"
+                className="flex-1 px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary"
+                disabled={isLoading}
+              />
+              <button
+                onClick={handleSend}
+                disabled={isLoading || !input.trim()}
+                className="px-6 py-3 bg-primary hover:bg-primary/80 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined">send</span>
+              </button>
             </div>
-            <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Coming Soon</h2>
-            <p className="text-slate-600 dark:text-slate-400 max-w-lg mx-auto">
-              We're building an intelligent AI chatbot to help you with your studies, answer questions, and provide personalized assistance.
-            </p>
+            
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                onClick={() => setInput('Cách tạo project mới?')}
+                className="text-xs px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              >
+                💡 How to create a project?
+              </button>
+              <button
+                onClick={() => setInput('Làm sao để thêm thành viên?')}
+                className="text-xs px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              >
+                👥 How to add members?
+              </button>
+              <button
+                onClick={() => setInput('Cách quản lý lịch bận?')}
+                className="text-xs px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              >
+                📅 How to manage schedule?
+              </button>
+            </div>
           </div>
         </div>
       </main>
