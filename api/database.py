@@ -44,4 +44,23 @@ def save_user_profile(username: str, user_id: str = None):
         print(f"Error saving user profile: {e}")
         return None
 
+def save_product(title: str, description: str, price: float, category: str, created_by: str = None):
+    """Save a new product/listing to the database"""
+    try:
+        product_data = {
+            "title": title,
+            "description": description,
+            "price": price,
+            "category": category
+        }
+        
+        if created_by:
+            product_data["created_by"] = created_by
+        
+        response = supabase.table("products").insert(product_data).execute()
+        return response.data
+    except Exception as e:
+        print(f"Error saving product: {e}")
+        return None
+
 print(" Database connection initialized.")

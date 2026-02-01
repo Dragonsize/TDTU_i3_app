@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 from .calendar_logic import check_meeting_conflicts
 from .login import scrape_profile
-from .database import save_user_profile
+from .database import save_user_profile, save_product
 from .auth import create_access_token, create_refresh_token, verify_token
 app = FastAPI()
 
@@ -16,6 +16,12 @@ class MeetingRequest(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+class ProductRequest(BaseModel):
+    title: str
+    description: str
+    price: float
+    category: str
 
 @app.get("/api/health")
 def hello():
@@ -130,3 +136,31 @@ async def refresh_token_endpoint(
         "access_token": new_access_token,
         "token_type": "bearer"
     }
+
+@app.post("/api/add-product")
+async def add_product(req: ProductRequest):
+    """Add a new product to the marketplace"""
+    try:
+        result = save_product(
+            title=req.title,
+            description=req.description,
+            price=req.price,
+            category=req.category
+        )
+        
+        if result:
+            return {
+                "success": True,
+                "message": "Product added successfully",
+                "data": result
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Failed to add product to database"
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error adding product: {str(e)}"
+        }

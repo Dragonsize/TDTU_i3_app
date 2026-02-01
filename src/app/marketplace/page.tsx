@@ -7,6 +7,7 @@ export default function Marketplace() {
   const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDark, setIsDark] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   React.useEffect(() => {
     const savedTheme = localStorage.getItem('darkMode');
@@ -19,6 +20,33 @@ export default function Marketplace() {
     document.documentElement.classList.toggle('dark', isDark);
     localStorage.setItem('darkMode', isDark.toString());
   }, [isDark]);
+
+  const handleAddProduct = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/add-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Sample Product',
+          description: 'This is a test product from the marketplace',
+          price: 99.99,
+          category: 'textbooks'
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('Product added to database successfully!');
+      } else {
+        alert('Error: ' + data.message);
+      }
+    } catch (error) {
+      alert('Failed to add product: ' + error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div
@@ -84,6 +112,13 @@ export default function Marketplace() {
             <p className="text-slate-600 dark:text-slate-400 max-w-lg mx-auto">
               We're creating a peer-to-peer marketplace where students can buy, sell, and exchange educational resources safely and easily.
             </p>
+            <button
+              onClick={handleAddProduct}
+              disabled={loading}
+              className="mt-8 px-6 py-3 bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-white font-semibold rounded-lg transition-all duration-200"
+            >
+              {loading ? 'Adding...' : 'Add Test Product to Database'}
+            </button>
           </div>
         </div>
       </main>
