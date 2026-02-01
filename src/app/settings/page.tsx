@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from '@/lib/useTranslations';
+import { useTranslations } from '../../lib/useTranslations';
 
 export default function Settings() {
   const router = useRouter();
