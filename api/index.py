@@ -43,8 +43,14 @@ async def login(req: LoginRequest, response: Response):
         if profile_data.get("fullname") == "Không tìm thấy":
             raise HTTPException(status_code=401, detail="Invalid credentials - profile not found")
         
-        # Save profile to database
-        save_user_profile(req.username)
+        # Save profile to database and get the result
+        print(f"Attempting to save profile for username: {req.username}")
+        db_profile = save_user_profile(req.username)
+        
+        if not db_profile:
+            print(f"WARNING: Failed to save profile for {req.username}")
+        else:
+            print(f"Profile saved successfully: {db_profile}")
         
         # Create JWT tokens
         access_token = create_access_token(data={"sub": req.username})
@@ -72,6 +78,7 @@ async def login(req: LoginRequest, response: Response):
         return {
             "status": "success",
             "profile": profile_data,
+            "db_profile": db_profile,  # Include DB profile in response for debugging
             "access_token": access_token,
             "token_type": "bearer"
         }

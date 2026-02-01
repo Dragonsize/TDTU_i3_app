@@ -35,14 +35,18 @@ export default function Marketplace() {
         })
       });
 
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
+      
       if (data.success) {
-        alert('Product added to database successfully!');
+        alert('✅ Success!\n\nListing created successfully!\n\nData: ' + JSON.stringify(data.data, null, 2));
       } else {
-        alert('Error: ' + data.message);
+        alert('❌ Error!\n\nMessage: ' + data.message + '\n\nFull response: ' + JSON.stringify(data, null, 2));
       }
     } catch (error) {
-      alert('Failed to add product: ' + error);
+      console.error('Exception caught:', error);
+      alert('❌ Request Failed!\n\nError: ' + error + '\n\nCheck console for details');
     } finally {
       setLoading(false);
     }
