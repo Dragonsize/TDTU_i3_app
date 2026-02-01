@@ -6,14 +6,32 @@ import { useRouter } from 'next/navigation';
 export default function Home() {
   const router = useRouter();
   const [isDark, setIsDark] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [savedProfile, setSavedProfile] = useState<any>(null);
 
   useEffect(() => {
-    // Check if user has active session
-    const userProfile = localStorage.getItem('userProfile');
-    if (userProfile) {
-      router.push('/dashboard');
-    }
+    const checkSession = async () => {
+      try {
+        const response = await fetch('/api/verify-session', {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (response.ok) {
+          router.push('/dashboard');
+        }
+      } catch (error) {
+        console.error('Session check error:', error);
+      }
+    };
+    checkSession();
   }, [router]);
+
+  useEffect(() => {
+    const storedProfile = localStorage.getItem('userProfile');
+    if (storedProfile) {
+      setSavedProfile(JSON.parse(storedProfile));
+    }
+  }, []);
 
   useEffect(() => {
     // Load theme preference
@@ -27,6 +45,28 @@ export default function Home() {
     document.documentElement.classList.toggle('dark', isDark);
     localStorage.setItem('darkMode', isDark.toString());
   }, [isDark]);
+
+  const handleSignIn = () => {
+    setIsLoading(true);
+    router.push('/login');
+  };
+
+  const handleQuickSignIn = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/refresh-token', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        router.push('/dashboard');
+        return;
+      }
+    } catch (error) {
+      console.error('Quick sign-in error:', error);
+    }
+    router.push('/login');
+  };
 
   return (
     <div className="font-display bg-[#f7f6f8] dark:bg-[#050505] text-slate-900 dark:text-white transition-all duration-300 min-h-screen relative">
@@ -54,13 +94,26 @@ export default function Home() {
           </button>
 
           {/* Sign In Button */}
-          <Link
-            href="/login"
-            className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-xl transition-all hover:scale-105 shadow-lg shadow-primary/20 flex items-center gap-2 font-bold"
+          <button
+            onClick={handleSignIn}
+            disabled={isLoading}
+            className={`bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center gap-2 font-bold ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:scale-105'}`}
           >
-            <span className="material-symbols-outlined text-xl">login</span>
-            <span>Sign In</span>
-          </Link>
+            {isLoading ? <LoadingSpinner /> : <span className="material-symbols-outlined text-xl">login</span>}
+            <span>{isLoading ? 'Working...' : 'Sign In'}</span>
+          </button>
+
+          {/* Quick Sign In */}
+          {savedProfile && (
+            <button
+              onClick={handleQuickSignIn}
+              disabled={isLoading}
+              className={`bg-white/80 dark:bg-white/10 text-slate-900 dark:text-white px-5 py-2 rounded-xl transition-all border border-slate-200 dark:border-white/10 flex items-center gap-2 font-semibold ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:scale-105 hover:border-primary/40'}`}
+            >
+              <img src="/avt.jpg" alt="Saved account" className="w-5 h-5 rounded-full" />
+              <span>{savedProfile?.fullname ? `Use ${savedProfile.fullname.split(' ').pop()}` : 'Use saved account'}</span>
+            </button>
+          )}
         </div>
       </nav>
 
@@ -75,12 +128,13 @@ export default function Home() {
                 Your all-in-one student platform with AI-powered chatbot assistance, smart calendar management, and a vibrant marketplace for buying and selling.
               </p>
               <div className="flex flex-wrap gap-4">
-                <Link
-                  href="/login"
-                  className="bg-primary text-white px-8 py-4 rounded-xl text-base font-bold transition-all hover:shadow-[0_0_20px_rgba(127,19,236,0.4)]"
+                <button
+                  onClick={handleSignIn}
+                  disabled={isLoading}
+                  className={`bg-primary text-white px-8 py-4 rounded-xl text-base font-bold transition-all hover:shadow-[0_0_20px_rgba(127,19,236,0.4)] ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:scale-105'}`}
                 >
-                  Get Started
-                </Link>
+                  {isLoading ? 'Working...' : 'Get Started'}
+                </button>
               </div>
             </div>
 
@@ -184,5 +238,13 @@ function FeatureCard({ icon, title, description }: { icon: string; title: string
       <h3 className="text-slate-900 dark:text-white text-xl font-bold mb-3">{title}</h3>
       <p className="text-slate-600 dark:text-white/50 text-sm leading-relaxed">{description}</p>
     </div>
+  );
+}
+
+function LoadingSpinner() {
+  return (
+    <span className="inline-flex items-center justify-center">
+      <span className="h-4 w-4 border-2 border-white/70 border-t-transparent rounded-full animate-spin"></span>
+    </span>
   );
 }
