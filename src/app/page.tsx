@@ -67,22 +67,12 @@ export default function Home() {
               </button>
             </div>
 
-            <div
-              className={`rounded-full border border-white/10 overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all shrink-0 ${isExpanded ? 'size-12' : 'size-10'}`}
-            >
-              <img
-                alt="User avatar"
-                className="w-full h-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDio-LSFjDCNkAEARepkcmo_gjp0z0vU2f7tpQZ-118cJSXgEgmKUMkp7tGw1G_GC9mUgDQ80aRx_sJpxIZdx5y9eGhwSx2e14YQKbd08BBZubIEmsdwC9u0VWCHCzabu_S0ByD6ywNQjXOw7L4PGvnJjo8TfngOXHT-Rjlub0rbrnb6Gl30dQ7IrH4yJriag2_tc99q2fdZ9eQKkdRzKRlZLdfJ-KCNOkpH8Awty6poHQicdRMWAABstrCWBVXD5epFSZ7iN0KmBM"
-              />
-            </div>
-
             <Link
               href="/login"
-              className={`bg-primary hover:bg-primary/90 text-white rounded-xl transition-all hover:scale-105 shadow-lg shadow-primary/20 flex items-center justify-center ${isExpanded ? 'w-full py-3 gap-2' : 'p-2'}`}
+              className={`bg-primary hover:bg-primary/90 text-white rounded-xl transition-all hover:scale-105 shadow-lg shadow-primary/20 flex items-center justify-center ${isExpanded ? 'w-full py-3' : 'px-6 py-3'}`}
             >
-              <span className="material-symbols-outlined shrink-0">login</span>
               {isExpanded && <span className="font-bold whitespace-nowrap overflow-hidden animate-fade-in">Sign In</span>}
+              {!isExpanded && <span className="font-bold">Sign In</span>}
             </Link>
           </div>
         </div>
