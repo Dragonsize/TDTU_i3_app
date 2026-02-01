@@ -118,7 +118,7 @@ export default function Dashboard() {
       <main className="px-4 lg:px-40 py-12 relative">
         <div className="mb-12">
           <h1 className="text-4xl lg:text-6xl font-black mb-4 tracking-tight text-slate-900 dark:text-white">
-            Welcome back, <span className="text-gradient">{profile.fullname?.split(' ')[0] || 'Student'}</span>
+            Welcome back, <span className="text-gradient">{profile.fullname?.split(' ')[-1] || 'Student'}</span>
           </h1>
           <p className="text-slate-600 dark:text-white/60 text-lg">
             Your personalized hub for AI assistance, calendar management, and marketplace activity.
@@ -143,8 +143,6 @@ export default function Dashboard() {
                 <ProfileField label="Email" value={profile.email} />
                 <ProfileField label="Location" value={`${profile.city}, ${profile.country}`} />
                 <ProfileField label="Timezone" value={profile.timezone} />
-                <ProfileField label="First Access" value={profile.firstaccess} />
-                <ProfileField label="Last Access" value={profile.lastaccess} />
               </div>
             </div>
           </div>

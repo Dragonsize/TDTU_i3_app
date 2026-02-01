@@ -111,8 +111,6 @@ export default function Login() {
                 <ProfileField label="Country" value={profile.country} />
                 <ProfileField label="City" value={profile.city} />
                 <ProfileField label="Timezone" value={profile.timezone} />
-                <ProfileField label="First Access" value={profile.first_access} />
-                <ProfileField label="Last Access" value={profile.last_access} />
               </div>
               <button
                 onClick={() => {

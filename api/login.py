@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 
 LOGIN_URL = "https://cait.tdtu.edu.vn/elearning/login/index.php"
 PROFILE_URL = "https://cait.tdtu.edu.vn/elearning/user/profile.php"
+EDIT_PROFILE_URL = "https://cait.tdtu.edu.vn/elearning/user/edit.php"
 
 def scrape_profile(username: str, password: str):
     """
@@ -28,7 +29,7 @@ def scrape_profile(username: str, password: str):
         "logintoken": token
     })
 
-    # Scrape profile
+    # Scrape basic profile
     r_profile = session.get(PROFILE_URL)
     soup = BeautifulSoup(r_profile.text, "html.parser")
 
@@ -45,12 +46,33 @@ def scrape_profile(username: str, password: str):
             return dt.find_next_sibling("dd").get_text(strip=True)
         return None
 
+    # Scrape edit profile page for additional fields
+    r_edit = session.get(EDIT_PROFILE_URL)
+    edit_soup = BeautifulSoup(r_edit.text, "html.parser")
+    
+    # Extract lastname (Họ)
+    lastname_input = edit_soup.find("input", {"id": "id_lastname"})
+    lastname = lastname_input.get("value", "") if lastname_input else ""
+    
+    # Extract firstname (Tên đệm và tên)
+    firstname_input = edit_soup.find("input", {"id": "id_firstname"})
+    firstname = firstname_input.get("value", "") if firstname_input else ""
+    
+    # Extract email
+    email_input = edit_soup.find("input", {"id": "id_email"})
+    email = email_input.get("value", "") if email_input else ""
+    
+    # Combine lastname and firstname for fullname if not found earlier
+    if not fullname or fullname == "Không tìm thấy":
+        if lastname and firstname:
+            fullname = f"{lastname} {firstname}"
+
     return {
         "fullname": fullname or "Không tìm thấy",
-        "email": get_dd("Email address") or get_dd("Thư điện tử"),
+        "firstname": firstname,
+        "lastname": lastname,
+        "email": email or get_dd("Email address") or get_dd("Thư điện tử"),
         "country": get_dd("Country") or get_dd("Quốc gia"),
         "city": get_dd("City/town") or get_dd("Tỉnh/Thành phố"),
-        "timezone": get_dd("Timezone") or get_dd("Múi giờ"),
-        "first_access": get_dd("First access to site") or get_dd("Lần đầu tiếp cận trang web"),
-        "last_access": get_dd("Last access to site") or get_dd("Lần truy cập gần nhất vào trang"),
+        "timezone": get_dd("Timezone") or get_dd("Múi giờ")
     }
