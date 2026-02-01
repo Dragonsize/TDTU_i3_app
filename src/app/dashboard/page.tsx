@@ -49,15 +49,35 @@ export default function Dashboard() {
   }, [isDark]);
 
   useEffect(() => {
-    // Get profile from localStorage
+    // Get profile from localStorage and then fetch from database
     const storedProfile = localStorage.getItem('userProfile');
     if (storedProfile) {
-      setProfile(JSON.parse(storedProfile));
+      const parsed = JSON.parse(storedProfile);
+      setProfile(parsed);
+      
+      // Fetch updated profile from database
+      fetchProfileFromDatabase(parsed.username);
     } else {
       // Redirect to login if no profile
       router.push('/login');
     }
   }, [router]);
+
+  const fetchProfileFromDatabase = async (username: string) => {
+    try {
+      const response = await fetch(`/api/profile?username=${encodeURIComponent(username)}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.profile) {
+          setProfile(data.profile);
+          localStorage.setItem('userProfile', JSON.stringify(data.profile));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching profile from database:', error);
+      // Use localStorage profile as fallback
+    }
+  };
 
   useEffect(() => {
     // Fetch user's projects
@@ -157,7 +177,6 @@ export default function Dashboard() {
         icon: 'person_add',
       }
     ];
-
     // Show push notifications with staggered timing
     demoPushNotifications.forEach((notif, index) => {
       setTimeout(() => {

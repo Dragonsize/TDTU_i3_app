@@ -1,7 +1,7 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import logging
-from database import save_user_profile
+from database import save_user_profile, supabase
 
 logger = logging.getLogger(__name__)
 
@@ -9,9 +9,35 @@ class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
+
+    def do_GET(self):
+        """Get user profile from database"""
+        try:
+            # Get username from query params
+            query_string = self.path.split('?')[1] if '?' in self.path else ''
+            params = {k: v for k, v in (p.split('=') for p in query_string.split('&') if '=' in p)}
+            
+            username = params.get('username')
+            
+            if not username:
+                self.send_json_response({'error': 'Username is required'}, status=400)
+                return
+
+            # Fetch profile from database
+            response = supabase.table("profiles").select("*").eq("username", username).execute()
+            
+            if response.data and len(response.data) > 0:
+                profile = response.data[0]
+                self.send_json_response({'profile': profile})
+            else:
+                self.send_json_response({'error': 'Profile not found'}, status=404)
+                
+        except Exception as e:
+            logger.error("Error fetching profile: %s", e)
+            self.send_json_response({'error': 'Internal server error'}, status=500)
 
     def do_POST(self):
         try:
