@@ -3,31 +3,40 @@
 @tailwind utilities;
 
 :root {
-  --primary: #7851a9;
+  --primary: #7f13ec;
+  --secondary: #3b82f6;
+}
+
+body {
+  @apply bg-[#f7f6f8] text-[#0f172a] transition-colors duration-300 font-sans;
+}
+
+.dark body {
+  @apply bg-[#050505] text-white;
 }
 
 .grid-bg {
-  background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0);
+  background-image: radial-gradient(circle at 2px 2px, rgba(127, 19, 236, 0.1) 1px, transparent 0);
   background-size: 40px 40px;
 }
 
 .text-gradient {
-  background: linear-gradient(to right, #7851a9, #bc93f7);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  @apply bg-gradient-to-r from-[#7f13ec] to-[#3b82f6] bg-clip-text text-transparent;
 }
 
-/* Floating Widget Styles */
+.glass-effect {
+  @apply backdrop-blur-xl bg-white/10 border border-white/10 shadow-2xl;
+}
+
+/* Floating Widget Specifics */
 #gcal-widget-container {
-    position: fixed; bottom: 20px; right: 80px; z-index: 100;
-    width: 350px; background: #1e1e2e; color: #e0e0e0;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-    border-radius: 12px; border: 1px solid #333;
-    display: flex; flex-direction: column; overflow: hidden;
+    @apply fixed z-[100] bg-[#1e1e2e] text-[#e0e0e0] border border-white/10 shadow-2xl overflow-hidden flex flex-col transition-all duration-300;
+    bottom: 24px;
+    right: 96px;
+    border-radius: 12px;
+    width: 350px;
 }
 
-.gcal-header { padding: 12px; background: #252535; display: flex; justify-content: space-between; border-bottom: 1px solid #333; }
-.gcal-body { padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-.gcal-input { width: 100%; background: #2d2d3a; border: 1px solid #444; border-radius: 6px; color: #fff; padding: 8px; font-size: 13px; }
-.gcal-submit { width: 100%; padding: 10px; background: #7851a9; color: white; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-.gcal-submit:hover { background: #8e63c9; }
+.gcal-input {
+    @apply w-full bg-[#2d2d3a] border border-white/10 rounded-md p-2 text-white text-sm outline-none focus:border-[#7f13ec];
+}
