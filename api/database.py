@@ -1,4 +1,5 @@
 import os
+import uuid
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
@@ -18,28 +19,27 @@ def get_team_schedules():
     return response.data
 
 def save_user_profile(username: str, user_id: str = None):
-    """Save or update user profile in database"""
+    """Save or update user profile in database - creates UUID if new user"""
     try:
         # Check if profile exists
         existing = supabase.table("profiles").select("*").eq("username", username).execute()
         
         if existing.data:
-            # Update existing profile
-            response = supabase.table("profiles").update({
-                "username": username
-            }).eq("username", username).execute()
+            # Profile exists, return existing data
+            print(f"Profile already exists for {username}")
+            return existing.data[0]
         else:
-            # Insert new profile (requires auth user id)
-            if user_id:
-                response = supabase.table("profiles").insert({
-                    "id": user_id,
-                    "username": username
-                }).execute()
-            else:
-                print(f"Cannot create profile without user_id")
-                return None
+            # Create new profile with generated UUID
+            new_id = user_id if user_id else str(uuid.uuid4())
+            
+            response = supabase.table("profiles").insert({
+                "id": new_id,
+                "username": username
+            }).execute()
+            
+            print(f"Created new profile for {username} with ID {new_id}")
+            return response.data[0] if response.data else None
         
-        return response.data
     except Exception as e:
         print(f"Error saving user profile: {e}")
         return None
