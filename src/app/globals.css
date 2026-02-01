@@ -8,7 +8,7 @@
 }
 
 body {
-  @apply bg-[#f7f6f8] text-[#0f172a] transition-colors duration-300 font-sans;
+  @apply bg-[#f8f7fb] text-[#0f172a] transition-colors duration-300 font-sans;
 }
 
 .dark body {
@@ -26,17 +26,4 @@ body {
 
 .glass-effect {
   @apply backdrop-blur-xl bg-white/10 border border-white/10 shadow-2xl;
-}
-
-/* Floating Widget Specifics */
-#gcal-widget-container {
-    @apply fixed z-[100] bg-[#1e1e2e] text-[#e0e0e0] border border-white/10 shadow-2xl overflow-hidden flex flex-col transition-all duration-300;
-    bottom: 24px;
-    right: 96px;
-    border-radius: 12px;
-    width: 350px;
-}
-
-.gcal-input {
-    @apply w-full bg-[#2d2d3a] border border-white/10 rounded-md p-2 text-white text-sm outline-none focus:border-[#7f13ec];
 }
