@@ -1,12 +1,19 @@
-from fastapi import FastAPI, HTTPException, Response, Cookie, Depends
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Response, Cookie
+from pydantic import BaseModel, validator
 from typing import Optional
+import os
+import logging
 from .calendar_logic import check_meeting_conflicts
 from .login import scrape_profile
 from .database import save_user_profile, save_product, get_all_marketplace_listings, get_user_listings
 from .auth import create_access_token, create_refresh_token, verify_token
+
 app = FastAPI()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Environment detection
+IS_PRODUCTION = os.getenv("VERCEL_ENV") == "production" or os.getenv("ENVIRONMENT") == "production"
 
 class MeetingRequest(BaseModel):
     start_time: str
@@ -22,6 +29,37 @@ class ProductRequest(BaseModel):
     description: str
     price: float
     category: str
+    
+    @validator('title')
+    def title_valid(cls, v):
+        if not v or len(v) < 3:
+            raise ValueError('Title must be at least 3 characters')
+        if len(v) > 200:
+            raise ValueError('Title must be less than 200 characters')
+        return v.strip()
+    
+    @validator('description')
+    def description_valid(cls, v):
+        if not v or len(v) < 10:
+            raise ValueError('Description must be at least 10 characters')
+        if len(v) > 2000:
+            raise ValueError('Description must be less than 2000 characters')
+        return v.strip()
+    
+    @validator('price')
+    def price_valid(cls, v):
+        if v <= 0:
+            raise ValueError('Price must be greater than 0')
+        if v > 1000000:
+            raise ValueError('Price must be less than 1,000,000')
+        return round(v, 2)
+    
+    @validator('category')
+    def category_valid(cls, v):
+        allowed = ['textbooks', 'notes', 'electronics', 'supplies', 'other']
+        if v not in allowed:
+            raise ValueError(f'Category must be one of: {", ".join(allowed)}')
+        return v
 
 @app.get("/api/health")
 def hello():
@@ -43,14 +81,10 @@ async def login(req: LoginRequest, response: Response):
         if profile_data.get("fullname") == "Không tìm thấy":
             raise HTTPException(status_code=401, detail="Invalid credentials - profile not found")
         
-        # Save profile to database and get the result
-        print(f"Attempting to save profile for username: {req.username}")
+        # Save profile to database
         db_profile = save_user_profile(req.username)
-        
         if not db_profile:
-            print(f"WARNING: Failed to save profile for {req.username}")
-        else:
-            print(f"Profile saved successfully: {db_profile}")
+            raise HTTPException(status_code=500, detail="Failed to create profile")
         
         # Create JWT tokens
         access_token = create_access_token(data={"sub": req.username})
@@ -61,7 +95,7 @@ async def login(req: LoginRequest, response: Response):
             key="access_token",
             value=access_token,
             httponly=True,
-            secure=True,  # Set to True in production with HTTPS
+            secure=IS_PRODUCTION,
             samesite="lax",
             max_age=60 * 60 * 24  # 24 hours
         )
@@ -70,7 +104,7 @@ async def login(req: LoginRequest, response: Response):
             key="refresh_token",
             value=refresh_token,
             httponly=True,
-            secure=True,
+            secure=IS_PRODUCTION,
             samesite="lax",
             max_age=60 * 60 * 24 * 7  # 7 days
         )
@@ -78,13 +112,13 @@ async def login(req: LoginRequest, response: Response):
         return {
             "status": "success",
             "profile": profile_data,
-            "db_profile": db_profile,  # Include DB profile in response for debugging
             "access_token": access_token,
             "token_type": "bearer"
         }
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Login failed: {e}")
         raise HTTPException(status_code=401, detail=f"Login failed: {str(e)}")
 
 @app.post("/api/logout")
@@ -133,7 +167,7 @@ async def refresh_token_endpoint(
         key="access_token",
         value=new_access_token,
         httponly=True,
-        secure=True,
+        secure=IS_PRODUCTION,
         samesite="lax",
         max_age=60 * 60 * 24
     )
@@ -150,11 +184,11 @@ async def add_product(req: ProductRequest, access_token: Optional[str] = Cookie(
     try:
         # Verify user is authenticated
         if not access_token:
-            return {"success": False, "message": "Not authenticated"}
+            raise HTTPException(status_code=401, detail="Not authenticated")
         
         payload = verify_token(access_token)
         if not payload:
-            return {"success": False, "message": "Invalid session"}
+            raise HTTPException(status_code=401, detail="Invalid session")
         
         username = payload.get("sub")
         
@@ -168,21 +202,21 @@ async def add_product(req: ProductRequest, access_token: Optional[str] = Cookie(
         )
         
         if result:
+            logger.info(f"Listing created by {username}")
             return {
                 "success": True,
                 "message": "Listing created successfully",
                 "data": result
             }
         else:
-            return {
-                "success": False,
-                "message": "Failed to create listing"
-            }
+            raise HTTPException(status_code=500, detail="Failed to create listing")
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        return {
-            "success": False,
-            "message": f"Error creating listing: {str(e)}"
-        }
+        logger.error(f"Error creating listing: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/marketplace")
 async def get_marketplace():
@@ -194,9 +228,10 @@ async def get_marketplace():
             "listings": listings
         }
     except Exception as e:
+        logger.error(f"Error fetching listings: {e}")
         return {
             "success": False,
-            "message": f"Error fetching listings: {str(e)}"
+            "message": "Error fetching listings"
         }
 
 @app.get("/api/my-listings")
@@ -220,7 +255,8 @@ async def get_my_listings(access_token: Optional[str] = Cookie(None)):
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Error fetching user listings: {e}")
         return {
             "success": False,
-            "message": f"Error fetching your listings: {str(e)}"
+            "message": "Error fetching your listings"
         }

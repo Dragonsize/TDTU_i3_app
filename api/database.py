@@ -1,9 +1,14 @@
 import os
 import uuid
+import logging
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 url: str = os.getenv("SUPABASE_URL")
 key: str = os.getenv("SUPABASE_ANON_KEY")
@@ -21,43 +26,32 @@ def get_team_schedules():
 def save_user_profile(username: str, user_id: str = None):
     """Save or update user profile in database - creates UUID if new user"""
     try:
-        print(f"[DEBUG] save_user_profile called with username: {username}")
-        
         # Check if profile exists
-        print(f"[DEBUG] Checking if profile exists...")
         existing = supabase.table("profiles").select("*").eq("username", username).execute()
-        print(f"[DEBUG] Existing profile query result: {existing.data}")
         
         if existing.data:
-            # Profile exists, return existing data
-            print(f"[SUCCESS] Profile already exists for {username}: {existing.data[0]}")
+            logger.info(f"Profile exists for {username}")
             return existing.data[0]
         else:
             # Create new profile with generated UUID
             new_id = user_id if user_id else str(uuid.uuid4())
-            print(f"[DEBUG] Creating new profile with ID: {new_id}")
             
             insert_data = {
                 "id": new_id,
                 "username": username
             }
-            print(f"[DEBUG] Insert data: {insert_data}")
             
             response = supabase.table("profiles").insert(insert_data).execute()
-            print(f"[DEBUG] Insert response: {response}")
-            print(f"[DEBUG] Insert response data: {response.data}")
             
             if response.data:
-                print(f"[SUCCESS] Created new profile for {username} with ID {new_id}")
+                logger.info(f"Created profile for {username}")
                 return response.data[0]
             else:
-                print(f"[ERROR] Insert returned no data")
+                logger.error(f"Failed to create profile for {username}")
                 return None
         
     except Exception as e:
-        print(f"[EXCEPTION] Error saving user profile: {type(e).__name__}: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Error saving user profile: {type(e).__name__}: {e}")
         return None
 
 def save_product(title: str, description: str, price: float, category: str, seller_username: str):
@@ -67,7 +61,7 @@ def save_product(title: str, description: str, price: float, category: str, sell
         profile = supabase.table("profiles").select("id").eq("username", seller_username).execute()
         
         if not profile.data:
-            print(f"Profile not found for username: {seller_username}")
+            logger.warning(f"Profile not found for username: {seller_username}")
             return None
         
         seller_id = profile.data[0]["id"]
@@ -83,10 +77,10 @@ def save_product(title: str, description: str, price: float, category: str, sell
         }
         
         response = supabase.table("marketplace").insert(listing_data).execute()
-        print(f"Listing created: {response.data}")
+        logger.info(f"Listing created for user {seller_username}")
         return response.data
     except Exception as e:
-        print(f"Error saving listing: {e}")
+        logger.error(f"Error saving listing: {e}")
         return None
 
 def get_all_marketplace_listings():
@@ -94,10 +88,10 @@ def get_all_marketplace_listings():
     try:
         response = supabase.table("marketplace").select(
             "*, profiles!seller_id(username, major)"
-        ).eq("status", "active").execute()
+        ).eq("status", "active").limit(20).execute()
         return response.data
     except Exception as e:
-        print(f"Error fetching marketplace listings: {e}")
+        logger.error(f"Error fetching marketplace listings: {e}")
         return []
 
 def get_user_listings(username: str):
@@ -115,7 +109,7 @@ def get_user_listings(username: str):
         response = supabase.table("marketplace").select("*").eq("seller_id", user_id).execute()
         return response.data
     except Exception as e:
-        print(f"Error fetching user listings: {e}")
+        logger.error(f"Error fetching user listings: {e}")
         return []
 
-print(" Database connection initialized.")
+logger.info("Database connection initialized")
