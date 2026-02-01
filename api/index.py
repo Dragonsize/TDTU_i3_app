@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 from .calendar_logic import check_meeting_conflicts
 from .login import scrape_profile
-from .database import save_user_profile, save_product
+from .database import save_user_profile, save_product, get_all_marketplace_listings, get_user_listings
 from .auth import create_access_token, create_refresh_token, verify_token
 app = FastAPI()
 
@@ -138,29 +138,82 @@ async def refresh_token_endpoint(
     }
 
 @app.post("/api/add-product")
-async def add_product(req: ProductRequest):
-    """Add a new product to the marketplace"""
+async def add_product(req: ProductRequest, access_token: Optional[str] = Cookie(None)):
+    """Add a new product to the marketplace (linked to user profile)"""
     try:
+        # Verify user is authenticated
+        if not access_token:
+            return {"success": False, "message": "Not authenticated"}
+        
+        payload = verify_token(access_token)
+        if not payload:
+            return {"success": False, "message": "Invalid session"}
+        
+        username = payload.get("sub")
+        
+        # Save product linked to user's profile
         result = save_product(
             title=req.title,
             description=req.description,
             price=req.price,
-            category=req.category
+            category=req.category,
+            seller_username=username
         )
         
         if result:
             return {
                 "success": True,
-                "message": "Product added successfully",
+                "message": "Listing created successfully",
                 "data": result
             }
         else:
             return {
                 "success": False,
-                "message": "Failed to add product to database"
+                "message": "Failed to create listing"
             }
     except Exception as e:
         return {
             "success": False,
-            "message": f"Error adding product: {str(e)}"
+            "message": f"Error creating listing: {str(e)}"
+        }
+
+@app.get("/api/marketplace")
+async def get_marketplace():
+    """Get all marketplace listings with seller info"""
+    try:
+        listings = get_all_marketplace_listings()
+        return {
+            "success": True,
+            "listings": listings
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error fetching listings: {str(e)}"
+        }
+
+@app.get("/api/my-listings")
+async def get_my_listings(access_token: Optional[str] = Cookie(None)):
+    """Get current user's listings"""
+    try:
+        if not access_token:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        payload = verify_token(access_token)
+        if not payload:
+            raise HTTPException(status_code=401, detail="Invalid session")
+        
+        username = payload.get("sub")
+        listings = get_user_listings(username)
+        
+        return {
+            "success": True,
+            "listings": listings
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error fetching your listings: {str(e)}"
         }
