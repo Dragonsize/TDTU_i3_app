@@ -1,84 +1,70 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const router = useRouter();
   const [isDark, setIsDark] = useState(true);
 
   useEffect(() => {
+    // Check if user has active session
+    const userProfile = localStorage.getItem('userProfile');
+    if (userProfile) {
+      router.push('/dashboard');
+    }
+  }, [router]);
+
+  useEffect(() => {
+    // Load theme preference
+    const savedTheme = localStorage.getItem('darkMode');
+    if (savedTheme !== null) {
+      setIsDark(savedTheme === 'true');
+    }
+  }, []);
+
+  useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
+    localStorage.setItem('darkMode', isDark.toString());
   }, [isDark]);
 
   return (
-    <div
-      className={`font-display bg-[#f7f6f8] dark:bg-[#050505] text-slate-900 dark:text-white transition-all duration-300 min-h-screen relative ${isExpanded ? 'md:pr-64' : 'md:pr-20'} pr-0`}
-    >
+    <div className="font-display bg-[#f7f6f8] dark:bg-[#050505] text-slate-900 dark:text-white transition-all duration-300 min-h-screen relative">
       <div className="fixed inset-0 grid-bg pointer-events-none z-0"></div>
 
-      <nav
-        className={`fixed right-0 top-0 h-screen py-8 z-50 flex flex-col items-center justify-between border-l border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#1a1025]/80 backdrop-blur-md shadow-2xl dark:shadow-none transition-all duration-300 ${isExpanded ? 'w-64' : 'w-0 md:w-20'} overflow-visible`}
-      >
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className={`absolute top-1/2 -translate-y-1/2 -left-5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 p-1 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm hover:scale-110 transition-transform z-50 ${isExpanded ? '' : 'md:flex'}`}
-        >
-          <span className="material-symbols-outlined text-sm">{isExpanded ? 'chevron_right' : 'chevron_left'}</span>
-        </button>
-
-        <div
-          className={`flex flex-col items-center justify-between w-full h-full overflow-hidden ${isExpanded ? 'opacity-100 w-64' : 'opacity-0 md:opacity-100 md:w-20'} transition-opacity duration-200`}
-        >
-          <div className="flex flex-col items-center gap-2 w-full px-4">
-            <div className="flex items-center gap-3 w-full justify-center">
-              <div className="items-center justify-center">
-                <img src="/avt.jpg" alt="bolt icon" className="w-9 h-9 rounded-full object-cover" />
-              </div>
-              {isExpanded && (
-                <h2 className="text-slate-900 dark:text-white text-xl font-bold tracking-tight whitespace-nowrap overflow-hidden animate-fade-in">
-                  ITZone
-                </h2>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2 w-full px-4">
-            <NavItem icon="smart_toy" label="AI Chatbot" isExpanded={isExpanded} />
-            <NavItem icon="calendar_month" label="Calendar" isExpanded={isExpanded} />
-            <NavItem icon="storefront" label="Marketplace" isExpanded={isExpanded} />
-            <NavItem icon="inventory_2" label="My Listings" isExpanded={isExpanded} />
-          </div>
-
-          <div className="flex flex-col items-center gap-6 w-full px-4">
-            <div className={`flex items-center ${isExpanded ? 'w-full justify-between' : 'justify-center'} px-2 transition-all`}>
-              {isExpanded && <span className="text-slate-600 dark:text-slate-300 font-medium whitespace-nowrap">Dark Mode</span>}
-              <button
-                onClick={() => setIsDark(!isDark)}
-                className={`relative w-12 h-6 rounded-full transition-colors duration-300 focus:outline-none ${isDark ? 'bg-primary' : 'bg-slate-300'}`}
-                title="Toggle Theme"
-              >
-                <div
-                  className={`absolute top-1 left-1 bg-white rounded-full w-4 h-4 shadow-md transform transition-transform duration-300 flex items-center justify-center ${isDark ? 'translate-x-6' : 'translate-x-0'}`}
-                >
-                  <span className="material-symbols-outlined text-[10px] text-slate-800">
-                    {isDark ? 'dark_mode' : 'light_mode'}
-                  </span>
-                </div>
-              </button>
-            </div>
-
-            <Link
-              href="/login"
-              className={`bg-primary hover:bg-primary/90 text-white rounded-xl transition-all hover:scale-105 shadow-lg shadow-primary/20 flex items-center justify-center gap-2 ${isExpanded ? 'w-full py-3 px-4' : 'w-12 h-12'}`}
+      {/* Top Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-4 px-8 bg-white/80 dark:bg-[#1a1025]/80 backdrop-blur-md border-b border-slate-200 dark:border-white/10">
+        <div className="flex items-center gap-6">
+          {/* Logo */}
+          <img src="/avt.jpg" alt="ITZone" className="w-12 h-12 rounded-full object-cover border-2 border-primary" />
+          
+          {/* Theme Toggle */}
+          <button
+            onClick={() => setIsDark(!isDark)}
+            className={`relative w-12 h-6 rounded-full transition-colors duration-300 focus:outline-none ${isDark ? 'bg-primary' : 'bg-slate-300'}`}
+            title="Toggle Theme"
+          >
+            <div
+              className={`absolute top-1 left-1 bg-white rounded-full w-4 h-4 shadow-md transform transition-transform duration-300 flex items-center justify-center ${isDark ? 'translate-x-6' : 'translate-x-0'}`}
             >
-              <span className="material-symbols-outlined text-xl">login</span>
-              {isExpanded && <span className="font-bold whitespace-nowrap overflow-hidden animate-fade-in">Sign In</span>}
-            </Link>
-          </div>
+              <span className="material-symbols-outlined text-[10px] text-slate-800">
+                {isDark ? 'dark_mode' : 'light_mode'}
+              </span>
+            </div>
+          </button>
+
+          {/* Sign In Button */}
+          <Link
+            href="/login"
+            className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-xl transition-all hover:scale-105 shadow-lg shadow-primary/20 flex items-center gap-2 font-bold"
+          >
+            <span className="material-symbols-outlined text-xl">login</span>
+            <span>Sign In</span>
+          </Link>
         </div>
       </nav>
 
-      <main>
+      <main className="pt-20">
         <section className="relative px-4 lg:px-40 py-20 lg:py-32 overflow-hidden">
           <div className="max-w-[1200px] mx-auto grid lg:grid-cols-2 gap-16 items-center">
             <div className="relative z-10">
@@ -186,26 +172,6 @@ export default function Home() {
         </div>
       </footer>
     </div>
-  );
-}
-
-function NavItem({ icon, label, isExpanded }: { icon: string; label: string; isExpanded: boolean }) {
-  return (
-    <a
-      href="#"
-      className={`group relative flex items-center rounded-xl hover:bg-slate-100 dark:hover:bg-white/10 transition-colors ${isExpanded ? 'w-full px-4 py-3 gap-3 justify-start' : 'justify-center w-10 h-10 mx-auto'}`}
-    >
-      <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 group-hover:text-primary dark:group-hover:text-white transition-colors shrink-0">
-        {icon}
-      </span>
-      {isExpanded ? (
-        <span className="text-slate-600 dark:text-slate-300 font-medium whitespace-nowrap overflow-hidden animate-fade-in">{label}</span>
-      ) : (
-        <span className="absolute right-full mr-4 px-2 py-1 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-          {label}
-        </span>
-      )}
-    </a>
   );
 }
 
