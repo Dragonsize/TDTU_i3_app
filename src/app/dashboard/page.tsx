@@ -10,17 +10,28 @@ export default function Dashboard() {
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
+    // Load theme preference
+    const savedTheme = localStorage.getItem('darkMode');
+    if (savedTheme !== null) {
+      setIsDark(savedTheme === 'true');
+    }
+  }, []);
+
+  useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
-    
-    // Get profile from sessionStorage
-    const storedProfile = sessionStorage.getItem('userProfile');
+    localStorage.setItem('darkMode', isDark.toString());
+  }, [isDark]);
+
+  useEffect(() => {
+    // Get profile from localStorage
+    const storedProfile = localStorage.getItem('userProfile');
     if (storedProfile) {
       setProfile(JSON.parse(storedProfile));
     } else {
       // Redirect to login if no profile
       router.push('/login');
     }
-  }, [isDark, router]);
+  }, [router]);
 
   const handleLogout = async () => {
     try {
@@ -32,8 +43,8 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Clear local session storage
-      sessionStorage.removeItem('userProfile');
+      // Clear local storage
+      localStorage.removeItem('userProfile');
       router.push('/');
     }
   };

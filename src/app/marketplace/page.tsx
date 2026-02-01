@@ -9,7 +9,15 @@ export default function Marketplace() {
   const [isDark, setIsDark] = useState(true);
 
   React.useEffect(() => {
+    const savedTheme = localStorage.getItem('darkMode');
+    if (savedTheme !== null) {
+      setIsDark(savedTheme === 'true');
+    }
+  }, []);
+
+  React.useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
+    localStorage.setItem('darkMode', isDark.toString());
   }, [isDark]);
 
   return (
