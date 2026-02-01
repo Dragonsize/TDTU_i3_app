@@ -3,6 +3,8 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from '../../lib/useTranslations';
+import { NotificationContainer, type NotificationProps } from '../../components/Notification';
+import { registerServiceWorker, requestNotificationPermission, sendLocalNotification } from '../../lib/pushNotifications';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -14,6 +16,24 @@ export default function Dashboard() {
   const [deadlines, setDeadlines] = useState<any[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newProject, setNewProject] = useState({ title: '', description: '' });
+  const [notifications, setNotifications] = useState<NotificationProps[]>([]);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | null>(null);
+  const [isPushEnabled, setIsPushEnabled] = useState(false);
+
+  useEffect(() => {
+    // Initialize service worker and check notification permission
+    const initPushNotifications = async () => {
+      await registerServiceWorker();
+      
+      if ('Notification' in window) {
+        setNotificationPermission(Notification.permission as NotificationPermission);
+        const hasPushSupport = 'serviceWorker' in navigator && 'PushManager' in window;
+        setIsPushEnabled(hasPushSupport && Notification.permission === 'granted');
+      }
+    };
+
+    initPushNotifications();
+  }, []);
 
   useEffect(() => {
     // Load theme preference
@@ -107,6 +127,97 @@ export default function Dashboard() {
     }
   };
 
+  const showDemoNotification = async () => {
+    // First check if we need to request permission
+    if (notificationPermission !== 'granted') {
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        setNotificationPermission('granted');
+        setIsPushEnabled(true);
+      } else {
+        console.log('Notification permission denied');
+        return;
+      }
+    }
+
+    const demoPushNotifications = [
+      {
+        title: 'Assignment Due Soon',
+        body: 'Advanced Database Systems project due in 2 hours',
+        icon: 'assignment',
+      },
+      {
+        title: 'Team Meeting Starts in 15 min',
+        body: 'Project kickoff meeting in conference room A',
+        icon: 'event',
+      },
+      {
+        title: 'New Collaboration Invite',
+        body: 'You\'ve been added to "Web Development" project',
+        icon: 'person_add',
+      }
+    ];
+
+    // Show push notifications with staggered timing
+    demoPushNotifications.forEach((notif, index) => {
+      setTimeout(() => {
+        sendLocalNotification({
+          title: notif.title,
+          body: notif.body,
+        });
+      }, index * 800);
+    });
+
+    // Also show browser notifications for demo
+    const demoNotifications: NotificationProps[] = [
+      {
+        id: 'demo-1',
+        type: 'deadline',
+        title: 'Assignment Due Soon',
+        description: 'Advanced Database Systems project due in 2 hours',
+        icon: 'assignment',
+        duration: 6000
+      },
+      {
+        id: 'demo-2',
+        type: 'event',
+        title: 'Team Meeting Starts in 15 min',
+        description: 'Project kickoff meeting in conference room A',
+        icon: 'event',
+        duration: 6000
+      },
+      {
+        id: 'demo-3',
+        type: 'reminder',
+        title: 'New Collaboration Invite',
+        description: 'You\'ve been added to "Web Development" project',
+        icon: 'person_add',
+        duration: 6000
+      }
+    ];
+
+    // Show in-browser notifications with staggered timing
+    demoNotifications.forEach((notif, index) => {
+      setTimeout(() => {
+        setNotifications(prev => [...prev, notif]);
+        
+        // Remove notification after duration
+        setTimeout(() => {
+          setNotifications(prev => prev.filter(n => n.id !== notif.id));
+        }, notif.duration || 5000);
+      }, index * 800);
+    });
+  };
+
+  useEffect(() => {
+    // Show demo notification on first mount
+    const timer = setTimeout(() => {
+      showDemoNotification();
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   if (!profile) {
     return (
       <div className="min-h-screen bg-[#f7f6f8] dark:bg-[#050505] flex items-center justify-center">
@@ -118,6 +229,8 @@ export default function Dashboard() {
   return (
       <div className={`font-display bg-[#f7f6f8] dark:bg-[#050505] text-slate-900 dark:text-white min-h-screen relative ${isExpanded ? 'md:pr-64' : 'md:pr-20'} pr-0 transition-[padding-right] duration-300`}>
         <div className="fixed inset-0 grid-bg pointer-events-none z-0"></div>
+
+        <NotificationContainer notifications={notifications} />
 
         <nav className={`fixed right-0 top-0 h-screen py-8 z-50 flex flex-col items-center justify-between border-l border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#1a1025]/80 backdrop-blur-md shadow-2xl dark:shadow-none transition-all duration-300 ${isExpanded ? 'w-64' : 'w-0 md:w-20'} overflow-visible`}>
           <button onClick={() => setIsExpanded(!isExpanded)} className={`absolute top-1/2 -translate-y-1/2 -left-5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 p-1 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm hover:scale-110 transition-transform z-50 ${isExpanded ? '' : 'md:flex'}`}>
@@ -159,10 +272,16 @@ export default function Dashboard() {
                 {t('personalizedHub')}
               </p>
             </div>
-            <button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all hover:scale-105 shadow-lg shadow-red-500/20 flex items-center justify-center gap-2 px-5 py-3 font-bold whitespace-nowrap">
-              <span className="material-symbols-outlined text-xl">logout</span>
-              <span>{t('logout')}</span>
-            </button>
+            <div className="flex gap-3">
+              <button onClick={showDemoNotification} className="bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-all hover:scale-105 shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 px-5 py-3 font-bold whitespace-nowrap">
+                <span className="material-symbols-outlined text-xl">notifications</span>
+                <span>Demo Notification</span>
+              </button>
+              <button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all hover:scale-105 shadow-lg shadow-red-500/20 flex items-center justify-center gap-2 px-5 py-3 font-bold whitespace-nowrap">
+                <span className="material-symbols-outlined text-xl">logout</span>
+                <span>{t('logout')}</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
