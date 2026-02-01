@@ -12,7 +12,7 @@ class MeetingRequest(BaseModel):
 def hello():
     return {"status": "Online", "message": "API is running"}
 
-@app.post("/api/calendar_logic")
+@app.post("/api/check-schedule")
 async def validate_schedule(req: MeetingRequest):
     conflicts = check_meeting_conflicts(req.start_time, req.end_time, req.team_schedules)
     if conflicts:
