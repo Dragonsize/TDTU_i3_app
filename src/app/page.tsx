@@ -43,10 +43,10 @@ export default function Home() {
           </div>
 
           <div className="flex flex-col gap-2 w-full px-4">
-            <NavItem icon="manage_search" label="Hackathons" isExpanded={isExpanded} />
-            <NavItem icon="group_add" label="Find Team" isExpanded={isExpanded} />
-            <NavItem icon="rocket_launch" label="Projects" isExpanded={isExpanded} />
-            <NavItem icon="school" label="Mentors" isExpanded={isExpanded} />
+            <NavItem icon="smart_toy" label="AI Chatbot" isExpanded={isExpanded} />
+            <NavItem icon="calendar_month" label="Calendar" isExpanded={isExpanded} />
+            <NavItem icon="storefront" label="Marketplace" isExpanded={isExpanded} />
+            <NavItem icon="inventory_2" label="My Listings" isExpanded={isExpanded} />
           </div>
 
           <div className="flex flex-col items-center gap-6 w-full px-4">
@@ -69,10 +69,10 @@ export default function Home() {
 
             <Link
               href="/login"
-              className={`bg-primary hover:bg-primary/90 text-white rounded-xl transition-all hover:scale-105 shadow-lg shadow-primary/20 flex items-center justify-center ${isExpanded ? 'w-full py-3' : 'px-6 py-3'}`}
+              className={`bg-primary hover:bg-primary/90 text-white rounded-xl transition-all hover:scale-105 shadow-lg shadow-primary/20 flex items-center justify-center gap-2 ${isExpanded ? 'w-full py-3 px-4' : 'w-12 h-12'}`}
             >
+              <span className="material-symbols-outlined text-xl">login</span>
               {isExpanded && <span className="font-bold whitespace-nowrap overflow-hidden animate-fade-in">Sign In</span>}
-              {!isExpanded && <span className="font-bold">Sign In</span>}
             </Link>
           </div>
         </div>
@@ -86,7 +86,7 @@ export default function Home() {
                 Team <span className="text-gradient">3</span>.
               </h1>
               <p className="text-lg text-slate-600 dark:text-white/60 leading-relaxed mb-8 max-w-xl">
-                Connecting students to global hackathons and AI-powered teammate matching. Join the elite network of student innovators and turn ideas into reality.
+                Your all-in-one student platform with AI-powered chatbot assistance, smart calendar management, and a vibrant marketplace for buying and selling.
               </p>
               <div className="flex flex-wrap gap-4">
                 <Link
@@ -129,17 +129,17 @@ export default function Home() {
 
         <section className="px-4 lg:px-40 py-24 relative">
           <div className="mb-16">
-            <h2 className="text-slate-900 dark:text-white text-3xl lg:text-5xl font-black mb-4 tracking-tight">Everything you need to win</h2>
+            <h2 className="text-slate-900 dark:text-white text-3xl lg:text-5xl font-black mb-4 tracking-tight">Everything you need</h2>
             <p className="text-slate-600 dark:text-white/50 text-lg max-w-2xl">
-              Our futuristic platform provides the tools for student developers to excel from concept to code.
+              A powerful platform designed for students with AI assistance, organization tools, and marketplace features.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <FeatureCard icon="explore" title="Discover Events" description="Browse and join global hackathons seamlessly with one-click registration." />
-            <FeatureCard icon="groups_3" title="Dream Teams" description="AI-powered teammate matching based on complementary skill sets." />
-            <FeatureCard icon="auto_awesome_motion" title="Winning Archives" description="Showcase your builds and explore winning projects from around the world." />
-            <FeatureCard icon="psychology" title="Mentor Matching" description="Get industry expert guidance for your build from senior engineers." />
+            <FeatureCard icon="smart_toy" title="AI Chatbot" description="Get instant answers and assistance with our intelligent AI-powered assistant." />
+            <FeatureCard icon="calendar_month" title="Smart Calendar" description="Organize your schedule, track deadlines, and never miss important dates." />
+            <FeatureCard icon="storefront" title="Marketplace" description="Buy and sell items with fellow students in a secure, easy-to-use marketplace." />
+            <FeatureCard icon="inventory_2" title="Your Listings" description="Manage your products, track sales, and connect with buyers effortlessly." />
           </div>
         </section>
       </main>

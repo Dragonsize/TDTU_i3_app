@@ -28,7 +28,11 @@ export default function Login() {
         throw new Error(data.detail || 'Login failed');
       }
 
-      setProfile(data.profile);
+      // Store profile in sessionStorage
+      sessionStorage.setItem('userProfile', JSON.stringify(data.profile));
+      
+      // Redirect to dashboard
+      window.location.href = '/dashboard';
     } catch (err: any) {
       setError(err.message || 'An error occurred');
     } finally {
