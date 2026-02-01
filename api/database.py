@@ -21,27 +21,43 @@ def get_team_schedules():
 def save_user_profile(username: str, user_id: str = None):
     """Save or update user profile in database - creates UUID if new user"""
     try:
+        print(f"[DEBUG] save_user_profile called with username: {username}")
+        
         # Check if profile exists
+        print(f"[DEBUG] Checking if profile exists...")
         existing = supabase.table("profiles").select("*").eq("username", username).execute()
+        print(f"[DEBUG] Existing profile query result: {existing.data}")
         
         if existing.data:
             # Profile exists, return existing data
-            print(f"Profile already exists for {username}")
+            print(f"[SUCCESS] Profile already exists for {username}: {existing.data[0]}")
             return existing.data[0]
         else:
             # Create new profile with generated UUID
             new_id = user_id if user_id else str(uuid.uuid4())
+            print(f"[DEBUG] Creating new profile with ID: {new_id}")
             
-            response = supabase.table("profiles").insert({
+            insert_data = {
                 "id": new_id,
                 "username": username
-            }).execute()
+            }
+            print(f"[DEBUG] Insert data: {insert_data}")
             
-            print(f"Created new profile for {username} with ID {new_id}")
-            return response.data[0] if response.data else None
+            response = supabase.table("profiles").insert(insert_data).execute()
+            print(f"[DEBUG] Insert response: {response}")
+            print(f"[DEBUG] Insert response data: {response.data}")
+            
+            if response.data:
+                print(f"[SUCCESS] Created new profile for {username} with ID {new_id}")
+                return response.data[0]
+            else:
+                print(f"[ERROR] Insert returned no data")
+                return None
         
     except Exception as e:
-        print(f"Error saving user profile: {e}")
+        print(f"[EXCEPTION] Error saving user profile: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 def save_product(title: str, description: str, price: float, category: str, seller_username: str):
