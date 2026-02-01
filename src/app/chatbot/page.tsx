@@ -103,8 +103,6 @@ export default function Chatbot() {
             <NavItem icon="dashboard" label="Dashboard" isExpanded={isExpanded} href="/dashboard" />
             <NavItem icon="smart_toy" label="AI Chatbot" isExpanded={isExpanded} href="/chatbot" active />
             <NavItem icon="calendar_month" label="Calendar" isExpanded={isExpanded} href="/calendar" />
-            <NavItem icon="storefront" label="Marketplace" isExpanded={isExpanded} href="/marketplace" />
-            <NavItem icon="inventory_2" label="My Listings" isExpanded={isExpanded} href="/listings" />
             <NavItem icon="account_circle" label="Settings" isExpanded={isExpanded} href="/settings" />
           </div>
 

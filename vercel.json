@@ -1,7 +1,6 @@
 {
   "rewrites": [
     { "source": "/api/auth", "destination": "/api/auth.py" },
-    { "source": "/api/login", "destination": "/api/login.py" },
     { "source": "/api/profile", "destination": "/api/profile.py" },
     { "source": "/api/projects", "destination": "/api/projects.py" },
     { "source": "/api/schedule", "destination": "/api/schedule.py" },

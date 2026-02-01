@@ -125,7 +125,7 @@ export default function Home() {
                 Team <span className="text-gradient">3</span>.
               </h1>
               <p className="text-lg text-slate-600 dark:text-white/60 leading-relaxed mb-8 max-w-xl">
-                Your all-in-one student platform with AI-powered chatbot assistance, smart calendar management, and a vibrant marketplace for buying and selling.
+                Your all-in-one project scheduling platform with AI assistance, smart calendar management, document sharing, and workflow tracking.
               </p>
               <div className="flex flex-wrap gap-4">
                 <button
@@ -171,15 +171,15 @@ export default function Home() {
           <div className="mb-16">
             <h2 className="text-slate-900 dark:text-white text-3xl lg:text-5xl font-black mb-4 tracking-tight">Everything you need</h2>
             <p className="text-slate-600 dark:text-white/50 text-lg max-w-2xl">
-              A powerful platform designed for students with AI assistance, organization tools, and marketplace features.
+              A powerful platform designed for teams with AI assistance, organization tools, and project collaboration.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <FeatureCard icon="smart_toy" title="AI Chatbot" description="Get instant answers and assistance with our intelligent AI-powered assistant." />
-            <FeatureCard icon="calendar_month" title="Smart Calendar" description="Organize your schedule, track deadlines, and never miss important dates." />
-            <FeatureCard icon="storefront" title="Marketplace" description="Buy and sell items with fellow students in a secure, easy-to-use marketplace." />
-            <FeatureCard icon="inventory_2" title="Your Listings" description="Manage your products, track sales, and connect with buyers effortlessly." />
+            <FeatureCard icon="calendar_month" title="Smart Calendar" description="Organize schedules, track deadlines, and avoid conflicts." />
+            <FeatureCard icon="task" title="Workflows" description="Break projects into workflows and assign roles with deadlines." />
+            <FeatureCard icon="folder" title="Documents" description="Store and share project documents with your team." />
           </div>
         </section>
       </main>

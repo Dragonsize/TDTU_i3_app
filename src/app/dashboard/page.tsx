@@ -142,8 +142,6 @@ export default function Dashboard() {
               <NavItem icon="dashboard" label={t('dashboard')} isExpanded={isExpanded} href="/dashboard" active />
               <NavItem icon="smart_toy" label={t('aiChatbot')} isExpanded={isExpanded} href="/chatbot" />
               <NavItem icon="calendar_month" label={t('calendar')} isExpanded={isExpanded} href="/calendar" />
-              <NavItem icon="storefront" label={t('marketplace')} isExpanded={isExpanded} href="/marketplace" />
-              <NavItem icon="inventory_2" label={t('myListings')} isExpanded={isExpanded} href="/listings" />
               <NavItem icon="account_circle" label={t('settings')} isExpanded={isExpanded} href="/settings" />
             </div>
 
@@ -171,10 +169,7 @@ export default function Dashboard() {
             <StatCard icon="folder" label="Active Projects" value={projects.length.toString()} color="primary" />
             <StatCard icon="event" label="Upcoming Deadlines" value={deadlines.length.toString()} color="secondary" />
             <StatCard icon="task" label="Workflows" value="0" color="primary" />
-          <StatCard icon="folder" label="Active Projects" value={projects.length.toString()} color="primary" />
-          <StatCard icon="event" label="Upcoming Deadlines" value={deadlines.length.toString()} color="secondary" />
-          <StatCard icon="task" label="Workflows" value="0" color="primary" />
-        </div>
+          </div>
 
         <div className="mb-12">
           <div className="flex items-center justify-between mb-6">
@@ -209,8 +204,6 @@ export default function Dashboard() {
               <div className="space-y-4">
                 <ProfileField label={t('fullName')} value={profile.fullname} />
                 <ProfileField label={t('email')} value={profile.email} />
-                <ProfileField label={t('location')} value={`${profile.city}, ${profile.country}`} />
-                <ProfileField label={t('timezone')} value={profile.timezone} />
               </div>
             </div>
           </div>

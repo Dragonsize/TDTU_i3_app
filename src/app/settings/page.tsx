@@ -90,8 +90,6 @@ export default function Settings() {
             <NavItem icon="dashboard" label={t('dashboard')} isExpanded={isExpanded} href="/dashboard" />
             <NavItem icon="smart_toy" label={t('aiChatbot')} isExpanded={isExpanded} href="/chatbot" />
             <NavItem icon="calendar_month" label={t('calendar')} isExpanded={isExpanded} href="/calendar" />
-            <NavItem icon="storefront" label={t('marketplace')} isExpanded={isExpanded} href="/marketplace" />
-            <NavItem icon="inventory_2" label={t('myListings')} isExpanded={isExpanded} href="/listings" />
             <NavItem icon="account_circle" label={t('settings')} isExpanded={isExpanded} href="/settings" active />
           </div>
 
