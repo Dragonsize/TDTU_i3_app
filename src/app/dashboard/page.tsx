@@ -22,9 +22,20 @@ export default function Dashboard() {
     }
   }, [isDark, router]);
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('userProfile');
-    router.push('/');
+  const handleLogout = async () => {
+    try {
+      // Call logout API to clear cookies
+      await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear local session storage
+      sessionStorage.removeItem('userProfile');
+      router.push('/');
+    }
   };
 
   if (!profile) {

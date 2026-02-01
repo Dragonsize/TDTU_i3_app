@@ -1,7 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response, Cookie, Depends
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from typing import Optional
 from .calendar_logic import check_meeting_conflicts
 from .login import scrape_profile
+from .database import save_user_profile
+from .auth import create_access_token, create_refresh_token, verify_token
 app = FastAPI()
 
 class MeetingRequest(BaseModel):
@@ -25,12 +29,104 @@ async def validate_schedule(req: MeetingRequest):
     return {"status": "success", "message": "All members are free!"}
 
 @app.post("/api/login")
-async def login(req: LoginRequest):
+async def login(req: LoginRequest, response: Response):
     try:
         profile_data = scrape_profile(req.username, req.password)
+        
+        # Check if fullname is valid (not "Không tìm thấy")
+        if profile_data.get("fullname") == "Không tìm thấy":
+            raise HTTPException(status_code=401, detail="Invalid credentials - profile not found")
+        
+        # Save profile to database
+        save_user_profile(req.username)
+        
+        # Create JWT tokens
+        access_token = create_access_token(data={"sub": req.username})
+        refresh_token = create_refresh_token(data={"sub": req.username})
+        
+        # Set HTTP-only cookies
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=True,  # Set to True in production with HTTPS
+            samesite="lax",
+            max_age=60 * 60 * 24  # 24 hours
+        )
+        
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=60 * 60 * 24 * 7  # 7 days
+        )
+        
         return {
             "status": "success",
-            "profile": profile_data
+            "profile": profile_data,
+            "access_token": access_token,
+            "token_type": "bearer"
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Login failed: {str(e)}")
+
+@app.post("/api/logout")
+async def logout(response: Response):
+    """Logout user by clearing cookies"""
+    response.delete_cookie(key="access_token")
+    response.delete_cookie(key="refresh_token")
+    return {"status": "success", "message": "Logged out successfully"}
+
+@app.get("/api/verify-session")
+async def verify_session(access_token: Optional[str] = Cookie(None)):
+    """Verify if user session is valid"""
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    payload = verify_token(access_token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    return {
+        "status": "success",
+        "username": payload.get("sub"),
+        "authenticated": True
+    }
+
+@app.post("/api/refresh-token")
+async def refresh_token_endpoint(
+    response: Response,
+    refresh_token: Optional[str] = Cookie(None)
+):
+    """Refresh access token using refresh token"""
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="No refresh token provided")
+    
+    payload = verify_token(refresh_token)
+    if not payload or payload.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    
+    username = payload.get("sub")
+    
+    # Create new access token
+    new_access_token = create_access_token(data={"sub": username})
+    
+    # Set new access token cookie
+    response.set_cookie(
+        key="access_token",
+        value=new_access_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=60 * 60 * 24
+    )
+    
+    return {
+        "status": "success",
+        "access_token": new_access_token,
+        "token_type": "bearer"
+    }

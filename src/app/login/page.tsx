@@ -28,6 +28,11 @@ export default function Login() {
         throw new Error(data.detail || 'Login failed');
       }
 
+      // Check if fullname is valid
+      if (data.profile.fullname === 'Không tìm thấy') {
+        throw new Error('Invalid credentials - profile not found');
+      }
+
       // Store profile in sessionStorage
       sessionStorage.setItem('userProfile', JSON.stringify(data.profile));
       
