@@ -55,9 +55,11 @@ export default function Settings() {
   };
 
   return (
-    <div
-      className={`font-display bg-[#f7f6f8] dark:bg-[#050505] text-slate-900 dark:text-white transition-all duration-300 min-h-screen relative ${isExpanded ? 'md:pr-64' : 'md:pr-20'} pr-0`}
-    >
+    <div className="w-full min-h-screen bg-white overflow-x-hidden">
+      <div className="w-full max-w-[1440px] min-h-screen relative mx-auto">
+        <div
+          className={`font-display bg-[#f7f6f8] dark:bg-[#050505] text-slate-900 dark:text-white transition-all duration-300 min-h-screen relative ${isExpanded ? 'md:pr-64' : 'md:pr-20'} pr-0`}
+        >
       <div className="fixed inset-0 grid-bg pointer-events-none z-0"></div>
 
       <nav
@@ -212,6 +214,8 @@ export default function Settings() {
           </div>
         </div>
       </main>
+        </div>
+      </div>
     </div>
   );
 }
