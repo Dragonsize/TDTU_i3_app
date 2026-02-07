@@ -210,7 +210,6 @@ function FeatureCard({ icon, title, badge, description }: { icon: string; title:
     </div>
   );
 }
-          <div className="w-[589px] h-7 flex justify-between items-center">
             <div className="w-24 h-7 flex justify-start items-center gap-1.5">
               <div className="w-7 h-7 relative bg-gray-950 rounded-lg"></div>
               <div className="flex-1 h-5 relative">
