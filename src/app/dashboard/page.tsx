@@ -98,7 +98,7 @@ export default function Dashboard() {
   }, [profile]);
 
   useEffect(() => {
-    if (projects.length > 0 && !selectedProjectId) {
+    if (Array.isArray(projects) && projects.length > 0 && !selectedProjectId) {
       setSelectedProjectId(projects[0].id);
     }
   }, [projects, selectedProjectId]);
@@ -426,8 +426,8 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
-            <StatCard icon="folder" label="Active Projects" value={projects.length.toString()} color="primary" />
-            <StatCard icon="event" label="Upcoming Deadlines" value={deadlines.length.toString()} color="secondary" />
+            <StatCard icon="folder" label="Active Projects" value={(Array.isArray(projects) ? projects.length : 0).toString()} color="primary" />
+            <StatCard icon="event" label="Upcoming Deadlines" value={(Array.isArray(deadlines) ? deadlines.length : 0).toString()} color="secondary" />
             <StatCard icon="task" label="Workflows" value="0" color="primary" />
           </div>
 
@@ -441,7 +441,7 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {projects.length === 0 ? (
+            {!Array.isArray(projects) || projects.length === 0 ? (
               <div className="col-span-2 bg-white/50 dark:bg-transparent dark:glass-effect border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-none rounded-2xl p-12 text-center">
                 <span className="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-700 mb-4">folder_off</span>
                 <p className="text-slate-500 dark:text-slate-400">No projects yet. Create your first project to get started!</p>
@@ -479,7 +479,7 @@ export default function Dashboard() {
                   </span>
                 )}
               </h2>
-              {backendNotifications.length === 0 ? (
+              {!Array.isArray(backendNotifications) || backendNotifications.length === 0 ? (
                 <p className="text-slate-500 dark:text-slate-400 text-sm">No notifications yet</p>
               ) : (
                 <div className="space-y-3 max-h-64 overflow-auto">
@@ -508,7 +508,7 @@ export default function Dashboard() {
                 <span className="material-symbols-outlined text-primary">schedule</span>
                 Upcoming Deadlines
               </h2>
-              {deadlines.length === 0 ? (
+              {!Array.isArray(deadlines) || deadlines.length === 0 ? (
                 <p className="text-slate-500 dark:text-slate-400 text-sm">No upcoming deadlines</p>
               ) : (
                 <div className="space-y-3">
@@ -545,8 +545,8 @@ export default function Dashboard() {
                   onChange={(e) => setSelectedProjectId(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                 >
-                  {projects.length === 0 && <option value="">No projects available</option>}
-                  {projects.map((project: any) => (
+                  {(!Array.isArray(projects) || projects.length === 0) && <option value="">No projects available</option>}
+                  {Array.isArray(projects) && projects.map((project: any) => (
                     <option key={project.id} value={project.id}>
                       {project.title}
                     </option>
@@ -574,7 +574,7 @@ export default function Dashboard() {
                   <p className="text-red-600 dark:text-red-400 text-xs">{uploadError}</p>
                 )}
 
-                {documents.length > 0 && (
+                {Array.isArray(documents) && documents.length > 0 && (
                   <div className="pt-2 space-y-2">
                     {documents.slice(0, 5).map((doc: any) => (
                       <a

@@ -7,7 +7,9 @@ import type { Session } from '@supabase/supabase-js';
 export default function Login() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [publicUser, setPublicUser] = useState<any>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);

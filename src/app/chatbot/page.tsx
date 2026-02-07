@@ -8,18 +8,39 @@ interface Message {
   content: string;
 }
 
+interface Chat {
+  id: string;
+  title: string;
+  messages: Message[];
+}
+
 export default function Chatbot() {
   const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDark, setIsDark] = useState(true);
-  const [messages, setMessages] = useState<Message[]>([
+  
+  const [chats, setChats] = useState<Chat[]>([
     {
-      role: 'assistant',
-      content: 'Xin chào! Tôi có thể giúp bạn với các câu hỏi về cách sử dụng app. Hãy hỏi tôi bất kỳ điều gì!'
+      id: '1',
+      title: 'Chat 1',
+      messages: [
+        {
+          role: 'assistant',
+          content: 'Hello! I\'m your personal AI assistance'
+        }
+      ]
+    },
+    {
+      id: '2',
+      title: 'Chat 2',
+      messages: []
     }
   ]);
+  const [activeChat, setActiveChat] = useState('1');
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const currentMessages = chats.find(c => c.id === activeChat)?.messages || [];
 
   React.useEffect(() => {
     const savedTheme = localStorage.getItem('darkMode');
@@ -37,7 +58,11 @@ export default function Chatbot() {
     if (!input.trim() || isLoading) return;
 
     const userMessage: Message = { role: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
+    setChats(prev => prev.map(chat => 
+      chat.id === activeChat 
+        ? { ...chat, messages: [...chat.messages, userMessage] }
+        : chat
+    ));
     setInput('');
     setIsLoading(true);
 
@@ -52,16 +77,24 @@ export default function Chatbot() {
       
       const assistantMessage: Message = {
         role: 'assistant',
-        content: data.answer || 'Xin lỗi, tôi không hiểu câu hỏi của bạn.'
+        content: data.answer || 'Sorry, I didn\'t understand your question.'
       };
       
-      setMessages(prev => [...prev, assistantMessage]);
+      setChats(prev => prev.map(chat => 
+        chat.id === activeChat 
+          ? { ...chat, messages: [...chat.messages, assistantMessage] }
+          : chat
+      ));
     } catch (error) {
       console.error('Error:', error);
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: 'Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại.'
-      }]);
+      setChats(prev => prev.map(chat => 
+        chat.id === activeChat 
+          ? { ...chat, messages: [...chat.messages, {
+              role: 'assistant',
+              content: 'Sorry, an error occurred. Please try again.'
+            }] }
+          : chat
+      ));
     } finally {
       setIsLoading(false);
     }
@@ -69,10 +102,132 @@ export default function Chatbot() {
 
   return (
     <div
-      className={`font-display bg-[#f7f6f8] dark:bg-[#050505] text-slate-900 dark:text-white transition-all duration-300 min-h-screen relative ${isExpanded ? 'md:pr-64' : 'md:pr-20'} pr-0`}
+      className={`font-display bg-white dark:bg-[#2b2b2b] text-slate-900 dark:text-white transition-all duration-300 min-h-screen flex ${isExpanded ? 'md:pr-64' : 'md:pr-20'} pr-0`}
     >
-      <div className="fixed inset-0 grid-bg pointer-events-none z-0"></div>
+      {/* Left Sidebar - Chat List */}
+      <div className="w-64 bg-[#3a3a3a] dark:bg-[#1f1f1f] border-r border-slate-700 flex flex-col">
+        <div className="p-6 border-b border-slate-700">
+          <div className="flex items-center gap-2 mb-6">
+            <span className="w-2 h-2 bg-white rounded-full"></span>
+            <h2 className="text-white font-semibold">StudyFlow</h2>
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">AI Chatbot</h1>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-4">
+          {chats.map(chat => (
+            <button
+              key={chat.id}
+              onClick={() => setActiveChat(chat.id)}
+              className={`w-full text-left px-4 py-3 rounded-lg mb-2 transition-colors ${
+                activeChat === chat.id
+                  ? 'bg-[#4a4a4a] text-white'
+                  : 'text-slate-300 hover:bg-[#353535]'
+              }`}
+            >
+              {chat.title}
+            </button>
+          ))}
+        </div>
+      </div>
 
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Top Bar */}
+        <div className="h-16 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-[#2b2b2b] flex items-center justify-between px-6">
+          <div className="flex items-center gap-3">
+            <img src="/avt.jpg" alt="Linh" className="w-10 h-10 rounded-full object-cover" />
+            <div>
+              <h3 className="font-semibold text-slate-900 dark:text-white">Linh</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Online</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => router.push('/login')}
+              className="text-sm text-slate-600 dark:text-slate-400 hover:text-primary"
+            >
+              Sign In
+            </button>
+            <button className="px-4 py-2 bg-black dark:bg-white text-white dark:text-black rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
+              Get started
+            </button>
+          </div>
+        </div>
+
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto p-6 bg-[#f5f5f5] dark:bg-[#2b2b2b]">
+          <div className="max-w-4xl mx-auto space-y-4">
+            {currentMessages.map((message, index) => (
+              <div
+                key={index}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                {message.role === 'assistant' && (
+                  <div className="flex items-start gap-3">
+                    <img src="/avt.jpg" alt="AI" className="w-8 h-8 rounded-full object-cover mt-1" />
+                    <div className="bg-white dark:bg-[#3a3a3a] rounded-2xl rounded-tl-none px-5 py-3 max-w-[70%] shadow-sm">
+                      <p className="text-slate-900 dark:text-white">{message.content}</p>
+                    </div>
+                  </div>
+                )}
+                {message.role === 'user' && (
+                  <div className="bg-primary text-white rounded-2xl rounded-tr-none px-5 py-3 max-w-[70%] shadow-sm">
+                    <p>{message.content}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+            
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="flex items-start gap-3">
+                  <img src="/avt.jpg" alt="AI" className="w-8 h-8 rounded-full object-cover mt-1" />
+                  <div className="bg-white dark:bg-[#3a3a3a] rounded-2xl px-5 py-3 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-primary rounded-full animate-bounce"></span>
+                      <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                      <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Input Area */}
+        <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-[#2b2b2b] p-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center gap-3 bg-[#f5f5f5] dark:bg-[#3a3a3a] rounded-full px-6 py-3 border border-slate-200 dark:border-slate-600">
+              <button className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                <span className="material-symbols-outlined text-xl">attach_file</span>
+              </button>
+              <button className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                <span className="material-symbols-outlined text-xl">mood</span>
+              </button>
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                placeholder="Type..."
+                className="flex-1 bg-transparent text-slate-900 dark:text-white placeholder-slate-400 outline-none"
+                disabled={isLoading}
+              />
+              <button
+                onClick={handleSend}
+                disabled={isLoading || !input.trim()}
+                className="bg-primary hover:bg-primary/90 text-white rounded-full p-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <span className="material-symbols-outlined text-xl">send</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Sidebar - Navigation */}
       <nav
         className={`fixed right-0 top-0 h-screen py-8 z-50 flex flex-col items-center justify-between border-l border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#1a1025]/80 backdrop-blur-md shadow-2xl dark:shadow-none transition-all duration-300 ${isExpanded ? 'w-64' : 'w-0 md:w-20'} overflow-visible`}
       >
@@ -109,98 +264,6 @@ export default function Chatbot() {
           <div className="flex flex-col items-center gap-6 w-full px-4" />
         </div>
       </nav>
-
-      <main className="px-4 lg:px-40 py-12 relative">
-        <div className="mb-12">
-          <h1 className="text-4xl lg:text-6xl font-black mb-4 tracking-tight text-slate-900 dark:text-white">
-            AI <span className="text-gradient">Chatbot</span>
-          </h1>
-          <p className="text-slate-600 dark:text-white/60 text-lg">
-            Ask me anything about how to use this app!
-          </p>
-        </div>
-
-        <div className="bg-white/50 dark:bg-transparent dark:glass-effect border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-none rounded-2xl overflow-hidden">
-          {/* Messages Area */}
-          <div className="h-[500px] overflow-y-auto p-6 space-y-4">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-2xl px-6 py-4 ${
-                    message.role === 'user'
-                      ? 'bg-primary text-white'
-                      : 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    {message.role === 'assistant' && (
-                      <span className="material-symbols-outlined mt-1">smart_toy</span>
-                    )}
-                    <p className="whitespace-pre-wrap">{message.content}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-            
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-slate-200 dark:bg-slate-800 rounded-2xl px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined animate-spin">refresh</span>
-                    <span className="text-slate-600 dark:text-slate-400">Thinking...</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Input Area */}
-          <div className="border-t border-slate-200 dark:border-white/10 p-6">
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Ask a question... (e.g., How to create a project?)"
-                className="flex-1 px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary"
-                disabled={isLoading}
-              />
-              <button
-                onClick={handleSend}
-                disabled={isLoading || !input.trim()}
-                className="px-6 py-3 bg-primary hover:bg-primary/80 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined">send</span>
-              </button>
-            </div>
-            
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                onClick={() => setInput('Cách tạo project mới?')}
-                className="text-xs px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-              >
-                💡 How to create a project?
-              </button>
-              <button
-                onClick={() => setInput('Làm sao để thêm thành viên?')}
-                className="text-xs px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-              >
-                👥 How to add members?
-              </button>
-              <button
-                onClick={() => setInput('Cách quản lý lịch bận?')}
-                className="text-xs px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-              >
-                📅 How to manage schedule?
-              </button>
-            </div>
-          </div>
-        </div>
-      </main>
     </div>
   );
 }

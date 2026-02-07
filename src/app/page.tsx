@@ -122,10 +122,10 @@ export default function Home() {
           <div className="max-w-[1200px] mx-auto grid lg:grid-cols-2 gap-16 items-center">
             <div className="relative z-10">
               <h1 className="text-5xl lg:text-7xl font-black leading-tight tracking-tight text-slate-900 dark:text-white mb-6">
-                Team <span className="text-gradient">3</span>.
+                Hệ thống <span className="text-gradient">Quản Lý</span> Việc nhóm lịch trình thông minh
               </h1>
               <p className="text-lg text-slate-600 dark:text-white/60 leading-relaxed mb-8 max-w-xl">
-                Your all-in-one project scheduling platform with AI assistance, smart calendar management, document sharing, and workflow tracking.
+                Group Work & Schedule Management System - Your all-in-one platform with AI assistance, smart calendar management, document sharing, and workflow tracking.
               </p>
               <div className="flex flex-wrap gap-4">
                 <button
