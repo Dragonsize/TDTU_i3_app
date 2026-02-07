@@ -1,11 +1,5 @@
 {
   "rewrites": [
-    { "source": "/api/auth", "destination": "/api/auth.py" },
-    { "source": "/api/profile", "destination": "/api/profile.py" },
-    { "source": "/api/projects", "destination": "/api/projects.py" },
-    { "source": "/api/schedule", "destination": "/api/schedule.py" },
-    { "source": "/api/documents", "destination": "/api/documents.py" },
-    { "source": "/api/chatbot", "destination": "/api/chatbot.py" },
     {
       "source": "/api/(.*)",
       "destination": "/api/index.py"

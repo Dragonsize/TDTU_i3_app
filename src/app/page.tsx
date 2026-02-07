@@ -12,7 +12,7 @@ export default function Home() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const response = await fetch('/api/verify-session', {
+        const response = await fetch('/api/auth/me', {
           method: 'GET',
           credentials: 'include',
         });
@@ -54,7 +54,7 @@ export default function Home() {
   const handleQuickSignIn = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/refresh-token', {
+      const response = await fetch('/api/auth/refresh', {
         method: 'POST',
         credentials: 'include',
       });

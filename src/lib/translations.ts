@@ -73,6 +73,7 @@ export const translations = {
     teamThree: 'Team 3',
     everythingYouNeed: 'Everything you need',
     platformDescription: 'A powerful platform designed for students with AI assistance, organization tools, and marketplace features.',
+    forgot_password: 'Forgot Password',
   },
   vi: {
     // Navigation
@@ -148,6 +149,7 @@ export const translations = {
     teamThree: 'Nhóm 3',
     everythingYouNeed: 'Mọi thứ bạn cần',
     platformDescription: 'Nền tảng mạnh mẽ được thiết kế cho sinh viên với hỗ trợ AI, công cụ tổ chức và tính năng thị trường.',
+    forgot_password: 'Quên mật khẩu',
   }
 };
 

@@ -2,23 +2,28 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabaseClient';
+import type { Session } from '@supabase/supabase-js';
 
 export default function Login() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [publicUser, setPublicUser] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [resendingVerification, setResendingVerification] = useState(false);
 
   useEffect(() => {
     const syncSession = async () => {
       const { data } = await supabase.auth.getSession();
       if (data?.session?.user) {
         setPublicUser(data.session.user);
+        setSession(data.session);
       }
       setSessionChecked(true);
     };
@@ -26,22 +31,38 @@ export default function Login() {
     syncSession();
   }, []);
 
-  const handlePublicProfile = async (user: any) => {
+  const setupBackendSession = async (accessToken: string) => {
+    const response = await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ access_token: accessToken })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create backend session');
+    }
+  };
+
+  const handlePublicProfile = async (accessToken: string, user: any) => {
     const emailValue = user.email || '';
     const fullnameValue = user.user_metadata?.full_name || emailValue;
 
     try {
+      await setupBackendSession(accessToken);
+
       const response = await fetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          username: emailValue,
           email: emailValue,
           fullname: fullnameValue
         })
       });
       const data = await response.json();
       const storedProfile = data?.profile || {
+        id: user.id,
         username: emailValue,
         email: emailValue,
         fullname: fullnameValue
@@ -51,6 +72,7 @@ export default function Login() {
       window.location.href = '/dashboard';
     } catch {
       localStorage.setItem('userProfile', JSON.stringify({
+        id: user.id,
         username: emailValue,
         email: emailValue,
         fullname: fullnameValue
@@ -64,6 +86,7 @@ export default function Login() {
     setLoading(true);
     setError('');
     setMessage('');
+    setVerificationEmail('');
 
     try {
       if (isSignUp) {
@@ -81,8 +104,9 @@ export default function Login() {
 
         if (data?.user && !data?.session) {
           setMessage('Check your email to confirm your account.');
-        } else if (data?.user) {
-          await handlePublicProfile(data.user);
+          setVerificationEmail(email);
+        } else if (data?.user && data?.session) {
+          await handlePublicProfile(data.session.access_token, data.user);
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -92,14 +116,42 @@ export default function Login() {
 
         if (error) throw error;
 
-        if (data?.user) {
-          await handlePublicProfile(data.user);
+        if (data?.user && data?.session) {
+          await handlePublicProfile(data.session.access_token, data.user);
         }
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      const messageText = err.message || 'An error occurred';
+      if (messageText.toLowerCase().includes('confirm') || messageText.toLowerCase().includes('verified')) {
+        setMessage('Please verify your email before signing in.');
+        setVerificationEmail(email);
+      } else {
+        setError(messageText);
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!verificationEmail) return;
+    setResendingVerification(true);
+    setError('');
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email: verificationEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/login`
+        }
+      });
+      if (resendError) {
+        setError(resendError.message);
+      } else {
+        setMessage('Verification email resent. Check your inbox.');
+      }
+    } finally {
+      setResendingVerification(false);
     }
   };
 
@@ -124,7 +176,11 @@ export default function Login() {
               </p>
               <div className="flex flex-col gap-3">
                 <button
-                  onClick={() => handlePublicProfile(publicUser)}
+                  onClick={() => {
+                    if (session?.access_token) {
+                      handlePublicProfile(session.access_token, publicUser);
+                    }
+                  }}
                   className="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-xl font-bold transition-all"
                 >
                   Continue to Dashboard
@@ -188,6 +244,12 @@ export default function Login() {
                   />
                 </div>
 
+                {!isSignUp && (
+                  <Link href="/forgot-password" className="text-sm text-primary hover:underline inline-block">
+                    Forgot password?
+                  </Link>
+                )}
+
                 <div className="flex items-center justify-between">
                   <button
                     type="button"
@@ -229,6 +291,17 @@ export default function Login() {
                 <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 px-4 py-3 rounded-xl text-sm">
                   {message}
                 </div>
+              )}
+
+              {verificationEmail && (
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={resendingVerification}
+                  className="w-full bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-white py-3 rounded-xl font-bold transition-all disabled:opacity-50"
+                >
+                  {resendingVerification ? 'Resending...' : 'Resend verification email'}
+                </button>
               )}
 
               <button

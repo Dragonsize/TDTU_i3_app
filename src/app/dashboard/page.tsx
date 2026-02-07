@@ -19,6 +19,15 @@ export default function Dashboard() {
   const [notifications, setNotifications] = useState<NotificationProps[]>([]);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | null>(null);
   const [isPushEnabled, setIsPushEnabled] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState('');
+  const [uploadError, setUploadError] = useState('');
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [backendNotifications, setBackendNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [lastNotificationId, setLastNotificationId] = useState<string | null>(null);
 
   useEffect(() => {
     // Initialize service worker and check notification permission
@@ -31,10 +40,8 @@ export default function Dashboard() {
         setIsPushEnabled(hasPushSupport && Notification.permission === 'granted');
       }
     };
-
     initPushNotifications();
   }, []);
-
   useEffect(() => {
     // Load theme preference
     const savedTheme = localStorage.getItem('darkMode');
@@ -65,7 +72,10 @@ export default function Dashboard() {
 
   const fetchProfileFromDatabase = async (username: string) => {
     try {
-      const response = await fetch(`/api/profile?username=${encodeURIComponent(username)}`);
+      const response = await fetch('/api/profile', {
+        method: 'GET',
+        credentials: 'include',
+      });
       if (response.ok) {
         const data = await response.json();
         if (data.profile) {
@@ -87,9 +97,32 @@ export default function Dashboard() {
     }
   }, [profile]);
 
+  useEffect(() => {
+    if (projects.length > 0 && !selectedProjectId) {
+      setSelectedProjectId(projects[0].id);
+    }
+  }, [projects, selectedProjectId]);
+
+  useEffect(() => {
+    if (selectedProjectId) {
+      fetchDocuments(selectedProjectId);
+    }
+  }, [selectedProjectId]);
+
+  useEffect(() => {
+    if (profile?.id) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 10000); // Poll every 10 seconds
+      return () => clearInterval(interval);
+    }
+  }, [profile]);
+
   const fetchProjects = async () => {
     try {
-      const response = await fetch(`/api/projects?action=get_projects&username=${profile.username}`);
+      const response = await fetch('/api/projects', {
+        method: 'GET',
+        credentials: 'include',
+      });
       const data = await response.json();
       setProjects(data || []);
     } catch (error) {
@@ -99,11 +132,71 @@ export default function Dashboard() {
 
   const fetchDeadlines = async () => {
     try {
-      const response = await fetch(`/api/projects?action=get_deadlines&username=${profile.username}&days=7`);
+      const response = await fetch('/api/deadlines?days=7', {
+        method: 'GET',
+        credentials: 'include',
+      });
       const data = await response.json();
       setDeadlines(data || []);
     } catch (error) {
       console.error('Error fetching deadlines:', error);
+    }
+  };
+
+  const fetchDocuments = async (projectId: string) => {
+    try {
+      const response = await fetch(`/api/documents?project_id=${projectId}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      const data = await response.json();
+      setDocuments(data || []);
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      const data = await response.json();
+      setBackendNotifications(data || []);
+      const unread = (data || []).filter((n: any) => !n.read).length;
+      setUnreadCount(unread);
+
+      // Show browser notification for new notifications
+      if (data && data.length > 0) {
+        const latestNotif = data[0];
+        if (lastNotificationId !== latestNotif.id) {
+          setLastNotificationId(latestNotif.id);
+          
+          // Only show browser notification if it's unread and permission is granted
+          if (!latestNotif.read && Notification.permission === 'granted') {
+            sendLocalNotification({
+              title: latestNotif.title,
+              body: latestNotif.message || '',
+              icon: '/avt.jpg',
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  const markNotificationRead = async (notificationId: string) => {
+    try {
+      await fetch(`/api/notifications/${notificationId}/read`, {
+        method: 'PUT',
+        credentials: 'include',
+      });
+      fetchNotifications();
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
     }
   };
 
@@ -112,11 +205,10 @@ export default function Dashboard() {
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          action: 'create_project',
           title: newProject.title,
           description: newProject.description,
-          username: profile.username
         })
       });
       
@@ -131,10 +223,49 @@ export default function Dashboard() {
     }
   };
 
+  const handleUploadDocument = async () => {
+    if (!selectedProjectId) {
+      setUploadError('Select a project first');
+      return;
+    }
+    if (!selectedFile) {
+      setUploadError('Select a file to upload');
+      return;
+    }
+
+    setUploading(true);
+    setUploadError('');
+    setUploadMessage('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('project_id', selectedProjectId);
+
+      const response = await fetch('/api/documents/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload document');
+      }
+
+      setUploadMessage('Document uploaded successfully');
+      setSelectedFile(null);
+      fetchDocuments(selectedProjectId);
+    } catch (error: any) {
+      setUploadError(error?.message || 'Failed to upload document');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       // Call logout API to clear cookies
-      await fetch('/api/logout', {
+      await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include'
       });
@@ -227,15 +358,6 @@ export default function Dashboard() {
       }, index * 800);
     });
   };
-
-  useEffect(() => {
-    // Show demo notification on first mount
-    const timer = setTimeout(() => {
-      showDemoNotification();
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, []);
 
   if (!profile) {
     return (
@@ -349,6 +471,40 @@ export default function Dashboard() {
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-white/50 dark:bg-transparent dark:glass-effect border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-none rounded-2xl p-6">
               <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-3">
+                <span className="material-symbols-outlined text-primary">notifications</span>
+                Notifications
+                {unreadCount > 0 && (
+                  <span className="ml-auto text-xs bg-primary text-white rounded-full px-2 py-1">
+                    {unreadCount}
+                  </span>
+                )}
+              </h2>
+              {backendNotifications.length === 0 ? (
+                <p className="text-slate-500 dark:text-slate-400 text-sm">No notifications yet</p>
+              ) : (
+                <div className="space-y-3 max-h-64 overflow-auto">
+                  {backendNotifications.slice(0, 6).map((notif) => (
+                    <div key={notif.id} className="border-l-4 border-primary/60 pl-3 py-2">
+                      <p className="font-semibold text-slate-900 dark:text-white text-sm">{notif.title}</p>
+                      {notif.message && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{notif.message}</p>
+                      )}
+                      {!notif.read && (
+                        <button
+                          onClick={() => markNotificationRead(notif.id)}
+                          className="text-xs text-primary hover:underline mt-1"
+                        >
+                          Mark as read
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white/50 dark:bg-transparent dark:glass-effect border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-none rounded-2xl p-6">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary">schedule</span>
                 Upcoming Deadlines
               </h2>
@@ -376,6 +532,64 @@ export default function Dashboard() {
               <Link href="/chatbot" className="text-primary hover:underline text-sm">
                 Ask the chatbot how to create a project →
               </Link>
+            </div>
+
+            <div className="bg-white/50 dark:bg-transparent dark:glass-effect border border-slate-200 dark:border-white/10 shadow-xl dark:shadow-none rounded-2xl p-6">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-3">
+                <span className="material-symbols-outlined text-primary">upload_file</span>
+                Documents
+              </h2>
+              <div className="space-y-3">
+                <select
+                  value={selectedProjectId}
+                  onChange={(e) => setSelectedProjectId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                >
+                  {projects.length === 0 && <option value="">No projects available</option>}
+                  {projects.map((project: any) => (
+                    <option key={project.id} value={project.id}>
+                      {project.title}
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  type="file"
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  className="w-full text-sm text-slate-500 dark:text-slate-400"
+                />
+
+                <button
+                  onClick={handleUploadDocument}
+                  disabled={uploading || !selectedProjectId || !selectedFile}
+                  className="w-full bg-primary hover:bg-primary/80 text-white rounded-lg px-4 py-2 font-semibold disabled:opacity-50"
+                >
+                  {uploading ? 'Uploading...' : 'Upload Document'}
+                </button>
+
+                {uploadMessage && (
+                  <p className="text-green-600 dark:text-green-400 text-xs">{uploadMessage}</p>
+                )}
+                {uploadError && (
+                  <p className="text-red-600 dark:text-red-400 text-xs">{uploadError}</p>
+                )}
+
+                {documents.length > 0 && (
+                  <div className="pt-2 space-y-2">
+                    {documents.slice(0, 5).map((doc: any) => (
+                      <a
+                        key={doc.id}
+                        href={doc.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block text-sm text-primary hover:underline truncate"
+                      >
+                        {doc.filename}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
