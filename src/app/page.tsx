@@ -6,7 +6,8 @@ export default function Home() {
   const [email, setEmail] = useState('');
 
   return (
-    <div className="w-[1440px] h-[2400px] relative bg-white overflow-hidden">
+    <div className="w-full min-h-screen bg-white overflow-x-hidden">
+      <div className="w-full max-w-[1440px] h-[2400px] relative mx-auto">
       <div className="w-[1438.96px] h-16 px-32 pb-px left-[1px] top-0 absolute bg-white/60 border-b border-black/10 inline-flex flex-col justify-between items-center">
         <div className="w-[1387px] h-9 inline-flex justify-between items-start">
           <div className="w-[589px] h-7 flex justify-between items-center">
@@ -418,6 +419,7 @@ export default function Home() {
         <div className="w-52 h-4 inline-flex justify-start items-start">
           <div className="justify-start text-gray-500 text-xs font-normal font-['Arimo'] leading-4">© 2024 DesignKit. All rights reserved.</div>
         </div>
+      </div>
       </div>
     </div>
   );
