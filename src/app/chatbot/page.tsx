@@ -101,9 +101,11 @@ export default function Chatbot() {
   };
 
   return (
-    <div
-      className={`font-display bg-white dark:bg-[#2b2b2b] text-slate-900 dark:text-white transition-all duration-300 min-h-screen flex ${isExpanded ? 'md:pr-64' : 'md:pr-20'} pr-0`}
-    >
+    <div className="w-full min-h-screen bg-white overflow-x-hidden">
+      <div className="w-full max-w-[1440px] min-h-screen relative mx-auto">
+        <div
+          className={`font-display bg-white dark:bg-[#2b2b2b] text-slate-900 dark:text-white transition-all duration-300 min-h-screen flex ${isExpanded ? 'md:pr-64' : 'md:pr-20'} pr-0`}
+        >
       {/* Left Sidebar - Chat List */}
       <div className="w-64 bg-[#3a3a3a] dark:bg-[#1f1f1f] border-r border-slate-700 flex flex-col">
         <div className="p-6 border-b border-slate-700">
@@ -264,6 +266,8 @@ export default function Chatbot() {
           <div className="flex flex-col items-center gap-6 w-full px-4" />
         </div>
       </nav>
+        </div>
+      </div>
     </div>
   );
 }
