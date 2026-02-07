@@ -361,8 +361,12 @@ export default function Dashboard() {
 
   if (!profile) {
     return (
-      <div className="min-h-screen bg-[#f7f6f8] dark:bg-[#050505] flex items-center justify-center">
-        <div className="animate-pulse text-slate-600 dark:text-slate-400">Loading...</div>
+      <div className="w-full min-h-screen bg-white overflow-x-hidden">
+        <div className="w-full max-w-[1440px] min-h-screen relative mx-auto">
+          <div className="min-h-screen bg-[#f7f6f8] dark:bg-[#050505] flex items-center justify-center">
+            <div className="animate-pulse text-slate-600 dark:text-slate-400">Loading...</div>
+          </div>
+        </div>
       </div>
     );
   }
