@@ -59,8 +59,9 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f6f8] dark:bg-[#050505] flex items-center justify-center px-4">
-      <div className="max-w-md w-full">
+    <div className="w-full min-h-screen bg-white overflow-x-hidden">
+      <div className="w-full max-w-[1440px] min-h-screen relative mx-auto flex items-center justify-center px-4">
+        <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <Link href="/" className="inline-block mb-4">
             <h1 className="text-4xl font-black">
@@ -131,5 +132,6 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  </div>
   );
 }
