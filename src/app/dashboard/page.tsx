@@ -372,8 +372,10 @@ export default function Dashboard() {
   }
 
   return (
-      <div className={`font-display bg-[#f7f6f8] dark:bg-[#050505] text-slate-900 dark:text-white min-h-screen relative ${isExpanded ? 'md:pr-64' : 'md:pr-20'} pr-0 transition-[padding-right] duration-300`}>
-        <div className="fixed inset-0 grid-bg pointer-events-none z-0"></div>
+    <div className="w-full min-h-screen bg-white overflow-x-hidden">
+      <div className="w-full max-w-[1440px] min-h-screen relative mx-auto">
+        <div className={`font-display bg-[#f7f6f8] dark:bg-[#050505] text-slate-900 dark:text-white min-h-screen relative ${isExpanded ? 'md:pr-64' : 'md:pr-20'} pr-0 transition-[padding-right] duration-300`}>
+          <div className="fixed inset-0 grid-bg pointer-events-none z-0"></div>
 
         <NotificationContainer notifications={notifications} />
 
