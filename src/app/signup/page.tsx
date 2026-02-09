@@ -4,14 +4,17 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
-export default function Login() {
+export default function SignUp() {
   const router = useRouter();
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignUp = async () => {
     try {
       setError('');
       const { data, error: authError } = await supabase.auth.signInWithOAuth({
@@ -25,7 +28,7 @@ export default function Login() {
         throw new Error(authError.message);
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to sign in with Google');
+      setError(err.message || 'Failed to sign up with Google');
     }
   };
 
@@ -33,12 +36,31 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+    setSuccess('');
+
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Sign in with Supabase
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
+      // Sign up with Supabase
+      const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+        },
       });
 
       if (authError) {
@@ -64,8 +86,16 @@ export default function Login() {
         const sessionData = await sessionResponse.json();
         localStorage.setItem('userProfile', JSON.stringify(sessionData.user));
 
-        // Redirect to dashboard
-        router.push('/dashboard');
+        setSuccess('Account created successfully! Redirecting to login...');
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 2000);
+      } else {
+        // Email confirmation may be required
+        setSuccess('Account created! Please check your email to confirm your account.');
+        setTimeout(() => {
+          router.push('/login');
+        }, 3000);
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred');
@@ -84,18 +114,33 @@ export default function Login() {
               <div className="w-10 h-10 bg-gray-950 rounded-lg"></div>
               <span className="text-2xl font-bold text-neutral-950 font-['Arimo']">A+ Flow</span>
             </Link>
-            
+
             <h1 className="text-5xl md:text-7xl font-bold text-black text-center leading-tight mb-4 font-['IM_FELL_Great_Primer_SC']">
-              Welcome Back
+              Join Us
             </h1>
             <p className="text-lg md:text-xl text-gray-600 font-['Arimo']">
-              Sign in to your A+ Flow account
+              Create your A+ Flow account to get started
             </p>
           </div>
 
-          {/* Form Container - Wider and More Spacious */}
+          {/* Form Container */}
           <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12 lg:p-16 border border-gray-200/50">
             <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Full Name Input */}
+              <div className="flex flex-col">
+                <label className="text-gray-800 text-lg md:text-xl font-semibold font-['Nunito'] mb-3">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="John Doe"
+                  className="w-full px-5 py-4 bg-white rounded-xl shadow-sm border border-slate-300 text-gray-900 text-lg font-normal font-['Nunito'] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all placeholder-gray-400"
+                  required
+                />
+              </div>
+
               {/* Email Input */}
               <div className="flex flex-col">
                 <label className="text-gray-800 text-lg md:text-xl font-semibold font-['Nunito'] mb-3">
@@ -105,7 +150,7 @@ export default function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="email@example.com"
+                  placeholder="you@example.com"
                   className="w-full px-5 py-4 bg-white rounded-xl shadow-sm border border-slate-300 text-gray-900 text-lg font-normal font-['Nunito'] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all placeholder-gray-400"
                   required
                 />
@@ -113,18 +158,31 @@ export default function Login() {
 
               {/* Password Input */}
               <div className="flex flex-col">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="text-gray-800 text-lg md:text-xl font-semibold font-['Nunito']">
-                    Password
-                  </label>
-                  <Link href="/forgot-password" className="text-gray-700 text-sm md:text-base font-medium font-['Inter'] hover:text-black transition-colors">
-                    Forgot password?
-                  </Link>
-                </div>
+                <label className="text-gray-800 text-lg md:text-xl font-semibold font-['Nunito'] mb-3">
+                  Password
+                </label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-5 py-4 bg-white rounded-xl shadow-sm border border-slate-300 text-gray-900 text-lg font-normal font-['Nunito'] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all placeholder-gray-400"
+                  required
+                />
+                <p className="text-xs md:text-sm text-gray-500 font-['Nunito'] mt-2">
+                  At least 6 characters
+                </p>
+              </div>
+
+              {/* Confirm Password Input */}
+              <div className="flex flex-col">
+                <label className="text-gray-800 text-lg md:text-xl font-semibold font-['Nunito'] mb-3">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full px-5 py-4 bg-white rounded-xl shadow-sm border border-slate-300 text-gray-900 text-lg font-normal font-['Nunito'] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all placeholder-gray-400"
                   required
@@ -139,13 +197,21 @@ export default function Login() {
                 </div>
               )}
 
+              {/* Success Message */}
+              {success && (
+                <div className="p-4 bg-green-50 border-l-4 border-green-500 rounded-lg text-green-700 font-['Nunito']">
+                  <p className="font-semibold">Success!</p>
+                  <p className="text-sm mt-1">{success}</p>
+                </div>
+              )}
+
               {/* Submit Button */}
               <button
                 type="submit"
                 disabled={loading}
                 className="w-full py-4 px-6 bg-gray-950 hover:bg-black text-white text-lg font-bold font-['Nunito'] rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl mt-10"
               >
-                {loading ? 'Signing in...' : 'Sign In'}
+                {loading ? 'Creating Account...' : 'Create Account'}
               </button>
 
               {/* Divider */}
@@ -155,10 +221,10 @@ export default function Login() {
                 <div className="flex-grow border-t border-gray-300"></div>
               </div>
 
-              {/* Google Sign In Button */}
+              {/* Google Sign Up Button */}
               <button
                 type="button"
-                onClick={handleGoogleSignIn}
+                onClick={handleGoogleSignUp}
                 className="w-full py-3 px-6 bg-white border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-800 text-base font-semibold font-['Nunito'] rounded-xl transition-all flex items-center justify-center gap-3"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -170,18 +236,14 @@ export default function Login() {
                 Continue with Google
               </button>
 
-              {/* Sign Up Link */}
+              {/* Already Have Account Link */}
               <div className="text-center">
                 <p className="text-gray-600 text-base font-['Nunito'] mb-4">
-                  Don't have an account?
+                  Already have an account?
                 </p>
-                <button
-                  type="button"
-                  onClick={() => router.push('/signup')}
-                  className="w-full py-3 px-6 border-2 border-gray-300 hover:border-gray-700 hover:bg-gray-100 text-gray-800 text-base font-semibold font-['Nunito'] rounded-xl transition-all"
-                >
-                  Create Account
-                </button>
+                <Link href="/login" className="w-full py-3 px-6 border-2 border-gray-300 hover:border-gray-700 hover:bg-gray-100 text-gray-800 text-base font-semibold font-['Nunito'] rounded-xl transition-all inline-block">
+                  Sign In
+                </Link>
               </div>
 
               {/* Back to Home Link */}
