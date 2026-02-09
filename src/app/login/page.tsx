@@ -9,7 +9,11 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingMagicLink, setLoadingMagicLink] = useState(false);
   const [error, setError] = useState('');
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [showMagicLinkModal, setShowMagicLinkModal] = useState(false);
+  const [magicLinkEmail, setMagicLinkEmail] = useState('');
 
   const handleGoogleSignIn = async () => {
     try {
@@ -26,6 +30,34 @@ export default function Login() {
       }
     } catch (err: any) {
       setError(err.message || 'Failed to sign in with Google');
+    }
+  };
+
+  const handleMagicLinkSignIn = async () => {
+    if (!magicLinkEmail) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    try {
+      setLoadingMagicLink(true);
+      setError('');
+      const { error: authError } = await supabase.auth.signInWithOtp({
+        email: magicLinkEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (authError) {
+        throw new Error(authError.message);
+      }
+
+      setMagicLinkSent(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send magic link');
+    } finally {
+      setLoadingMagicLink(false);
     }
   };
 
@@ -139,6 +171,14 @@ export default function Login() {
                 </div>
               )}
 
+              {/* Magic Link Success Message */}
+              {magicLinkSent && (
+                <div className="p-4 bg-green-50 border-l-4 border-green-500 rounded-lg text-green-700 font-['Nunito']">
+                  <p className="font-semibold">Check your email!</p>
+                  <p className="text-sm mt-1">We've sent you a magic link to sign in.</p>
+                </div>
+              )}
+
               {/* Submit Button */}
               <button
                 type="submit"
@@ -170,6 +210,18 @@ export default function Login() {
                 Continue with Google
               </button>
 
+              {/* Email Magic Link Button */}
+              <button
+                type="button"
+                onClick={() => setShowMagicLinkModal(true)}
+                className="w-full py-3 px-6 bg-white border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-800 text-base font-semibold font-['Nunito'] rounded-xl transition-all flex items-center justify-center gap-3"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Continue with Email Link
+              </button>
+
               {/* Sign Up Link */}
               <div className="text-center">
                 <p className="text-gray-600 text-base font-['Nunito'] mb-4">
@@ -194,6 +246,93 @@ export default function Login() {
           </div>
         </div>
       </div>
+
+      {/* Magic Link Modal */}
+      {showMagicLinkModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-950 font-['Arimo']">
+                Sign in with Email Link
+              </h2>
+              <button
+                onClick={() => {
+                  setShowMagicLinkModal(false);
+                  setMagicLinkSent(false);
+                  setError('');
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {!magicLinkSent ? (
+              <>
+                <p className="text-gray-600 font-['Arimo'] mb-6">
+                  Enter your email address and we'll send you a magic link to sign in instantly.
+                </p>
+
+                {/* Error Message in Modal */}
+                {error && (
+                  <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg text-red-700 font-['Nunito']">
+                    <p className="text-sm">{error}</p>
+                  </div>
+                )}
+
+                <input
+                  type="email"
+                  value={magicLinkEmail}
+                  onChange={(e) => setMagicLinkEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  className="w-full px-5 py-4 bg-white rounded-xl shadow-sm border border-slate-300 text-gray-900 text-lg font-normal font-['Nunito'] focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all placeholder-gray-400 mb-6"
+                  autoFocus
+                />
+
+                <button
+                  onClick={handleMagicLinkSignIn}
+                  disabled={loadingMagicLink || !magicLinkEmail}
+                  className="w-full py-4 px-6 bg-gray-950 hover:bg-black text-white text-lg font-bold font-['Nunito'] rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                >
+                  {loadingMagicLink ? 'Sending...' : 'Send Magic Link'}
+                </button>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-950 font-['Arimo'] mb-2">
+                  Check your email!
+                </h3>
+                <p className="text-gray-600 font-['Arimo'] mb-2">
+                  We've sent a magic link to:
+                </p>
+                <p className="text-gray-950 font-semibold font-['Arimo'] mb-6">
+                  {magicLinkEmail}
+                </p>
+                <p className="text-sm text-gray-500 font-['Arimo']">
+                  Click the link in your email to sign in. The link will expire in 1 hour.
+                </p>
+                <button
+                  onClick={() => {
+                    setShowMagicLinkModal(false);
+                    setMagicLinkSent(false);
+                    setMagicLinkEmail('');
+                  }}
+                  className="mt-6 w-full py-3 px-6 border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 text-gray-800 text-base font-semibold font-['Nunito'] rounded-xl transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
