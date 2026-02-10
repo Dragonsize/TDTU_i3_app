@@ -329,6 +329,7 @@ def register(request: RegisterRequest, response: Response):
 
 @app.post("/api/auth/session")
 def create_session(request: AuthSessionRequest, response: Response):
+    """Create backend session from Supabase access token"""
     try:
         user_response = supabase.auth.get_user(request.access_token)
         user = getattr(user_response, "user", None)
@@ -352,6 +353,7 @@ def create_session(request: AuthSessionRequest, response: Response):
     except HTTPException:
         raise
     except Exception as exc:
+        print(f"Session creation error: {str(exc)}")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 

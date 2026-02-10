@@ -57,7 +57,8 @@ export default function Login() {
         });
 
         if (!sessionResponse.ok) {
-          throw new Error('Failed to create backend session');
+          const errorData = await sessionResponse.json().catch(() => ({}));
+          throw new Error(errorData.detail || 'Failed to create backend session');
         }
 
         // Store user profile in localStorage
@@ -89,7 +90,7 @@ export default function Login() {
               Welcome Back
             </h1>
             <p className="text-lg md:text-xl text-gray-600 font-['Arimo']">
-              Sign in to your A+ Flow account
+              Log in to your A+ Flow account
             </p>
           </div>
 
@@ -145,7 +146,7 @@ export default function Login() {
                 disabled={loading}
                 className="w-full py-4 px-6 bg-gray-950 hover:bg-black text-white text-lg font-bold font-['Nunito'] rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl mt-10"
               >
-                {loading ? 'Signing in...' : 'Sign In'}
+                {loading ? 'Logging in...' : 'Log In'}
               </button>
 
               {/* Divider */}
