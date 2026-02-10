@@ -59,14 +59,6 @@ export default function AuthCallback() {
 
     handleCallback();
   }, [router]);
-        }, 2000);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    handleCallback();
-  }, [router]);
 
   if (loading) {
     return (
