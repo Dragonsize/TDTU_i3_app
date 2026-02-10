@@ -1,113 +1,117 @@
-<div class="w-[1440px] h-[1504px] relative bg-white overflow-hidden">
-    <div class="w-[1440px] h-96 left-0 top-[82px] absolute inline-flex flex-col justify-start items-start">
-        <div class="w-[1418px] h-96 pr-32 flex flex-col justify-start items-start overflow-hidden">
-            <div class="w-[1418px] h-96 relative">
-                <div class="w-56 h-5 px-1.5 py-0.5 left-[595px] top-[24px] absolute bg-gray-100 rounded-md outline outline-1 outline-offset-[-1px] outline-black/0 inline-flex justify-center items-center gap-1 overflow-hidden">
-                    <div class="flex-1 text-center justify-start text-gray-950 text-xs font-normal font-['Arimo'] leading-4">🎉 New: AI-powered component generation</div>
-                </div>
-                <div class="w-[705px] h-16 left-[366px] top-[165px] absolute text-center justify-start text-neutral-950 text-6xl font-normal font-['Arimo'] leading-[52.50px]">lịch trình thông minh</div>
-                <div class="w-[532px] h-28 pr-[0.02px] left-[443px] top-[283px] absolute inline-flex flex-col justify-between items-center">
-                    <div class="w-72 h-16 relative bg-gray-950 rounded-md">
-                        <div class="w-44 h-9 left-[44.01px] top-[17px] absolute text-center justify-center text-white text-xl font-normal font-['Arimo'] leading-4">Manage Project</div>
-                        <div class="w-11 h-11 left-[202.01px] top-[13px] absolute overflow-hidden">
-                            <div class="w-7 h-0 left-[9.38px] top-[22.50px] absolute outline outline-1 outline-offset-[-0.58px] outline-white"></div>
-                            <div class="w-3.5 h-7 left-[22.50px] top-[9.38px] absolute outline outline-1 outline-offset-[-0.58px] outline-white"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="w-[891px] h-20 left-[293px] top-[91px] absolute text-center justify-start text-neutral-950 text-6xl font-normal font-['Inter'] leading-[52.50px]">Hệ thống Quản Lý Việc nhóm </div>
-            </div>
-        </div>
-    </div>
-    <div class="w-[1438.96px] h-16 px-32 pb-px left-[1px] top-0 absolute bg-white/60 border-b border-black/10 inline-flex flex-col justify-between items-center">
-        <div class="w-[1387px] h-9 inline-flex justify-between items-start">
-            <div class="w-[589px] h-7 flex justify-between items-center">
-                <div class="w-24 h-7 flex justify-start items-center gap-1.5">
-                    <div class="w-7 h-7 relative bg-gray-950 rounded-lg"></div>
-                    <div class="flex-1 h-5 relative">
-                        <div class="left-0 top-[-1px] absolute justify-start text-neutral-950 text-xl font-bold font-['Arimo'] leading-5">A+ Flow</div>
-                    </div>
-                </div>
-                <div class="w-96 h-5 flex justify-start items-center gap-5">
-                    <div class="w-24 inline-flex flex-col justify-center items-center gap-2.5">
-                        <div class="justify-start text-gray-500 text-base font-normal font-['Inter'] leading-5">Project</div>
-                    </div>
-                    <div class="w-24 self-stretch inline-flex flex-col justify-center items-center gap-2.5">
-                        <div class="justify-start text-gray-500 text-base font-normal font-['Arimo'] leading-5">ChatBot</div>
-                    </div>
-                    <div class="w-24 self-stretch inline-flex flex-col justify-center items-center gap-2.5">
-                        <div class="justify-start text-gray-500 text-base font-normal font-['Arimo'] leading-5">Chat</div>
-                    </div>
-                    <div class="w-24 inline-flex flex-col justify-center items-center gap-2.5">
-                        <div class="justify-start text-gray-500 text-base font-normal font-['Arimo'] leading-5">File </div>
-                    </div>
-                </div>
-            </div>
-            <div class="w-20 h-8 flex justify-start items-center gap-3.5">
-                <div class="w-16 h-8 px-3.5 py-1.5 rounded-md flex justify-center items-center gap-1.5">
-                    <img class="w-10 h-10" src="https://placehold.co/41x41" />
-                    <div class="text-center justify-start text-neutral-950 text-xs font-normal font-['Arimo'] leading-4">User</div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- Main Content Area -->
-    <div class="w-[1408px] h-[452px] px-3.5 left-[20px] top-[487px] absolute bg-gray-50 rounded-lg inline-flex flex-col justify-start items-start gap-6 p-6">
-        <!-- Dashboard Header -->
-        <div class="self-stretch flex flex-col justify-start items-start gap-2">
-            <div class="w-full h-9 relative">
-                <div class="w-full left-0 top-0 absolute text-neutral-950 text-2xl font-bold font-['Arimo'] leading-9">Welcome back! 👋</div>
-            </div>
-            <div class="w-full h-5 relative">
-                <div class="w-full left-0 top-0 absolute text-gray-600 text-sm font-normal font-['Arimo'] leading-5">Here's what's happening with your projects today</div>
-            </div>
-        </div>
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
-        <!-- Quick Stats / Recent Projects -->
-        <div class="self-stretch h-80 inline-flex flex-col justify-start items-start gap-4">
-            <!-- Your Projects Card -->
-            <div class="self-stretch h-40 relative bg-white rounded-lg border border-black/10 p-5">
-                <div class="w-full h-7 inline-flex justify-between items-center mb-3">
-                    <div class="justify-start text-neutral-950 text-base font-bold font-['Arimo'] leading-6">Your Recent Projects</div>
-                    <div class="text-gray-500 text-xs">→</div>
-                </div>
-                <div class="w-full h-28 flex flex-col gap-2">
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-md hover:bg-gray-100">
-                        <div class="flex-1">
-                            <div class="text-sm font-medium">Robot Lau san</div>
-                            <div class="text-xs text-gray-500">Due: Feb 15, 2026</div>
-                        </div>
-                        <div class="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded">In Progress</div>
-                    </div>
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-md hover:bg-gray-100">
-                        <div class="flex-1">
-                            <div class="text-sm font-medium">Phần mềm máy tính cầm tay</div>
-                            <div class="text-xs text-gray-500">Due: Jan 12, 2026</div>
-                        </div>
-                        <div class="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded">In Progress</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Quick Access -->
-            <div class="self-stretch h-32 flex gap-3">
-                <div class="flex-1 relative bg-white rounded-lg border border-black/10 p-4 flex flex-col justify-center items-center gap-2 hover:shadow-md cursor-pointer">
-                    <div class="text-2xl">📋</div>
-                    <div class="text-sm font-medium">Create Project</div>
-                </div>
-                <div class="flex-1 relative bg-white rounded-lg border border-black/10 p-4 flex flex-col justify-center items-center gap-2 hover:shadow-md cursor-pointer">
-                    <div class="text-2xl">💬</div>
-                    <div class="text-sm font-medium">Messages</div>
-                </div>
-                <div class="flex-1 relative bg-white rounded-lg border border-black/10 p-4 flex flex-col justify-center items-center gap-2 hover:shadow-md cursor-pointer">
-                    <div class="text-2xl">📅</div>
-                    <div class="text-sm font-medium">Calendar</div>
-                </div>
-                <div class="flex-1 relative bg-white rounded-lg border border-black/10 p-4 flex flex-col justify-center items-center gap-2 hover:shadow-md cursor-pointer">
-                    <div class="text-2xl">📁</div>
-                    <div class="text-sm font-medium">Files</div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+CREATE TABLE public.ai_chat_messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  session_id uuid NOT NULL,
+  sender_type text NOT NULL CHECK (sender_type = ANY (ARRAY['user'::text, 'ai'::text])),
+  message text NOT NULL,
+  sent_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ai_chat_messages_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_chat_messages_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.ai_chat_sessions(id)
+);
+CREATE TABLE public.ai_chat_sessions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  title text NOT NULL DEFAULT 'New Chat'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  is_archived boolean DEFAULT false,
+  last_message_at timestamp with time zone,
+  CONSTRAINT ai_chat_sessions_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_chat_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.calendar_events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  project_id uuid,
+  user_id uuid NOT NULL,
+  title text NOT NULL,
+  description text,
+  start_time timestamp with time zone NOT NULL,
+  end_time timestamp with time zone NOT NULL,
+  event_type text DEFAULT 'meeting'::text,
+  color text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT calendar_events_pkey PRIMARY KEY (id),
+  CONSTRAINT calendar_events_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT calendar_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.chat_channels (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  project_id uuid,
+  name text NOT NULL,
+  channel_type text NOT NULL DEFAULT 'team'::text,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  is_archived boolean DEFAULT false,
+  last_message_at timestamp with time zone,
+  CONSTRAINT chat_channels_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_channels_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT chat_channels_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.chat_messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  channel_id uuid NOT NULL,
+  sender_id uuid,
+  message text NOT NULL,
+  sent_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT chat_messages_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_messages_channel_id_fkey FOREIGN KEY (channel_id) REFERENCES public.chat_channels(id),
+  CONSTRAINT chat_messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.files (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  project_id uuid NOT NULL,
+  workspace_id uuid,
+  uploader_id uuid,
+  storage_path text NOT NULL,
+  bucket_name text NOT NULL DEFAULT 'project-files'::text,
+  file_name text NOT NULL,
+  file_size bigint,
+  file_type text,
+  uploaded_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT files_pkey PRIMARY KEY (id),
+  CONSTRAINT files_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT files_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
+  CONSTRAINT files_uploader_id_fkey FOREIGN KEY (uploader_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  email text UNIQUE,
+  full_name text,
+  student_id text,
+  avatar_url text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.project_members (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  project_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  role text NOT NULL DEFAULT 'member'::text,
+  joined_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT project_members_pkey PRIMARY KEY (id),
+  CONSTRAINT project_members_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT project_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.projects (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  description text,
+  status text NOT NULL DEFAULT 'in_process'::text,
+  creator_id uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  deadline timestamp with time zone,
+  CONSTRAINT projects_pkey PRIMARY KEY (id),
+  CONSTRAINT projects_creator_id_fkey FOREIGN KEY (creator_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.workspaces (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  project_id uuid NOT NULL,
+  name text NOT NULL,
+  status text NOT NULL DEFAULT 'in_process'::text,
+  position integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT workspaces_pkey PRIMARY KEY (id),
+  CONSTRAINT workspaces_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
+);

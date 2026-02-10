@@ -421,18 +421,17 @@ def register_direct(request: RegisterDirectRequest, response: Response):
         set_auth_cookies(response, access_token, refresh_token)
 
         # Create/update profile in database using admin client (bypasses RLS)
-        fullname = request.fullname or user.email
+        full_name = request.fullname or user.email
         db_client = supabase_admin if supabase_admin else db
         profile_response = db_client.table("profiles").upsert({
             "id": user.id,
-            "username": user.email,
             "email": user.email,
-            "fullname": fullname,
+            "full_name": full_name,
         }).execute()
 
         ensure_profile_upsert(profile_response, "Failed to create profile")
 
-        return {"status": "success", "user": {"id": user.id, "email": user.email, "fullname": fullname}}
+        return {"status": "success", "user": {"id": user.id, "email": user.email, "full_name": full_name}}
     except HTTPException:
         raise
     except Exception as exc:
@@ -468,18 +467,17 @@ def register(request: RegisterRequest, response: Response):
         set_auth_cookies(response, access_token, refresh_token)
 
         # Create/update profile in database using admin client (bypasses RLS)
-        fullname = request.fullname or (user.user_metadata or {}).get("full_name") or user.email
+        full_name = request.fullname or (user.user_metadata or {}).get("full_name") or user.email
         db_client = supabase_admin if supabase_admin else db
         profile_response = db_client.table("profiles").upsert({
             "id": user.id,
-            "username": user.email,
             "email": user.email,
-            "fullname": fullname,
+            "full_name": full_name,
         }).execute()
 
         ensure_profile_upsert(profile_response, "Failed to create profile")
 
-        return {"status": "success", "user": {"id": user.id, "email": user.email, "fullname": fullname}}
+        return {"status": "success", "user": {"id": user.id, "email": user.email, "full_name": full_name}}
     except HTTPException:
         raise
     except Exception as exc:
