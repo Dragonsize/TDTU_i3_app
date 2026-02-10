@@ -407,18 +407,44 @@ Alternative flow via Supabase SDK:
 
 ## Future Enhancements
 
-- [ ] Real-time collaboration with Supabase Realtime
-- [ ] Email notifications for deadlines via SendGrid
-- [ ] Calendar view component for schedule visualization
-- [ ] Advanced document versioning
-- [ ] Project templates and cloning
-- [ ] Team analytics and productivity metrics
+### Phase 1: Core UI/UX Improvements
+- [ ] Advanced calendar view with week/month/year modes
+- [ ] Calendar event cards with time slots and status badges
+- [ ] Real-time team chat with WebSocket integration
+- [ ] File drag-and-drop upload interface
+- [ ] File preview with download, share, and delete actions
+- [ ] Enhanced member search by ID or email
+- [ ] Responsive design for all screen sizes
+- [ ] Dark mode support with theme persistence
+- [ ] Loading states and skeleton screens
+- [ ] Toast notifications for user feedback
+- [ ] Custom 404 error page with branding
+
+### Phase 2: Advanced Features
+- [ ] Project templates for quick setup
+- [ ] Project cloning functionality
+- [ ] Advanced calendar features (recurring events, reminders)
+- [ ] Automatic conflict detection for calendar events
+- [ ] File version history and rollback
+- [ ] Comment threads in team chat
+- [ ] AI-powered suggestions and summaries
+- [ ] Chatbot context awareness with conversation history
+- [ ] Team analytics dashboard with productivity metrics
 - [ ] Export project reports (PDF/CSV)
-- [ ] Gantt chart visualization
+- [ ] Gantt chart visualization for project timelines
+- [ ] Email notifications for deadlines via SendGrid
+
+### Phase 3: Integration & Scaling
+- [ ] Real-time collaboration with Supabase Realtime
+- [ ] User presence and online status indicators
 - [ ] Integration with Google Calendar API
 - [ ] Mobile app with React Native
-- [ ] Advanced chatbot with AI/ML integration
-- [ ] File preview for uploaded documents
+- [ ] Advanced document versioning with diff view
+- [ ] Multi-language support (Vietnamese, English)
+- [ ] Role-based permissions with custom roles
+- [ ] Project archiving and restoration
+- [ ] Audit logs for project activities
+- [ ] API rate limiting and caching
 
 ## License
 
