@@ -6,7 +6,13 @@ from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, Upl
 from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field
-from supabase import create_client, Client
+try:
+    from supabase import create_client, Client
+    SUPABASE_IMPORT_ERROR: Optional[str] = None
+except Exception as exc:  # pragma: no cover - runtime environment issue
+    create_client = None
+    Client = Any  # type: ignore
+    SUPABASE_IMPORT_ERROR = str(exc)
 
 load_dotenv()
 
@@ -22,13 +28,23 @@ REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 IS_PRODUCTION = os.getenv("VERCEL_ENV") == "production" or os.getenv("ENVIRONMENT") == "production"
 
 SUPABASE_CONFIG_ERROR = None
-if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+if SUPABASE_IMPORT_ERROR:
+    SUPABASE_CONFIG_ERROR = f"Supabase import error: {SUPABASE_IMPORT_ERROR}"
+elif not SUPABASE_URL or not SUPABASE_ANON_KEY:
     SUPABASE_CONFIG_ERROR = "Missing Supabase credentials"
 
-supabase: Optional[Client] = create_client(SUPABASE_URL, SUPABASE_ANON_KEY) if not SUPABASE_CONFIG_ERROR else None
+supabase: Optional[Client] = (
+    create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+    if create_client and not SUPABASE_CONFIG_ERROR
+    else None
+)
 
 # Admin client for confirming users and other admin operations
-supabase_admin: Optional[Client] = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) if SUPABASE_SERVICE_ROLE_KEY and SUPABASE_URL else None
+supabase_admin: Optional[Client] = (
+    create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    if create_client and SUPABASE_SERVICE_ROLE_KEY and SUPABASE_URL
+    else None
+)
 
 ALGORITHM = "HS256"
 
@@ -139,9 +155,6 @@ app = FastAPI()
 allowed_origins = ["http://localhost:3000", "http://localhost:3001"]
 if FRONTEND_ORIGIN:
     allowed_origins.append(FRONTEND_ORIGIN)
-# In production, allow same-origin requests (Vercel deployment)
-if IS_PRODUCTION:
-    allowed_origins.append("*")  # Allow all origins in production since API is on same domain
 
 app.add_middleware(
     CORSMiddleware,
@@ -244,7 +257,12 @@ def require_project_lead(user_id: str, project_id: str) -> None:
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "supabase_configured": supabase is not None,
+        "supabase_admin_configured": supabase_admin is not None,
+        "config_error": SUPABASE_CONFIG_ERROR,
+    }
 
 
 class RegisterDirectRequest(BaseModel):
