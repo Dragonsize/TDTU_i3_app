@@ -46,6 +46,8 @@ export default function Login() {
       }
 
       if (data.session?.access_token) {
+        console.log('Creating backend session...');
+        
         // Create backend session
         const sessionResponse = await fetch('/api/auth/session', {
           method: 'POST',
@@ -56,13 +58,17 @@ export default function Login() {
           credentials: 'include',
         });
 
+        console.log('Backend session response status:', sessionResponse.status);
+
         if (!sessionResponse.ok) {
           const errorData = await sessionResponse.json().catch(() => ({}));
-          throw new Error(errorData.detail || 'Failed to create backend session');
+          console.error('Backend session error:', errorData);
+          throw new Error(errorData.detail || `Failed to create backend session (${sessionResponse.status})`);
         }
 
         // Store user profile in localStorage
         const sessionData = await sessionResponse.json();
+        console.log('Session created successfully:', sessionData);
         localStorage.setItem('userProfile', JSON.stringify(sessionData.user));
 
         // Redirect to dashboard

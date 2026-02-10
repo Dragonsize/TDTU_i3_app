@@ -21,15 +21,22 @@ REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
 IS_PRODUCTION = os.getenv("VERCEL_ENV") == "production" or os.getenv("ENVIRONMENT") == "production"
 
+SUPABASE_CONFIG_ERROR = None
 if not SUPABASE_URL or not SUPABASE_ANON_KEY:
-    raise ValueError("Missing Supabase credentials")
+    SUPABASE_CONFIG_ERROR = "Missing Supabase credentials"
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+supabase: Optional[Client] = create_client(SUPABASE_URL, SUPABASE_ANON_KEY) if not SUPABASE_CONFIG_ERROR else None
 
 # Admin client for confirming users and other admin operations
-supabase_admin: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) if SUPABASE_SERVICE_ROLE_KEY else None
+supabase_admin: Optional[Client] = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) if SUPABASE_SERVICE_ROLE_KEY and SUPABASE_URL else None
 
 ALGORITHM = "HS256"
+
+
+def require_supabase() -> Client:
+    if not supabase:
+        raise HTTPException(status_code=500, detail=SUPABASE_CONFIG_ERROR or "Supabase client not configured")
+    return supabase
 
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
@@ -128,9 +135,13 @@ class CreateNotificationRequest(BaseModel):
 
 app = FastAPI()
 
-allowed_origins = ["http://localhost:3000"]
+# Configure CORS origins
+allowed_origins = ["http://localhost:3000", "http://localhost:3001"]
 if FRONTEND_ORIGIN:
     allowed_origins.append(FRONTEND_ORIGIN)
+# In production, allow same-origin requests (Vercel deployment)
+if IS_PRODUCTION:
+    allowed_origins.append("*")  # Allow all origins in production since API is on same domain
 
 app.add_middleware(
     CORSMiddleware,
@@ -218,7 +229,8 @@ def get_current_user(access_token: Optional[str] = Cookie(None)) -> Dict[str, An
 
 
 def require_project_member(user_id: str, project_id: str) -> Dict[str, Any]:
-    membership = supabase.table("project_members").select("id, role").eq("project_id", project_id).eq("user_id", user_id).execute()
+    db = require_supabase()
+    membership = db.table("project_members").select("id, role").eq("project_id", project_id).eq("user_id", user_id).execute()
     if not membership.data:
         raise HTTPException(status_code=403, detail="Not a project member")
     return membership.data[0]
@@ -245,8 +257,9 @@ class RegisterDirectRequest(BaseModel):
 def register_direct(request: RegisterDirectRequest, response: Response):
     """Register a new user directly with email/password and create backend session"""
     try:
+        db = require_supabase()
         # Use regular client to sign up the user
-        auth_response = supabase.auth.sign_up({"email": request.email, "password": request.password})
+        auth_response = db.auth.sign_up({"email": request.email, "password": request.password})
         user = auth_response.user if hasattr(auth_response, 'user') else None
         
         if not user or not user.id:
@@ -268,7 +281,7 @@ def register_direct(request: RegisterDirectRequest, response: Response):
 
         # Create/update profile in database using admin client (bypasses RLS)
         fullname = request.fullname or user.email
-        db_client = supabase_admin if supabase_admin else supabase
+        db_client = supabase_admin if supabase_admin else db
         db_client.table("profiles").upsert({
             "id": user.id,
             "username": user.email,
@@ -288,8 +301,9 @@ def register_direct(request: RegisterDirectRequest, response: Response):
 def register(request: RegisterRequest, response: Response):
     """Register a new user and create backend session from Supabase token"""
     try:
+        db = require_supabase()
         # Verify the Supabase access token
-        user_response = supabase.auth.get_user(request.access_token)
+        user_response = db.auth.get_user(request.access_token)
         user = getattr(user_response, "user", None)
         if not user:
             raise HTTPException(status_code=401, detail="Invalid Supabase token")
@@ -312,7 +326,7 @@ def register(request: RegisterRequest, response: Response):
 
         # Create/update profile in database using admin client (bypasses RLS)
         fullname = request.fullname or (user.user_metadata or {}).get("full_name") or user.email
-        db_client = supabase_admin if supabase_admin else supabase
+        db_client = supabase_admin if supabase_admin else db
         db_client.table("profiles").upsert({
             "id": user.id,
             "username": user.email,
@@ -331,7 +345,8 @@ def register(request: RegisterRequest, response: Response):
 def create_session(request: AuthSessionRequest, response: Response):
     """Create backend session from Supabase access token"""
     try:
-        user_response = supabase.auth.get_user(request.access_token)
+        db = require_supabase()
+        user_response = db.auth.get_user(request.access_token)
         user = getattr(user_response, "user", None)
         if not user:
             raise HTTPException(status_code=401, detail="Invalid Supabase token")
@@ -341,7 +356,7 @@ def create_session(request: AuthSessionRequest, response: Response):
         set_auth_cookies(response, access_token, refresh_token)
 
         fullname = (user.user_metadata or {}).get("full_name") or user.email
-        db_client = supabase_admin if supabase_admin else supabase
+        db_client = supabase_admin if supabase_admin else db
         db_client.table("profiles").upsert({
             "id": user.id,
             "username": user.email,
@@ -383,7 +398,8 @@ def logout(response: Response):
 
 @app.get("/api/profile")
 def get_profile(user=Depends(get_current_user)):
-    response = supabase.table("profiles").select("*").eq("id", user.get("sub")).execute()
+    db = require_supabase()
+    response = db.table("profiles").select("*").eq("id", user.get("sub")).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Profile not found")
     return {"profile": response.data[0]}
@@ -391,12 +407,13 @@ def get_profile(user=Depends(get_current_user)):
 
 @app.post("/api/profile")
 def update_profile(request: ProfileUpdateRequest, user=Depends(get_current_user)):
+    db = require_supabase()
     updates = {k: v for k, v in request.dict().items() if v is not None}
     if not updates:
         raise HTTPException(status_code=400, detail="No updates provided")
 
     updates["id"] = user.get("sub")
-    response = supabase.table("profiles").upsert(updates).execute()
+    response = db.table("profiles").upsert(updates).execute()
     if not response.data:
         raise HTTPException(status_code=500, detail="Failed to update profile")
     return {"profile": response.data[0]}
@@ -404,14 +421,16 @@ def update_profile(request: ProfileUpdateRequest, user=Depends(get_current_user)
 
 @app.get("/api/projects")
 def get_projects(user=Depends(get_current_user)):
+    db = require_supabase()
     user_id = user.get("sub")
-    response = supabase.table("project_members").select("*, projects(*)").eq("user_id", user_id).execute()
+    response = db.table("project_members").select("*, projects(*)").eq("user_id", user_id).execute()
     projects = [item["projects"] for item in response.data if item.get("projects")]
     return projects
 
 
 @app.post("/api/projects")
 def create_project(request: CreateProjectRequest, user=Depends(get_current_user)):
+    db = require_supabase()
     user_id = user.get("sub")
     project_data = {
         "title": request.title,
@@ -419,12 +438,12 @@ def create_project(request: CreateProjectRequest, user=Depends(get_current_user)
         "created_by": user_id,
         "status": "active",
     }
-    response = supabase.table("projects").insert(project_data).execute()
+    response = db.table("projects").insert(project_data).execute()
     if not response.data:
         raise HTTPException(status_code=500, detail="Failed to create project")
 
     project = response.data[0]
-    supabase.table("project_members").insert({
+    db.table("project_members").insert({
         "project_id": project["id"],
         "user_id": user_id,
         "role": "lead",
@@ -435,13 +454,14 @@ def create_project(request: CreateProjectRequest, user=Depends(get_current_user)
 
 @app.post("/api/projects/{project_id}/members")
 def add_project_member(project_id: str, request: AddMemberRequest, user=Depends(get_current_user)):
+    db = require_supabase()
     require_project_lead(user.get("sub"), project_id)
-    profile_response = supabase.table("profiles").select("id").eq("username", request.member_username).execute()
+    profile_response = db.table("profiles").select("id").eq("username", request.member_username).execute()
     if not profile_response.data:
         raise HTTPException(status_code=404, detail="User not found")
 
     member_id = profile_response.data[0]["id"]
-    insert_response = supabase.table("project_members").insert({
+    insert_response = db.table("project_members").insert({
         "project_id": project_id,
         "user_id": member_id,
         "role": request.role,
@@ -454,13 +474,15 @@ def add_project_member(project_id: str, request: AddMemberRequest, user=Depends(
 
 @app.get("/api/projects/{project_id}/workflows")
 def get_workflows(project_id: str, user=Depends(get_current_user)):
+    db = require_supabase()
     require_project_member(user.get("sub"), project_id)
-    response = supabase.table("workflows").select("*").eq("project_id", project_id).execute()
+    response = db.table("workflows").select("*").eq("project_id", project_id).execute()
     return response.data
 
 
 @app.post("/api/projects/{project_id}/workflows")
 def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depends(get_current_user)):
+    db = require_supabase()
     require_project_lead(user.get("sub"), project_id)
     workflow_data = {
         "project_id": project_id,
@@ -469,7 +491,7 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
         "created_by": user.get("sub"),
         "status": "active",
     }
-    response = supabase.table("workflows").insert(workflow_data).execute()
+    response = db.table("workflows").insert(workflow_data).execute()
     if not response.data:
         raise HTTPException(status_code=500, detail="Failed to create workflow")
     return response.data[0]
@@ -477,16 +499,17 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
 
 @app.post("/api/workflows/{workflow_id}/members")
 def assign_workflow_member(workflow_id: str, request: AssignWorkflowMemberRequest, user=Depends(get_current_user)):
-    workflow = supabase.table("workflows").select("project_id").eq("id", workflow_id).execute()
+    db = require_supabase()
+    workflow = db.table("workflows").select("project_id").eq("id", workflow_id).execute()
     if not workflow.data:
         raise HTTPException(status_code=404, detail="Workflow not found")
     require_project_lead(user.get("sub"), workflow.data[0]["project_id"])
-    profile_response = supabase.table("profiles").select("id").eq("username", request.username).execute()
+    profile_response = db.table("profiles").select("id").eq("username", request.username).execute()
     if not profile_response.data:
         raise HTTPException(status_code=404, detail="User not found")
 
     member_id = profile_response.data[0]["id"]
-    insert_response = supabase.table("workflow_members").insert({
+    insert_response = db.table("workflow_members").insert({
         "workflow_id": workflow_id,
         "user_id": member_id,
         "role": request.role,
@@ -498,16 +521,17 @@ def assign_workflow_member(workflow_id: str, request: AssignWorkflowMemberReques
 
 @app.post("/api/workflows/{workflow_id}/deadlines")
 def create_deadline(workflow_id: str, request: CreateDeadlineRequest, user=Depends(get_current_user)):
-    workflow = supabase.table("workflows").select("project_id").eq("id", workflow_id).execute()
+    db = require_supabase()
+    workflow = db.table("workflows").select("project_id").eq("id", workflow_id).execute()
     if not workflow.data:
         raise HTTPException(status_code=404, detail="Workflow not found")
     require_project_lead(user.get("sub"), workflow.data[0]["project_id"])
-    profile_response = supabase.table("profiles").select("id").eq("username", request.assigned_to).execute()
+    profile_response = db.table("profiles").select("id").eq("username", request.assigned_to).execute()
     if not profile_response.data:
         raise HTTPException(status_code=404, detail="Assignee not found")
 
     assignee_id = profile_response.data[0]["id"]
-    response = supabase.table("deadlines").insert({
+    response = db.table("deadlines").insert({
         "workflow_id": workflow_id,
         "title": request.title,
         "due_date": request.due_date,
@@ -521,15 +545,17 @@ def create_deadline(workflow_id: str, request: CreateDeadlineRequest, user=Depen
 
 @app.get("/api/deadlines")
 def get_deadlines(days: int = 7, user=Depends(get_current_user)):
+    db = require_supabase()
     user_id = user.get("sub")
     max_date = datetime.now(timezone.utc) + timedelta(days=days)
-    response = supabase.table("deadlines").select("*, workflows(title, project_id)").eq("assigned_to", user_id).eq("status", "pending").lte("due_date", max_date.isoformat()).execute()
+    response = db.table("deadlines").select("*, workflows(title, project_id)").eq("assigned_to", user_id).eq("status", "pending").lte("due_date", max_date.isoformat()).execute()
     return response.data
 
 
 @app.post("/api/busy-times")
 def add_busy_time(request: AddBusyTimeRequest, user=Depends(get_current_user)):
-    response = supabase.table("busy_times").insert({
+    db = require_supabase()
+    response = db.table("busy_times").insert({
         "user_id": user.get("sub"),
         "start_time": request.start_time,
         "end_time": request.end_time,
@@ -542,20 +568,22 @@ def add_busy_time(request: AddBusyTimeRequest, user=Depends(get_current_user)):
 
 @app.get("/api/busy-times")
 def get_busy_times(user=Depends(get_current_user)):
-    response = supabase.table("busy_times").select("*").eq("user_id", user.get("sub")).execute()
+    db = require_supabase()
+    response = db.table("busy_times").select("*").eq("user_id", user.get("sub")).execute()
     return response.data
 
 
 @app.post("/api/meetings/conflicts")
 def check_conflicts(request: CheckConflictsRequest, user=Depends(get_current_user)):
+    db = require_supabase()
     require_project_member(user.get("sub"), request.project_id)
-    members = supabase.table("project_members").select("user_id, profiles(username)").eq("project_id", request.project_id).execute()
+    members = db.table("project_members").select("user_id, profiles(username)").eq("project_id", request.project_id).execute()
 
     conflicts: List[Dict[str, Any]] = []
     for member in members.data:
         user_id = member["user_id"]
         username = member["profiles"]["username"]
-        busy_times = supabase.table("busy_times").select("*").eq("user_id", user_id).execute()
+        busy_times = db.table("busy_times").select("*").eq("user_id", user_id).execute()
         for busy in busy_times.data:
             if request.start_time < busy["end_time"] and request.end_time > busy["start_time"]:
                 conflicts.append({
@@ -570,8 +598,9 @@ def check_conflicts(request: CheckConflictsRequest, user=Depends(get_current_use
 
 @app.post("/api/documents")
 def upload_document(request: UploadDocumentRequest, user=Depends(get_current_user)):
+    db = require_supabase()
     require_project_member(user.get("sub"), request.project_id)
-    response = supabase.table("documents").insert({
+    response = db.table("documents").insert({
         "project_id": request.project_id,
         "workflow_id": request.workflow_id,
         "filename": request.filename,
@@ -585,8 +614,9 @@ def upload_document(request: UploadDocumentRequest, user=Depends(get_current_use
 
 @app.get("/api/documents")
 def get_documents(project_id: str, user=Depends(get_current_user)):
+    db = require_supabase()
     require_project_member(user.get("sub"), project_id)
-    response = supabase.table("documents").select("*, profiles!uploaded_by(username)").eq("project_id", project_id).execute()
+    response = db.table("documents").select("*, profiles!uploaded_by(username)").eq("project_id", project_id).execute()
     return response.data
 
 
@@ -596,21 +626,22 @@ async def upload_document_file(
     project_id: str = Form(...),
     user=Depends(get_current_user)
 ):
+    db = require_supabase()
     require_project_member(user.get("sub"), project_id)
     
     try:
         file_content = await file.read()
         file_path = f"{project_id}/{datetime.now().timestamp()}-{file.filename}"
         
-        upload_response = supabase.storage.from_("documents").upload(
+        upload_response = db.storage.from_("documents").upload(
             path=file_path,
             file=file_content,
             file_options={"content-type": file.content_type or "application/octet-stream"}
         )
         
-        public_url = supabase.storage.from_("documents").get_public_url(file_path)
+        public_url = db.storage.from_("documents").get_public_url(file_path)
         
-        doc_response = supabase.table("documents").insert({
+        doc_response = db.table("documents").insert({
             "project_id": project_id,
             "filename": file.filename,
             "file_url": public_url,
@@ -627,7 +658,8 @@ async def upload_document_file(
 
 @app.post("/api/notifications/create")
 def create_notification(request: CreateNotificationRequest, user=Depends(get_current_user)):
-    response = supabase.table("notifications").insert({
+    db = require_supabase()
+    response = db.table("notifications").insert({
         "user_id": request.user_id,
         "type": request.type,
         "title": request.title,
@@ -642,13 +674,15 @@ def create_notification(request: CreateNotificationRequest, user=Depends(get_cur
 
 @app.get("/api/notifications")
 def get_notifications(user=Depends(get_current_user)):
-    response = supabase.table("notifications").select("*").eq("user_id", user.get("sub")).order("created_at", desc=True).limit(50).execute()
+    db = require_supabase()
+    response = db.table("notifications").select("*").eq("user_id", user.get("sub")).order("created_at", desc=True).limit(50).execute()
     return response.data
 
 
 @app.put("/api/notifications/{notification_id}/read")
 def mark_notification_read(notification_id: str, user=Depends(get_current_user)):
-    supabase.table("notifications").update({"read": True}).eq("id", notification_id).execute()
+    db = require_supabase()
+    db.table("notifications").update({"read": True}).eq("id", notification_id).execute()
     return {"status": "success"}
 
 @app.post("/api/chatbot")
