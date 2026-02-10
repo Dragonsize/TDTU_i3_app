@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 export default function Dashboard() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function Dashboard() {
         if (profileResponse.ok) {
           const profileData = await profileResponse.json();
           localStorage.setItem('userProfile', JSON.stringify(profileData.profile));
-          setUser((prev: any) => ({ ...prev, ...profileData.profile }));
+          setUser((prev) => ({ ...prev, ...profileData.profile }));
         }
       } catch (err) {
         console.error('Auth check failed:', err);

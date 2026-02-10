@@ -27,12 +27,12 @@ export default function SignUp() {
       if (authError) {
         throw new Error(authError.message);
       }
-    } catch (err: any) {
+    } catch (err) {
       setError(err.message || 'Failed to sign up with Google');
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -52,52 +52,35 @@ export default function SignUp() {
     }
 
     try {
-      // Sign up with Supabase
-      const { data, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-          },
+      // Call backend register endpoint with email/password
+      // Backend will create user in Supabase, auto-confirm, and create JWT session
+      const registerResponse = await fetch('/api/auth/register-direct', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ 
+          email,
+          password,
+          fullname: fullName,
+        }),
+        credentials: 'include',
       });
 
-      if (authError) {
-        throw new Error(authError.message);
+      if (!registerResponse.ok) {
+        const errorData = await registerResponse.json();
+        throw new Error(errorData.detail || 'Failed to create account');
       }
 
-      if (data.session?.access_token) {
-        // Create backend session
-        const sessionResponse = await fetch('/api/auth/session', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ access_token: data.session.access_token }),
-          credentials: 'include',
-        });
+      // Store user profile in localStorage
+      const sessionResult = await registerResponse.json();
+      localStorage.setItem('userProfile', JSON.stringify(sessionResult.user));
 
-        if (!sessionResponse.ok) {
-          throw new Error('Failed to create backend session');
-        }
-
-        // Store user profile in localStorage
-        const sessionData = await sessionResponse.json();
-        localStorage.setItem('userProfile', JSON.stringify(sessionData.user));
-
-        setSuccess('Account created successfully! Redirecting to login...');
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 2000);
-      } else {
-        // Email confirmation may be required
-        setSuccess('Account created! Please check your email to confirm your account.');
-        setTimeout(() => {
-          router.push('/login');
-        }, 3000);
-      }
-    } catch (err: any) {
+      setSuccess('Account created successfully! Redirecting...');
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 1500);
+    } catch (err) {
       setError(err.message || 'An error occurred');
     } finally {
       setLoading(false);

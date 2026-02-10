@@ -59,7 +59,7 @@ export default function Home() {
         </div>
       </section>
 
-        {/* Features Section */}
+      {/* Features Section */}
       <section className="w-full py-16 md:py-24 lg:py-32 px-4 md:px-6 lg:px-8 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-7xl mx-auto">
           {/* Section Header */}
@@ -90,7 +90,7 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Component Library */}
+            {/* Team Collaboration */}
             <div className="group bg-white rounded-2xl border border-gray-200 p-6 md:p-8 hover:shadow-lg hover:border-purple-200 transition-all duration-300">
               <div className="flex items-start justify-between mb-4 md:mb-6">
                 <div className="w-10 md:w-12 h-10 md:h-12 flex gap-1.5 md:gap-2">

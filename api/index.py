@@ -12,6 +12,7 @@ load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "").strip()
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-this-secret")
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "").strip()
 
@@ -24,6 +25,9 @@ if not SUPABASE_URL or not SUPABASE_ANON_KEY:
     raise ValueError("Missing Supabase credentials")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+# Admin client for confirming users and other admin operations
+supabase_admin: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) if SUPABASE_SERVICE_ROLE_KEY else None
 
 ALGORITHM = "HS256"
 
@@ -51,6 +55,11 @@ def verify_token(token: str) -> Optional[Dict[str, Any]]:
 
 class AuthSessionRequest(BaseModel):
     access_token: str = Field(..., min_length=10)
+
+
+class RegisterRequest(BaseModel):
+    access_token: str = Field(..., min_length=10)
+    fullname: Optional[str] = None
 
 
 class ProfileUpdateRequest(BaseModel):
@@ -226,6 +235,98 @@ def health():
     return {"status": "ok"}
 
 
+class RegisterDirectRequest(BaseModel):
+    email: str = Field(..., min_length=1)
+    password: str = Field(..., min_length=6)
+    fullname: Optional[str] = None
+
+
+@app.post("/api/auth/register-direct")
+def register_direct(request: RegisterDirectRequest, response: Response):
+    """Register a new user directly with email/password and create backend session"""
+    try:
+        # Use regular client to sign up the user
+        auth_response = supabase.auth.sign_up({"email": request.email, "password": request.password})
+        user = auth_response.user if hasattr(auth_response, 'user') else None
+        
+        if not user or not user.id:
+            print(f"Sign up failed: {auth_response}")
+            raise HTTPException(status_code=400, detail="Failed to create user")
+
+        # Try to auto-confirm, but don't fail if it doesn't work
+        if supabase_admin:
+            try:
+                supabase_admin.auth.admin.update_user_by_id(user.id, {"email_confirm": True})
+            except Exception as e:
+                print(f"Note: Could not auto-confirm user: {str(e)}")
+                # Continue anyway - user can still use their unconfirmed account for now
+
+        # Create backend JWT tokens
+        access_token = create_access_token({"sub": user.id, "email": user.email})
+        refresh_token = create_refresh_token({"sub": user.id, "email": user.email})
+        set_auth_cookies(response, access_token, refresh_token)
+
+        # Create/update profile in database using admin client (bypasses RLS)
+        fullname = request.fullname or user.email
+        db_client = supabase_admin if supabase_admin else supabase
+        db_client.table("profiles").upsert({
+            "id": user.id,
+            "username": user.email,
+            "email": user.email,
+            "fullname": fullname,
+        }).execute()
+
+        return {"status": "success", "user": {"id": user.id, "email": user.email, "fullname": fullname}}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print(f"Register direct error: {str(exc)}")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/auth/register")
+def register(request: RegisterRequest, response: Response):
+    """Register a new user and create backend session from Supabase token"""
+    try:
+        # Verify the Supabase access token
+        user_response = supabase.auth.get_user(request.access_token)
+        user = getattr(user_response, "user", None)
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid Supabase token")
+
+        # Auto-confirm the user via admin API so they can sign in immediately
+        if supabase_admin:
+            try:
+                supabase_admin.auth.admin.update_user_by_id(
+                    user.id,
+                    {"email_confirm": True}
+                )
+            except Exception as e:
+                print(f"Warning: Failed to auto-confirm user: {str(e)}")
+                # Continue anyway - not critical if this fails
+
+        # Create backend JWT tokens
+        access_token = create_access_token({"sub": user.id, "email": user.email})
+        refresh_token = create_refresh_token({"sub": user.id, "email": user.email})
+        set_auth_cookies(response, access_token, refresh_token)
+
+        # Create/update profile in database using admin client (bypasses RLS)
+        fullname = request.fullname or (user.user_metadata or {}).get("full_name") or user.email
+        db_client = supabase_admin if supabase_admin else supabase
+        db_client.table("profiles").upsert({
+            "id": user.id,
+            "username": user.email,
+            "email": user.email,
+            "fullname": fullname,
+        }).execute()
+
+        return {"status": "success", "user": {"id": user.id, "email": user.email, "fullname": fullname}}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 @app.post("/api/auth/session")
 def create_session(request: AuthSessionRequest, response: Response):
     try:
@@ -239,7 +340,8 @@ def create_session(request: AuthSessionRequest, response: Response):
         set_auth_cookies(response, access_token, refresh_token)
 
         fullname = (user.user_metadata or {}).get("full_name") or user.email
-        supabase.table("profiles").upsert({
+        db_client = supabase_admin if supabase_admin else supabase
+        db_client.table("profiles").upsert({
             "id": user.id,
             "username": user.email,
             "email": user.email,

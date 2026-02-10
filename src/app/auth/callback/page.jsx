@@ -11,43 +11,54 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Get the session from the URL hash
+        // Supabase auth listener will handle the hash automatically
+        // Just wait a moment for it to process
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
         const { data, error: authError } = await supabase.auth.getSession();
 
         if (authError) {
           throw new Error(authError.message);
         }
 
-        if (data.session?.access_token) {
-          // Create backend session
-          const sessionResponse = await fetch('/api/auth/session', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ access_token: data.session.access_token }),
-            credentials: 'include',
-          });
-
-          if (!sessionResponse.ok) {
-            throw new Error('Failed to create backend session');
-          }
-
-          // Store user profile in localStorage
-          const sessionData = await sessionResponse.json();
-          localStorage.setItem('userProfile', JSON.stringify(sessionData.user));
-
-          // Redirect to dashboard
-          router.push('/dashboard');
-        } else {
+        if (!data.session?.access_token) {
           throw new Error('No session found');
         }
-      } catch (err: any) {
+
+        // Create backend session
+        const sessionResponse = await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ access_token: data.session.access_token }),
+          credentials: 'include',
+        });
+
+        if (!sessionResponse.ok) {
+          const errorData = await sessionResponse.json();
+          throw new Error(errorData.detail || 'Failed to create backend session');
+        }
+
+        // Store user profile in localStorage
+        const sessionData = await sessionResponse.json();
+        localStorage.setItem('userProfile', JSON.stringify(sessionData.user));
+
+        // Redirect to dashboard
+        router.push('/dashboard');
+      } catch (err) {
         console.error('Auth callback error:', err);
         setError(err.message || 'An error occurred during sign in');
+        setLoading(false);
         // Redirect to login after 2 seconds
         setTimeout(() => {
           router.push('/login?error=' + encodeURIComponent(err.message));
+        }, 2000);
+      }
+    };
+
+    handleCallback();
+  }, [router]);
         }, 2000);
       } finally {
         setLoading(false);
