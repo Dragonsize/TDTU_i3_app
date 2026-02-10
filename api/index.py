@@ -1,11 +1,12 @@
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 try:
     from supabase import create_client, Client
     SUPABASE_IMPORT_ERROR: Optional[str] = None
@@ -48,11 +49,53 @@ supabase_admin: Optional[Client] = (
 
 ALGORITHM = "HS256"
 
+EMOJI_PATTERN = re.compile(
+    "["
+    "\U0001F300-\U0001F5FF"  # symbols & pictographs
+    "\U0001F600-\U0001F64F"  # emoticons
+    "\U0001F680-\U0001F6FF"  # transport & map symbols
+    "\U0001F700-\U0001F77F"  # alchemical symbols
+    "\U0001F780-\U0001F7FF"  # geometric shapes extended
+    "\U0001F800-\U0001F8FF"  # supplemental arrows-c
+    "\U0001F900-\U0001F9FF"  # supplemental symbols and pictographs
+    "\U0001FA00-\U0001FAFF"  # symbols and pictographs extended-a
+    "\U00002702-\U000027B0"  # dingbats
+    "\U000024C2-\U0001F251"  # enclosed characters
+    "]+",
+    flags=re.UNICODE,
+)
+
+DISALLOWED_USERNAME_CHARS = re.compile(r"[<>\"'`;]|--|/\*|\*/", flags=re.UNICODE)
+
+
+def contains_emoji(value: str) -> bool:
+    return bool(EMOJI_PATTERN.search(value))
+
+
+def contains_disallowed_username_chars(value: str) -> bool:
+    return bool(DISALLOWED_USERNAME_CHARS.search(value))
+
+
+def contains_control_chars(value: str) -> bool:
+    return any(not ch.isprintable() for ch in value)
+
 
 def require_supabase() -> Client:
     if not supabase:
         raise HTTPException(status_code=500, detail=SUPABASE_CONFIG_ERROR or "Supabase client not configured")
     return supabase
+
+
+def ensure_profile_upsert(response, fallback_message: str) -> None:
+    error = getattr(response, "error", None)
+    if error:
+        error_code = getattr(error, "code", None)
+        error_message = getattr(error, "message", None) or str(error)
+        if error_code == "23505" or "duplicate key value" in error_message:
+            raise HTTPException(status_code=409, detail="Email already registered. Did you mean login?")
+        raise HTTPException(status_code=500, detail=error_message)
+    if not response.data:
+        raise HTTPException(status_code=500, detail=fallback_message)
 
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
@@ -84,10 +127,40 @@ class RegisterRequest(BaseModel):
     access_token: str = Field(..., min_length=10)
     fullname: Optional[str] = None
 
+    @validator("fullname")
+    def validate_fullname_safe(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if contains_control_chars(value) or contains_emoji(value):
+            raise ValueError("Full name contains invalid characters")
+        if contains_disallowed_username_chars(value):
+            raise ValueError("Full name contains invalid characters")
+        return value
+
 
 class ProfileUpdateRequest(BaseModel):
     fullname: Optional[str] = None
     email: Optional[str] = None
+
+    @validator("fullname")
+    def validate_fullname_safe(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if contains_control_chars(value) or contains_emoji(value):
+            raise ValueError("Full name contains invalid characters")
+        if contains_disallowed_username_chars(value):
+            raise ValueError("Full name contains invalid characters")
+        return value
+
+    @validator("email")
+    def validate_email_safe(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if contains_control_chars(value) or contains_emoji(value):
+            raise ValueError("Email contains invalid characters")
+        if contains_disallowed_username_chars(value):
+            raise ValueError("Email contains invalid characters")
+        return value
 
 
 class CreateProjectRequest(BaseModel):
@@ -99,6 +172,14 @@ class AddMemberRequest(BaseModel):
     member_username: str = Field(..., min_length=1)
     role: str = "member"
 
+    @validator("member_username")
+    def validate_member_username_safe(cls, value: str) -> str:
+        if contains_control_chars(value) or contains_emoji(value):
+            raise ValueError("Username contains invalid characters")
+        if contains_disallowed_username_chars(value):
+            raise ValueError("Username contains invalid characters")
+        return value
+
 
 class CreateWorkflowRequest(BaseModel):
     title: str = Field(..., min_length=1)
@@ -109,11 +190,27 @@ class AssignWorkflowMemberRequest(BaseModel):
     username: str = Field(..., min_length=1)
     role: str = "member"
 
+    @validator("username")
+    def validate_username_safe(cls, value: str) -> str:
+        if contains_control_chars(value) or contains_emoji(value):
+            raise ValueError("Username contains invalid characters")
+        if contains_disallowed_username_chars(value):
+            raise ValueError("Username contains invalid characters")
+        return value
+
 
 class CreateDeadlineRequest(BaseModel):
     title: str = Field(..., min_length=1)
     due_date: str = Field(..., min_length=1)
     assigned_to: str = Field(..., min_length=1)
+
+    @validator("assigned_to")
+    def validate_assigned_to_safe(cls, value: str) -> str:
+        if contains_control_chars(value) or contains_emoji(value):
+            raise ValueError("Username contains invalid characters")
+        if contains_disallowed_username_chars(value):
+            raise ValueError("Username contains invalid characters")
+        return value
 
 
 class AddBusyTimeRequest(BaseModel):
@@ -270,6 +367,32 @@ class RegisterDirectRequest(BaseModel):
     password: str = Field(..., min_length=6)
     fullname: Optional[str] = None
 
+    @validator("email")
+    def validate_email_safe(cls, value: str) -> str:
+        if contains_control_chars(value) or contains_emoji(value):
+            raise ValueError("Email contains invalid characters")
+        if contains_disallowed_username_chars(value):
+            raise ValueError("Email contains invalid characters")
+        return value
+
+    @validator("password")
+    def validate_password_safe(cls, value: str) -> str:
+        if contains_control_chars(value) or contains_emoji(value):
+            raise ValueError("Password contains invalid characters")
+        if "<" in value or ">" in value:
+            raise ValueError("Password contains invalid characters")
+        return value
+
+    @validator("fullname")
+    def validate_fullname_safe(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if contains_control_chars(value) or contains_emoji(value):
+            raise ValueError("Full name contains invalid characters")
+        if contains_disallowed_username_chars(value):
+            raise ValueError("Full name contains invalid characters")
+        return value
+
 
 @app.post("/api/auth/register-direct")
 def register_direct(request: RegisterDirectRequest, response: Response):
@@ -300,12 +423,14 @@ def register_direct(request: RegisterDirectRequest, response: Response):
         # Create/update profile in database using admin client (bypasses RLS)
         fullname = request.fullname or user.email
         db_client = supabase_admin if supabase_admin else db
-        db_client.table("profiles").upsert({
+        profile_response = db_client.table("profiles").upsert({
             "id": user.id,
             "username": user.email,
             "email": user.email,
             "fullname": fullname,
         }).execute()
+
+        ensure_profile_upsert(profile_response, "Failed to create profile")
 
         return {"status": "success", "user": {"id": user.id, "email": user.email, "fullname": fullname}}
     except HTTPException:
@@ -345,12 +470,14 @@ def register(request: RegisterRequest, response: Response):
         # Create/update profile in database using admin client (bypasses RLS)
         fullname = request.fullname or (user.user_metadata or {}).get("full_name") or user.email
         db_client = supabase_admin if supabase_admin else db
-        db_client.table("profiles").upsert({
+        profile_response = db_client.table("profiles").upsert({
             "id": user.id,
             "username": user.email,
             "email": user.email,
             "fullname": fullname,
         }).execute()
+
+        ensure_profile_upsert(profile_response, "Failed to create profile")
 
         return {"status": "success", "user": {"id": user.id, "email": user.email, "fullname": fullname}}
     except HTTPException:
@@ -375,12 +502,14 @@ def create_session(request: AuthSessionRequest, response: Response):
 
         fullname = (user.user_metadata or {}).get("full_name") or user.email
         db_client = supabase_admin if supabase_admin else db
-        db_client.table("profiles").upsert({
+        profile_response = db_client.table("profiles").upsert({
             "id": user.id,
             "username": user.email,
             "email": user.email,
             "fullname": fullname,
         }).execute()
+
+        ensure_profile_upsert(profile_response, "Failed to create profile")
 
         return {"status": "success", "user": {"id": user.id, "email": user.email, "fullname": fullname}}
     except HTTPException:
@@ -432,8 +561,7 @@ def update_profile(request: ProfileUpdateRequest, user=Depends(get_current_user)
 
     updates["id"] = user.get("sub")
     response = db.table("profiles").upsert(updates).execute()
-    if not response.data:
-        raise HTTPException(status_code=500, detail="Failed to update profile")
+    ensure_profile_upsert(response, "Failed to update profile")
     return {"profile": response.data[0]}
 
 
