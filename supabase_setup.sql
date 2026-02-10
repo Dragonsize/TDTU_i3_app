@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT UNIQUE,
   full_name TEXT,
-  student_id TEXT,
+  username TEXT,
   avatar_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );

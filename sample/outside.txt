@@ -78,7 +78,7 @@ CREATE TABLE public.profiles (
   id uuid NOT NULL,
   email text UNIQUE,
   full_name text,
-  student_id text,
+  username text,
   avatar_url text,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT profiles_pkey PRIMARY KEY (id),

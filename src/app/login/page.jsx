@@ -8,8 +8,11 @@ export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [needsUsername, setNeedsUsername] = useState(false);
+  const [pendingSession, setPendingSession] = useState(null);
 
   const handleGoogleSignIn = async () => {
     try {
@@ -46,38 +49,86 @@ export default function Login() {
       }
 
       if (data.session?.access_token) {
-        console.log('Creating backend session...');
+        console.log('Checking profile...');
         
-        // Create backend session
-        const sessionResponse = await fetch('/api/auth/session', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ access_token: data.session.access_token }),
-          credentials: 'include',
-        });
+        // Check if user has a profile with username
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, full_name, username')
+          .eq('id', data.user.id)
+          .single();
 
-        console.log('Backend session response status:', sessionResponse.status);
-
-        if (!sessionResponse.ok) {
-          const errorData = await sessionResponse.json().catch(() => ({}));
-          console.error('Backend session error:', errorData);
-          throw new Error(errorData.detail || `Failed to create backend session (${sessionResponse.status})`);
+        // If no username, prompt for it
+        if (!profile || !profile.username) {
+          console.log('Username needed');
+          setNeedsUsername(true);
+          setPendingSession(data.session);
+          setLoading(false);
+          return;
         }
 
-        // Store user profile in localStorage
-        const sessionData = await sessionResponse.json();
-        console.log('Session created successfully:', sessionData);
-        localStorage.setItem('userProfile', JSON.stringify(sessionData.user));
-
-        // Redirect to dashboard
-        router.push('/dashboard');
+        // Complete login with backend session
+        await completeLogin(data.session.access_token);
       }
     } catch (err) {
       setError(err.message || 'An error occurred');
-    } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUsernameSubmit = async (e) => {
+    e.preventDefault();
+    if (!username.trim()) {
+      setError('Username is required');
+      return;
+    }
+    
+    setLoading(true);
+    setError('');
+
+    try {
+      // Update profile with username
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ username: username })
+        .eq('id', pendingSession.user.id);
+
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+
+      // Complete login
+      await completeLogin(pendingSession.access_token, username);
+    } catch (err) {
+      setError(err.message || 'Failed to save username');
+      setLoading(false);
+    }
+  };
+
+  const completeLogin = async (accessToken, studentId = null) => {
+    try {
+      console.log('Creating backend session...');
+      
+      const sessionResponse = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ access_token: accessToken }),
+        credentials: 'include',
+      });
+
+      if (!sessionResponse.ok) {
+        const errorData = await sessionResponse.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to create backend session (${sessionResponse.status})`);
+      }
+
+      const sessionData = await sessionResponse.json();
+      localStorage.setItem('userProfile', JSON.stringify(sessionData.user));
+
+      router.push('/dashboard');
+    } catch (err) {
+      throw err;
     }
   };
 

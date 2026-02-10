@@ -504,12 +504,12 @@ def create_session(request: AuthSessionRequest, response: Response):
             "id": user.id,
             "username": user.email,
             "email": user.email,
-            "fullname": fullname,
+            "full_name": fullname,
         }).execute()
 
         ensure_profile_upsert(profile_response, "Failed to create profile")
 
-        return {"status": "success", "user": {"id": user.id, "email": user.email, "fullname": fullname}}
+        return {"status": "success", "user": {"id": user.id, "email": user.email, "full_name": fullname}}
     except HTTPException:
         raise
     except Exception as exc:
