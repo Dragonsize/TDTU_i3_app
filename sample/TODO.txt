@@ -1,0 +1,129 @@
+# A+ Flow - Frontend Pages & Features TODO
+
+## Core Pages (Based on Prototype Screenshots)
+
+### 1. Projects
+- [ ] Project List Page (Manage Project)
+  - Search projects
+  - View: Name, Create Date, Status, Deadline
+  - Actions: Manage Deadline, Options menu
+  - NEW PROJECT button
+  - Filters: status, deadline
+
+- [ ] Project Detail Page
+  - Project info: Name, Date Created, Status, Creator
+  - Tabs: Project, ChatBot, Chat, File
+  - Member list display
+  - Manage workspace button
+  - Manage Deadline button
+
+- [ ] Create Project Page
+  - Input: Project Name
+  - Progress flow with Next button
+  - Member selection step
+
+### 2. Workspaces/Flows (within Project)
+- [ ] Workspace List Page
+  - Display: Flow name, date, status, members
+  - Create new flow button
+  - Numbered flow items (1, 2, 3, 4, 5)
+
+- [ ] Create Workspace Page
+  - Step: Name Project (input field)
+  - Next navigation
+
+### 3. Calendar/Schedule
+- [ ] Calendar View Page (Week view)
+  - Left sidebar: Mini calendar, event list
+  - Main area: Week grid with colored events
+  - Time slots (7 AM - 5 PM)
+  - Event cards with:
+    - Title
+    - Time
+    - Participants
+    - Status badge
+  - Search functionality
+  - View modes: Day, Week, Month, Year
+
+### 4. Chat
+- [ ] Team Chat Page
+  - Channel list (Chat 1, Chat 2, ...)
+  - Message history
+  - Message input with /Type command
+  - Sender avatar & name display
+
+- [ ] AI Chatbot Page
+  - Session list (Chat 1, Chat 2)
+  - Conversation history
+  - AI response: "Hello I'm your personal AI assistant"
+  - Message input with /Type command
+
+### 5. Files
+- [ ] Files List Page
+  - Upload section with drag-drop
+  - File display: icon, name, content preview
+  - File actions: download, share, delete
+
+- [ ] File Upload Page
+  - Content file section
+  - Demo file section
+  - Upload UI
+
+### 6. Members Management
+- [ ] Add Member Page
+  - Search by ID or Email field
+  - Member search results display
+  - Add button per member
+
+- [ ] Member List Page
+  - Display members in list
+  - Member info (name, ID)
+
+### 7. Error Pages
+- [ ] 404 Page
+  - Penguin mascot image
+  - Error message
+  - Navigation options
+
+### 8. Navigation & Layout
+- [ ] Main Navigation Bar
+  - Logo (A+ Flow)
+  - Nav items: Project, ChatBot, Chat, File
+  - User profile menu
+
+- [ ] Sidebar (Context-specific)
+  - Project/Workspace navigation
+  - Chat channel list
+  - Calendar filters
+
+## Backend Integration
+- [ ] API endpoints for all CRUD operations
+- [ ] Real-time chat with WebSockets
+- [ ] File upload to Supabase Storage
+- [ ] Calendar event sync
+- [ ] User presence/status
+
+## Styling & Components
+- [ ] Tailwind CSS setup (pending custom config)
+- [ ] Color scheme: Browns/taupes, blacks, grays
+- [ ] Glass effect components
+- [ ] Grid backgrounds
+- [ ] Gradient text effects
+- [ ] Button styles (black, outlined, gradient)
+- [ ] Card/modal styles
+
+## Accessibility & UX
+- [ ] Responsive design
+- [ ] Dark mode support
+- [ ] Loading states
+- [ ] Error handling
+- [ ] Form validation
+- [ ] Toast notifications
+
+## Phase 2 (Future)
+- [ ] Project templates
+- [ ] Advanced calendar features (recurring events, conflicts)
+- [ ] File version history
+- [ ] Comment threads in chat
+- [ ] AI suggestions/summaries
+- [ ] Team analytics dashboard
