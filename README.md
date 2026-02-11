@@ -1,3 +1,6 @@
+Current production website https://tdtu-i3-app.vercel.app/
+
+
 # Project Scheduling & Collaboration Platform
 
 A comprehensive web application for managing projects, workflows, team schedules, and collaboration. Built with Next.js, FastAPI, and Supabase.
