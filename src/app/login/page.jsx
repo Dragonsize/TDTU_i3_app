@@ -8,11 +8,8 @@ export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [needsUsername, setNeedsUsername] = useState(false);
-  const [pendingSession, setPendingSession] = useState(null);
 
   const handleGoogleSignIn = async () => {
     try {
@@ -49,58 +46,11 @@ export default function Login() {
       }
 
       if (data.session?.access_token) {
-        console.log('Checking profile...');
-        
-        // Check if user has a profile with username
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, full_name, username')
-          .eq('id', data.user.id)
-          .single();
-
-        // If no username, prompt for it
-        if (!profile || !profile.username) {
-          console.log('Username needed');
-          setNeedsUsername(true);
-          setPendingSession(data.session);
-          setLoading(false);
-          return;
-        }
-
         // Complete login with backend session
         await completeLogin(data.session.access_token);
       }
     } catch (err) {
       setError(err.message || 'An error occurred');
-      setLoading(false);
-    }
-  };
-
-  const handleUsernameSubmit = async (e) => {
-    e.preventDefault();
-    if (!username.trim()) {
-      setError('Username is required');
-      return;
-    }
-    
-    setLoading(true);
-    setError('');
-
-    try {
-      // Update profile with username
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ username: username })
-        .eq('id', pendingSession.user.id);
-
-      if (updateError) {
-        throw new Error(updateError.message);
-      }
-
-      // Complete login
-      await completeLogin(pendingSession.access_token, username);
-    } catch (err) {
-      setError(err.message || 'Failed to save username');
       setLoading(false);
     }
   };
