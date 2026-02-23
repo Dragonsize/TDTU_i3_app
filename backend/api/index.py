@@ -905,23 +905,29 @@ async def upload_document_file(
         file_content = await file.read()
         folder = project_id or f"private/{user_id}"
         file_path = f"{folder}/{datetime.now().timestamp()}-{file.filename}"
-        
+
         upload_response = db.storage.from_("documents").upload(
             path=file_path,
             file=file_content,
             file_options={"content-type": file.content_type or "application/octet-stream"}
         )
-        
+
+        # Always store storage path, never public URL
+        file_type = file.content_type or None
+        file_size = len(file_content) if file_content else None
+
         doc_response = db.table("documents").insert({
             "project_id": project_id,
             "filename": file.filename,
             "file_url": file_path,
+            "file_type": file_type,
+            "file_size": file_size,
             "uploaded_by": user_id,
         }).execute()
-        
+
         if not doc_response.data:
             raise HTTPException(status_code=500, detail="Failed to save document metadata")
-        
+
         return doc_response.data[0]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -945,8 +951,17 @@ def get_document_download_url(document_id: str, user=Depends(get_current_user)):
     file_path = document.get("file_url")
     if not file_path:
         raise HTTPException(status_code=404, detail="File path missing")
+
+    # Always generate signed URL, even if file_url is a public URL
+    # If file_url is a public URL, try to extract the storage path
     if isinstance(file_path, str) and file_path.startswith("http"):
-        return {"url": file_path}
+        # Try to parse storage path from public URL
+        # Example: https://.../storage/v1/object/public/documents/private/xxx/filename
+        parts = file_path.split("/documents/")
+        if len(parts) == 2:
+            file_path = parts[1].split("?")[0]
+        else:
+            raise HTTPException(status_code=404, detail="Invalid file path")
 
     signed = db.storage.from_("documents").create_signed_url(file_path, 60 * 15)
     signed_url = signed.get("signedURL") if isinstance(signed, dict) else None
