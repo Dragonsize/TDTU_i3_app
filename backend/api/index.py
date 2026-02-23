@@ -1,9 +1,10 @@
 import os
 import re
+import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, UploadFile, Form
+from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, UploadFile, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field, validator
@@ -100,6 +101,51 @@ def ensure_profile_upsert(response, fallback_message: str) -> None:
         raise HTTPException(status_code=500, detail=error_message)
     if not response.data:
         raise HTTPException(status_code=500, detail=fallback_message)
+
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def parse_timestamp(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def store_refresh_token(user_id: str, token: str, user_agent: Optional[str], ip_address: Optional[str]) -> None:
+    db = require_db_client()
+    token_hash = hash_token(token)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    response = db.table("refresh_tokens").insert({
+        "user_id": user_id,
+        "token_hash": token_hash,
+        "expires_at": expires_at.isoformat(),
+        "user_agent": user_agent,
+        "ip_address": ip_address,
+    }).execute()
+    if getattr(response, "error", None):
+        raise HTTPException(status_code=500, detail="Failed to store session")
+
+
+def get_refresh_token_record(token: str) -> Optional[Dict[str, Any]]:
+    db = require_db_client()
+    token_hash = hash_token(token)
+    response = db.table("refresh_tokens").select("*").eq("token_hash", token_hash).limit(1).execute()
+    if getattr(response, "error", None):
+        raise HTTPException(status_code=500, detail="Failed to verify session")
+    return response.data[0] if response.data else None
+
+
+def revoke_refresh_token(token: str) -> None:
+    db = require_db_client()
+    token_hash = hash_token(token)
+    db.table("refresh_tokens").update({
+        "revoked_at": datetime.now(timezone.utc).isoformat()
+    }).eq("token_hash", token_hash).execute()
 
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
@@ -314,7 +360,7 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str) 
         httponly=True,
         secure=IS_PRODUCTION,
         samesite="lax",
-        max_age=60 * 60 * 24,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
     response.set_cookie(
@@ -323,7 +369,7 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str) 
         httponly=True,
         secure=IS_PRODUCTION,
         samesite="lax",
-        max_age=60 * 60 * 24 * 7,
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
         path="/",
     )
 
@@ -399,7 +445,7 @@ class RegisterDirectRequest(BaseModel):
 
 
 @app.post("/api/auth/register-direct")
-def register_direct(request: RegisterDirectRequest, response: Response):
+def register_direct(request: RegisterDirectRequest, response: Response, http_request: Request):
     """Register a new user directly with email/password and create backend session"""
     try:
         db = require_supabase()
@@ -423,6 +469,12 @@ def register_direct(request: RegisterDirectRequest, response: Response):
         access_token = create_access_token({"sub": user.id, "email": user.email})
         refresh_token = create_refresh_token({"sub": user.id, "email": user.email})
         set_auth_cookies(response, access_token, refresh_token)
+        store_refresh_token(
+            user.id,
+            refresh_token,
+            http_request.headers.get("user-agent"),
+            http_request.client.host if http_request.client else None,
+        )
 
         # Create/update profile in database using admin client (bypasses RLS)
         full_name = request.fullname or user.email
@@ -456,7 +508,7 @@ def register_direct(request: RegisterDirectRequest, response: Response):
 
 
 @app.post("/api/auth/register")
-def register(request: RegisterRequest, response: Response):
+def register(request: RegisterRequest, response: Response, http_request: Request):
     """Register a new user and create backend session from Supabase token"""
     try:
         db = require_supabase()
@@ -481,6 +533,12 @@ def register(request: RegisterRequest, response: Response):
         access_token = create_access_token({"sub": user.id, "email": user.email})
         refresh_token = create_refresh_token({"sub": user.id, "email": user.email})
         set_auth_cookies(response, access_token, refresh_token)
+        store_refresh_token(
+            user.id,
+            refresh_token,
+            http_request.headers.get("user-agent"),
+            http_request.client.host if http_request.client else None,
+        )
 
         # Create/update profile in database using admin client (bypasses RLS)
         full_name = request.fullname or (user.user_metadata or {}).get("full_name") or user.email
@@ -501,7 +559,7 @@ def register(request: RegisterRequest, response: Response):
 
 
 @app.post("/api/auth/session")
-def create_session(request: AuthSessionRequest, response: Response):
+def create_session(request: AuthSessionRequest, response: Response, http_request: Request):
     """Create backend session from Supabase access token"""
     try:
         db = require_supabase()
@@ -513,6 +571,12 @@ def create_session(request: AuthSessionRequest, response: Response):
         access_token = create_access_token({"sub": user.id, "email": user.email})
         refresh_token = create_refresh_token({"sub": user.id, "email": user.email})
         set_auth_cookies(response, access_token, refresh_token)
+        store_refresh_token(
+            user.id,
+            refresh_token,
+            http_request.headers.get("user-agent"),
+            http_request.client.host if http_request.client else None,
+        )
 
         fullname = (user.user_metadata or {}).get("full_name") or user.email
         db_client = supabase_admin if supabase_admin else db
@@ -539,16 +603,32 @@ def create_session(request: AuthSessionRequest, response: Response):
 
 
 @app.post("/api/auth/refresh")
-def refresh_session(response: Response, refresh_token: Optional[str] = Cookie(None)):
+def refresh_session(response: Response, http_request: Request, refresh_token: Optional[str] = Cookie(None)):
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token")
     payload = verify_token(refresh_token)
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
+    record = get_refresh_token_record(refresh_token)
+    if not record or record.get("revoked_at"):
+        raise HTTPException(status_code=401, detail="Refresh token revoked")
+    if record.get("user_id") and record.get("user_id") != payload.get("sub"):
+        raise HTTPException(status_code=401, detail="Refresh token mismatch")
+    expires_at = parse_timestamp(record.get("expires_at"))
+    if expires_at and expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=401, detail="Refresh token expired")
+
     access_token = create_access_token({"sub": payload.get("sub"), "email": payload.get("email")})
     new_refresh_token = create_refresh_token({"sub": payload.get("sub"), "email": payload.get("email")})
     set_auth_cookies(response, access_token, new_refresh_token)
+    revoke_refresh_token(refresh_token)
+    store_refresh_token(
+        payload.get("sub"),
+        new_refresh_token,
+        http_request.headers.get("user-agent"),
+        http_request.client.host if http_request.client else None,
+    )
     return {"status": "success"}
 
 
@@ -558,7 +638,9 @@ def auth_me(user=Depends(get_current_user)):
 
 
 @app.post("/api/auth/logout")
-def logout(response: Response):
+def logout(response: Response, refresh_token: Optional[str] = Cookie(None)):
+    if refresh_token:
+        revoke_refresh_token(refresh_token)
     clear_auth_cookies(response)
     return {"status": "success"}
 

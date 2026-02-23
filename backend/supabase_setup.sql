@@ -10,6 +10,18 @@ CREATE TABLE IF NOT EXISTS profiles (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Refresh tokens (server-side session tracking)
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ,
+  user_agent TEXT,
+  ip_address TEXT
+);
+
 -- Projects
 CREATE TABLE IF NOT EXISTS projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -123,9 +135,11 @@ CREATE INDEX IF NOT EXISTS idx_chat_channels_project ON chat_channels(project_id
 CREATE INDEX IF NOT EXISTS idx_chat_messages_channel ON chat_messages(channel_id);
 CREATE INDEX IF NOT EXISTS idx_ai_chat_sessions_user ON ai_chat_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_ai_chat_messages_session ON ai_chat_messages(session_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE refresh_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE workspaces ENABLE ROW LEVEL SECURITY;
