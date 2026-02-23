@@ -116,24 +116,6 @@ export default function FilesPage() {
     }
   };
 
-  const handleDownload = async (documentId, filename) => {
-    try {
-      const response = await fetch(`/api/documents/${documentId}/download`, {
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.detail || 'Failed to download file');
-      }
-      const data = await response.json();
-      if (data.url) {
-        // Open in new tab for download (works for most file types)
-        window.open(data.url, '_blank');
-      }
-    } catch (err) {
-      setError(err.message || 'Failed to download file');
-    }
-  };
 
   const handlePreview = async (documentId) => {
     try {
