@@ -912,12 +912,10 @@ async def upload_document_file(
             file_options={"content-type": file.content_type or "application/octet-stream"}
         )
         
-        public_url = db.storage.from_("documents").get_public_url(file_path)
-        
         doc_response = db.table("documents").insert({
             "project_id": project_id,
             "filename": file.filename,
-            "file_url": public_url,
+            "file_url": file_path,
             "uploaded_by": user_id,
         }).execute()
         
@@ -927,6 +925,34 @@ async def upload_document_file(
         return doc_response.data[0]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/documents/{document_id}/download")
+def get_document_download_url(document_id: str, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+    response = db.table("documents").select("*").eq("id", document_id).limit(1).execute()
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    document = response.data[0]
+    project_id = document.get("project_id")
+    if project_id:
+        require_project_member(user_id, project_id)
+    elif document.get("uploaded_by") != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    file_path = document.get("file_url")
+    if not file_path:
+        raise HTTPException(status_code=404, detail="File path missing")
+    if isinstance(file_path, str) and file_path.startswith("http"):
+        return {"url": file_path}
+
+    signed = db.storage.from_("documents").create_signed_url(file_path, 60 * 15)
+    signed_url = signed.get("signedURL") if isinstance(signed, dict) else None
+    if not signed_url:
+        raise HTTPException(status_code=500, detail="Failed to create signed URL")
+    return {"url": signed_url}
 
 
 @app.post("/api/notifications/create")

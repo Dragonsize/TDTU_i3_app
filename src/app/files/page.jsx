@@ -6,26 +6,138 @@ export default function FilesPage() {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [projects, setProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+
+  const formatFileSize = (bytes) => {
+    if (typeof bytes !== 'number' || Number.isNaN(bytes)) {
+      return 'Unknown size';
+    }
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    }
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    if (bytes < 1024 * 1024 * 1024) {
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  };
+
+  const fetchFiles = async () => {
+    try {
+      const response = await fetch('/api/documents', { credentials: 'include' });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || 'Failed to load files');
+      }
+      const data = await response.json();
+      setFiles(Array.isArray(data) ? data : []);
+      setError('');
+    } catch (err) {
+      setError(err.message || 'Failed to load files');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch('/api/projects', { credentials: 'include' });
+      if (!response.ok) {
+        return;
+      }
+      const data = await response.json();
+      setProjects(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn('Failed to load projects:', err);
+    }
+  };
 
   useEffect(() => {
-    const fetchFiles = async () => {
-      try {
-        const response = await fetch('/api/documents', { credentials: 'include' });
-        if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          throw new Error(data.detail || 'Failed to load files');
-        }
-        const data = await response.json();
-        setFiles(Array.isArray(data) ? data : []);
-      } catch (err) {
-        setError(err.message || 'Failed to load files');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchFiles();
+    fetchProjects();
   }, []);
+
+  const handleUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setUploading(true);
+    setUploadError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (selectedProject) {
+        formData.append('project_id', selectedProject);
+      }
+
+      const response = await fetch('/api/documents/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || 'Upload failed');
+      }
+
+      await fetchFiles();
+      event.target.value = '';
+    } catch (err) {
+      setUploadError(err.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleOpen = async (documentId) => {
+    try {
+      const response = await fetch(`/api/documents/${documentId}/download`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || 'Failed to open file');
+      }
+      const data = await response.json();
+      if (data.url) {
+        window.open(data.url, '_blank', 'noopener,noreferrer');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to open file');
+    }
+  };
+
+  const handleDownload = async (documentId, filename) => {
+    try {
+      const response = await fetch(`/api/documents/${documentId}/download`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || 'Failed to download file');
+      }
+      const data = await response.json();
+      if (data.url) {
+        const link = document.createElement('a');
+        link.href = data.url;
+        link.download = filename || '';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to download file');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -62,6 +174,34 @@ export default function FilesPage() {
               <div className="text-sm text-gray-600 font-['Arimo']">{files.length} items</div>
             </div>
 
+            <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 mb-6">
+              <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-gray-900 text-sm font-['Arimo'] cursor-pointer border border-white shadow-sm">
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={handleUpload}
+                  disabled={uploading}
+                />
+                {uploading ? 'Uploading...' : 'Upload file'}
+              </label>
+              <select
+                className="px-3 py-2 rounded-lg bg-white text-sm text-gray-700 font-['Arimo'] border border-white shadow-sm"
+                value={selectedProject}
+                onChange={(event) => setSelectedProject(event.target.value)}
+                disabled={uploading}
+              >
+                <option value="">Private (just me)</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.title || project.name || 'Untitled project'}
+                  </option>
+                ))}
+              </select>
+              {uploadError ? (
+                <div className="text-sm text-red-600 font-['Arimo']">{uploadError}</div>
+              ) : null}
+            </div>
+
             {loading ? (
               <div className="text-center text-gray-700 font-['Arimo']">Loading files...</div>
             ) : error ? (
@@ -79,6 +219,23 @@ export default function FilesPage() {
                     <div className="text-xs text-gray-600 font-['Arimo'] mt-1">
                       {file.project_id ? 'Shared to project' : 'Private'}
                     </div>
+                    <div className="text-xs text-gray-500 font-['Arimo'] mt-1">
+                      {file.file_type || 'Unknown type'} · {formatFileSize(file.file_size)}
+                    </div>
+                    <button
+                      onClick={() => handleOpen(file.id)}
+                      className="mt-3 text-sm text-gray-900 font-['Arimo'] underline"
+                      type="button"
+                    >
+                      Open
+                    </button>
+                    <button
+                      onClick={() => handleDownload(file.id, file.filename)}
+                      className="mt-2 text-sm text-gray-900 font-['Arimo'] underline"
+                      type="button"
+                    >
+                      Download
+                    </button>
                   </div>
                 ))}
               </div>
