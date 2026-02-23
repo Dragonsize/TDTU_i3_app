@@ -86,6 +86,10 @@ def require_supabase() -> Client:
     return supabase
 
 
+def require_db_client() -> Client:
+    return supabase_admin if supabase_admin else require_supabase()
+
+
 def ensure_profile_upsert(response, fallback_message: str) -> None:
     error = getattr(response, "error", None)
     if error:
@@ -339,7 +343,7 @@ def get_current_user(access_token: Optional[str] = Cookie(None)) -> Dict[str, An
 
 
 def require_project_member(user_id: str, project_id: str) -> Dict[str, Any]:
-    db = require_supabase()
+    db = require_db_client()
     membership = db.table("project_members").select("id, role").eq("project_id", project_id).eq("user_id", user_id).execute()
     if not membership.data:
         raise HTTPException(status_code=403, detail="Not a project member")
@@ -543,7 +547,7 @@ def logout(response: Response):
 
 @app.get("/api/profile")
 def get_profile(user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     response = db.table("profiles").select("*").eq("id", user.get("sub")).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Profile not found")
@@ -552,7 +556,7 @@ def get_profile(user=Depends(get_current_user)):
 
 @app.post("/api/profile")
 def update_profile(request: ProfileUpdateRequest, user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     updates = {k: v for k, v in request.dict().items() if v is not None}
     if not updates:
         raise HTTPException(status_code=400, detail="No updates provided")
@@ -565,7 +569,7 @@ def update_profile(request: ProfileUpdateRequest, user=Depends(get_current_user)
 
 @app.get("/api/projects")
 def get_projects(user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     user_id = user.get("sub")
     response = db.table("project_members").select("*, projects(*)").eq("user_id", user_id).execute()
     projects = [item["projects"] for item in response.data if item.get("projects")]
@@ -574,7 +578,7 @@ def get_projects(user=Depends(get_current_user)):
 
 @app.post("/api/projects")
 def create_project(request: CreateProjectRequest, user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     user_id = user.get("sub")
     project_data = {
         "title": request.title,
@@ -598,7 +602,7 @@ def create_project(request: CreateProjectRequest, user=Depends(get_current_user)
 
 @app.post("/api/projects/{project_id}/members")
 def add_project_member(project_id: str, request: AddMemberRequest, user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     require_project_lead(user.get("sub"), project_id)
     profile_response = db.table("profiles").select("id").eq("username", request.member_username).execute()
     if not profile_response.data:
@@ -618,7 +622,7 @@ def add_project_member(project_id: str, request: AddMemberRequest, user=Depends(
 
 @app.get("/api/projects/{project_id}/workflows")
 def get_workflows(project_id: str, user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     require_project_member(user.get("sub"), project_id)
     response = db.table("workflows").select("*").eq("project_id", project_id).execute()
     return response.data
@@ -626,7 +630,7 @@ def get_workflows(project_id: str, user=Depends(get_current_user)):
 
 @app.post("/api/projects/{project_id}/workflows")
 def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     require_project_lead(user.get("sub"), project_id)
     workflow_data = {
         "project_id": project_id,
@@ -643,7 +647,7 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
 
 @app.post("/api/workflows/{workflow_id}/members")
 def assign_workflow_member(workflow_id: str, request: AssignWorkflowMemberRequest, user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     workflow = db.table("workflows").select("project_id").eq("id", workflow_id).execute()
     if not workflow.data:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -665,7 +669,7 @@ def assign_workflow_member(workflow_id: str, request: AssignWorkflowMemberReques
 
 @app.post("/api/workflows/{workflow_id}/deadlines")
 def create_deadline(workflow_id: str, request: CreateDeadlineRequest, user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     workflow = db.table("workflows").select("project_id").eq("id", workflow_id).execute()
     if not workflow.data:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -689,7 +693,7 @@ def create_deadline(workflow_id: str, request: CreateDeadlineRequest, user=Depen
 
 @app.get("/api/deadlines")
 def get_deadlines(days: int = 7, user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     user_id = user.get("sub")
     max_date = datetime.now(timezone.utc) + timedelta(days=days)
     response = db.table("deadlines").select("*, workflows(title, project_id)").eq("assigned_to", user_id).eq("status", "pending").lte("due_date", max_date.isoformat()).execute()
@@ -698,7 +702,7 @@ def get_deadlines(days: int = 7, user=Depends(get_current_user)):
 
 @app.post("/api/busy-times")
 def add_busy_time(request: AddBusyTimeRequest, user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     response = db.table("busy_times").insert({
         "user_id": user.get("sub"),
         "start_time": request.start_time,
@@ -712,14 +716,14 @@ def add_busy_time(request: AddBusyTimeRequest, user=Depends(get_current_user)):
 
 @app.get("/api/busy-times")
 def get_busy_times(user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     response = db.table("busy_times").select("*").eq("user_id", user.get("sub")).execute()
     return response.data
 
 
 @app.post("/api/meetings/conflicts")
 def check_conflicts(request: CheckConflictsRequest, user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     require_project_member(user.get("sub"), request.project_id)
     members = db.table("project_members").select("user_id, profiles(username)").eq("project_id", request.project_id).execute()
 
@@ -742,7 +746,7 @@ def check_conflicts(request: CheckConflictsRequest, user=Depends(get_current_use
 
 @app.post("/api/documents")
 def upload_document(request: UploadDocumentRequest, user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     require_project_member(user.get("sub"), request.project_id)
     response = db.table("documents").insert({
         "project_id": request.project_id,
@@ -758,7 +762,7 @@ def upload_document(request: UploadDocumentRequest, user=Depends(get_current_use
 
 @app.get("/api/documents")
 def get_documents(project_id: str, user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     require_project_member(user.get("sub"), project_id)
     response = db.table("documents").select("*, profiles!uploaded_by(username)").eq("project_id", project_id).execute()
     return response.data
@@ -770,7 +774,7 @@ async def upload_document_file(
     project_id: str = Form(...),
     user=Depends(get_current_user)
 ):
-    db = require_supabase()
+    db = require_db_client()
     require_project_member(user.get("sub"), project_id)
     
     try:
@@ -802,7 +806,7 @@ async def upload_document_file(
 
 @app.post("/api/notifications/create")
 def create_notification(request: CreateNotificationRequest, user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     response = db.table("notifications").insert({
         "user_id": request.user_id,
         "type": request.type,
@@ -818,14 +822,14 @@ def create_notification(request: CreateNotificationRequest, user=Depends(get_cur
 
 @app.get("/api/notifications")
 def get_notifications(user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     response = db.table("notifications").select("*").eq("user_id", user.get("sub")).order("created_at", desc=True).limit(50).execute()
     return response.data
 
 
 @app.put("/api/notifications/{notification_id}/read")
 def mark_notification_read(notification_id: str, user=Depends(get_current_user)):
-    db = require_supabase()
+    db = require_db_client()
     db.table("notifications").update({"read": True}).eq("id", notification_id).execute()
     return {"status": "success"}
 
