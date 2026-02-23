@@ -250,20 +250,42 @@ export default function FilesPage() {
                     >
                       Open
                     </button>
-                    <button
-                      onClick={() => handlePreview(file.id)}
-                      className="mt-2 text-sm text-blue-700 font-['Arimo'] underline"
-                      type="button"
-                    >
-                      Preview
-                    </button>
-                    <button
-                      onClick={() => handleDownload(file.id, file.filename)}
-                      className="mt-2 text-sm text-green-700 font-['Arimo'] underline"
-                      type="button"
-                    >
-                      Download
-                    </button>
+                    <div className="flex flex-row gap-4 mt-2">
+                      <a
+                        href="#"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          try {
+                            const response = await fetch(`/api/documents/${file.id}/download`, { credentials: 'include' });
+                            if (!response.ok) throw new Error('Failed to preview file');
+                            const data = await response.json();
+                            if (data.url) window.open(data.url, '_blank');
+                          } catch (err) { setError('Failed to preview file'); }
+                        }}
+                        className="text-sm text-blue-700 font-['Arimo'] underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Preview
+                      </a>
+                      <a
+                        href="#"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          try {
+                            const response = await fetch(`/api/documents/${file.id}/download`, { credentials: 'include' });
+                            if (!response.ok) throw new Error('Failed to download file');
+                            const data = await response.json();
+                            if (data.url) window.open(data.url, '_blank');
+                          } catch (err) { setError('Failed to download file'); }
+                        }}
+                        className="text-sm text-green-700 font-['Arimo'] underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Download
+                      </a>
+                    </div>
                   </div>
                 ))}
               </div>
