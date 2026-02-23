@@ -243,13 +243,7 @@ export default function FilesPage() {
                     <div className="text-xs text-gray-500 font-['Arimo'] mt-1">
                       {file.file_type || 'Unknown type'} · {formatFileSize(file.file_size)}
                     </div>
-                    <button
-                      onClick={() => handleOpen(file.id)}
-                      className="mt-3 text-sm text-gray-900 font-['Arimo'] underline"
-                      type="button"
-                    >
-                      Open
-                    </button>
+                    {/* Removed Open button */}
                     <div className="flex flex-row gap-4 mt-2">
                       <a
                         href="#"
@@ -276,11 +270,18 @@ export default function FilesPage() {
                             const response = await fetch(`/api/documents/${file.id}/download`, { credentials: 'include' });
                             if (!response.ok) throw new Error('Failed to download file');
                             const data = await response.json();
-                            if (data.url) window.open(data.url, '_blank');
+                            if (data.url) {
+                              // Download: create a temporary link and trigger download
+                              const link = document.createElement('a');
+                              link.href = data.url;
+                              link.download = file.filename || '';
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }
                           } catch (err) { setError('Failed to download file'); }
                         }}
                         className="text-sm text-green-700 font-['Arimo'] underline"
-                        target="_blank"
                         rel="noopener noreferrer"
                       >
                         Download
