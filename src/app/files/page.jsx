@@ -267,17 +267,22 @@ export default function FilesPage() {
                         onClick={async (e) => {
                           e.preventDefault();
                           try {
+                            // Get signed URL
                             const response = await fetch(`/api/documents/${file.id}/download`, { credentials: 'include' });
                             if (!response.ok) throw new Error('Failed to download file');
                             const data = await response.json();
                             if (data.url) {
-                              // Download: create a temporary link and trigger download
+                              // Fetch file as blob
+                              const fileResp = await fetch(data.url);
+                              if (!fileResp.ok) throw new Error('Failed to fetch file');
+                              const blob = await fileResp.blob();
                               const link = document.createElement('a');
-                              link.href = data.url;
+                              link.href = URL.createObjectURL(blob);
                               link.download = file.filename || '';
                               document.body.appendChild(link);
                               link.click();
                               document.body.removeChild(link);
+                              URL.revokeObjectURL(link.href);
                             }
                           } catch (err) { setError('Failed to download file'); }
                         }}
