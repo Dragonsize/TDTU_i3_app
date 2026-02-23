@@ -276,7 +276,7 @@ class CheckConflictsRequest(BaseModel):
 
 
 class UploadDocumentRequest(BaseModel):
-    project_id: str = Field(..., min_length=1)
+    project_id: Optional[str] = None
     workflow_id: Optional[str] = None
     filename: str = Field(..., min_length=1)
     file_url: str = Field(..., min_length=1)
@@ -856,7 +856,8 @@ def check_conflicts(request: CheckConflictsRequest, user=Depends(get_current_use
 @app.post("/api/documents")
 def upload_document(request: UploadDocumentRequest, user=Depends(get_current_user)):
     db = require_db_client()
-    require_project_member(user.get("sub"), request.project_id)
+    if request.project_id:
+        require_project_member(user.get("sub"), request.project_id)
     response = db.table("documents").insert({
         "project_id": request.project_id,
         "workflow_id": request.workflow_id,
@@ -870,25 +871,40 @@ def upload_document(request: UploadDocumentRequest, user=Depends(get_current_use
 
 
 @app.get("/api/documents")
-def get_documents(project_id: str, user=Depends(get_current_user)):
+def get_documents(project_id: Optional[str] = None, user=Depends(get_current_user)):
     db = require_db_client()
-    require_project_member(user.get("sub"), project_id)
-    response = db.table("documents").select("*, profiles!uploaded_by(username)").eq("project_id", project_id).execute()
+    user_id = user.get("sub")
+    if project_id:
+        require_project_member(user_id, project_id)
+        response = db.table("documents").select("*, profiles!uploaded_by(username)").eq("project_id", project_id).execute()
+        return response.data
+
+    memberships = db.table("project_members").select("project_id").eq("user_id", user_id).execute()
+    project_ids = [item["project_id"] for item in memberships.data]
+    if project_ids:
+        response = db.table("documents").select("*, profiles!uploaded_by(username)").or_(
+            f"uploaded_by.eq.{user_id},project_id.in.({','.join(project_ids)})"
+        ).execute()
+    else:
+        response = db.table("documents").select("*, profiles!uploaded_by(username)").eq("uploaded_by", user_id).execute()
     return response.data
 
 
 @app.post("/api/documents/upload")
 async def upload_document_file(
     file: UploadFile = File(...),
-    project_id: str = Form(...),
+    project_id: Optional[str] = Form(None),
     user=Depends(get_current_user)
 ):
     db = require_db_client()
-    require_project_member(user.get("sub"), project_id)
+    user_id = user.get("sub")
+    if project_id:
+        require_project_member(user_id, project_id)
     
     try:
         file_content = await file.read()
-        file_path = f"{project_id}/{datetime.now().timestamp()}-{file.filename}"
+        folder = project_id or f"private/{user_id}"
+        file_path = f"{folder}/{datetime.now().timestamp()}-{file.filename}"
         
         upload_response = db.storage.from_("documents").upload(
             path=file_path,
@@ -902,7 +918,7 @@ async def upload_document_file(
             "project_id": project_id,
             "filename": file.filename,
             "file_url": public_url,
-            "uploaded_by": user.get("sub"),
+            "uploaded_by": user_id,
         }).execute()
         
         if not doc_response.data:
