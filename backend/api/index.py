@@ -96,7 +96,7 @@ def ensure_profile_upsert(response, fallback_message: str) -> None:
         error_code = getattr(error, "code", None)
         error_message = getattr(error, "message", None) or str(error)
         if error_code == "23505" or "duplicate key value" in error_message:
-            raise HTTPException(status_code=409, detail="Email already registered. Did you mean login?")
+            raise HTTPException(status_code=409, detail="Email is already registered, would you like to sign in?")
         raise HTTPException(status_code=500, detail=error_message)
     if not response.data:
         raise HTTPException(status_code=500, detail=fallback_message)
@@ -439,8 +439,20 @@ def register_direct(request: RegisterDirectRequest, response: Response):
     except HTTPException:
         raise
     except Exception as exc:
+        error_str = str(exc).lower()
+        # Check for common Supabase auth errors and provide friendly messages
+        if "23505" in error_str or "duplicate key" in error_str or "already registered" in error_str:
+            raise HTTPException(status_code=409, detail="Email is already registered, would you like to sign in?")
+        elif "invalid email" in error_str or "invalid format" in error_str:
+            raise HTTPException(status_code=400, detail="Please enter a valid email address")
+        elif "password" in error_str and ("weak" in error_str or "short" in error_str or "at least" in error_str):
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
+        elif "rate limit" in error_str:
+            raise HTTPException(status_code=429, detail="Too many attempts. Please try again later")
+        elif "network" in error_str or "timeout" in error_str or "connection" in error_str:
+            raise HTTPException(status_code=503, detail="Service temporarily unavailable. Please try again")
         print(f"Register direct error: {str(exc)}")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="An error occurred during registration. Please try again") from exc
 
 
 @app.post("/api/auth/register")
@@ -496,7 +508,7 @@ def create_session(request: AuthSessionRequest, response: Response):
         user_response = db.auth.get_user(request.access_token)
         user = getattr(user_response, "user", None)
         if not user:
-            raise HTTPException(status_code=401, detail="Invalid Supabase token")
+            raise HTTPException(status_code=401, detail="Invalid or expired session. Please sign in again")
 
         access_token = create_access_token({"sub": user.id, "email": user.email})
         refresh_token = create_refresh_token({"sub": user.id, "email": user.email})
@@ -517,8 +529,13 @@ def create_session(request: AuthSessionRequest, response: Response):
     except HTTPException:
         raise
     except Exception as exc:
+        error_str = str(exc).lower()
+        if "invalid" in error_str and ("token" in error_str or "jwt" in error_str):
+            raise HTTPException(status_code=401, detail="Invalid or expired session. Please sign in again")
+        elif "expired" in error_str:
+            raise HTTPException(status_code=401, detail="Session expired. Please sign in again")
         print(f"Session creation error: {str(exc)}")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Failed to create session. Please try again") from exc
 
 
 @app.post("/api/auth/refresh")
