@@ -1,8 +1,32 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 export default function FilesPage() {
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchFiles = async () => {
+      try {
+        const response = await fetch('/api/documents', { credentials: 'include' });
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.detail || 'Failed to load files');
+        }
+        const data = await response.json();
+        setFiles(Array.isArray(data) ? data : []);
+      } catch (err) {
+        setError(err.message || 'Failed to load files');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFiles();
+  }, []);
+
   return (
     <div className="min-h-screen bg-white">
       <header className="w-full h-16 bg-white/60 border-b border-black/10 flex items-center">
@@ -31,21 +55,34 @@ export default function FilesPage() {
       <main className="max-w-7xl mx-auto px-6 py-12">
         <div className="text-center text-black text-5xl font-normal font-['Instrument_Sans']">Files</div>
 
-        <section className="mt-10 relative">
-          <div className="bg-zinc-300 rounded-[20px] h-[520px] md:h-[620px]"></div>
+        <section className="mt-10">
+          <div className="bg-zinc-300 rounded-[20px] min-h-[520px] md:min-h-[620px] p-6 md:p-10">
+            <div className="flex items-center justify-between mb-6">
+              <div className="text-black text-2xl font-normal font-['Instrument_Sans']">Your Files</div>
+              <div className="text-sm text-gray-600 font-['Arimo']">{files.length} items</div>
+            </div>
 
-          <div className="absolute left-8 top-8 flex flex-col items-start gap-4">
-            <div className="w-32 h-32 bg-gray-200 rounded-2xl"></div>
-            <div className="w-16 h-5 bg-neutral-400/70 rounded-lg"></div>
-            <div className="text-base font-normal font-['Instrument_Sans'] text-black/80">file 1</div>
-          </div>
-
-          <div className="absolute left-44 top-9 w-28 h-24 bg-stone-300 rounded-[29px] flex items-center justify-center">
-            <div className="opacity-50 text-6xl font-normal font-['Instrument_Sans'] text-black">+</div>
-          </div>
-
-          <div className="absolute left-1/2 -translate-x-1/2 top-40 text-center text-black text-2xl font-normal font-['Instrument_Sans']">
-            Upload Files
+            {loading ? (
+              <div className="text-center text-gray-700 font-['Arimo']">Loading files...</div>
+            ) : error ? (
+              <div className="text-center text-red-600 font-['Arimo']">{error}</div>
+            ) : files.length === 0 ? (
+              <div className="text-center text-gray-700 font-['Arimo']">No files yet.</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {files.map((file) => (
+                  <div key={file.id} className="bg-white/80 rounded-2xl p-4 shadow-sm border border-white">
+                    <div className="w-14 h-14 bg-gray-200 rounded-xl mb-3"></div>
+                    <div className="text-base text-black font-normal font-['Instrument_Sans'] truncate">
+                      {file.filename || 'Untitled'}
+                    </div>
+                    <div className="text-xs text-gray-600 font-['Arimo'] mt-1">
+                      {file.project_id ? 'Shared to project' : 'Private'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       </main>
