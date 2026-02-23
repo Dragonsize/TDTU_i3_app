@@ -73,12 +73,20 @@ export default function Dashboard() {
     <div className="w-full min-h-screen bg-white">
       {/* Header */}
       <header className="w-full h-14 md:h-16 bg-white/60 backdrop-blur-sm border-b border-black/10 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto h-full px-4 md:px-6 lg:px-8 flex items-center justify-between">
-          {/* Logo */}
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-6 md:w-7 h-6 md:h-7 bg-gray-950 rounded-lg"></div>
-            <span className="text-lg md:text-xl font-bold text-neutral-950 font-['Arimo']">A+ Flow</span>
-          </Link>
+        <div className="max-w-7xl mx-auto h-full px-4 md:px-6 lg:px-8 flex items-center justify-between gap-4">
+          {/* Logo + Nav */}
+          <div className="flex items-center gap-6 md:gap-10">
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <div className="w-6 md:w-7 h-6 md:h-7 bg-gray-950 rounded-lg"></div>
+              <span className="text-lg md:text-xl font-bold text-neutral-950 font-['Arimo']">A+ Flow</span>
+            </Link>
+            <nav className="hidden md:flex items-center gap-6 text-sm text-gray-500 font-['Arimo']">
+              <Link href="/dashboard" className="hover:text-gray-900 transition-colors">Project</Link>
+              <Link href="/chatbot" className="hover:text-gray-900 transition-colors">ChatBot</Link>
+              <Link href="/chat" className="hover:text-gray-900 transition-colors">Chat</Link>
+              <Link href="/documents" className="hover:text-gray-900 transition-colors">File</Link>
+            </nav>
+          </div>
 
           {/* User Menu */}
           <div className="flex items-center gap-4 md:gap-6">
