@@ -1,8 +1,50 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
+  const router = useRouter();
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const response = await fetch('/api/auth/me', { credentials: 'include' });
+        if (response.ok) {
+          router.replace('/dashboard');
+          return;
+        }
+      } catch (err) {
+        console.warn('Session check failed:', err);
+      } finally {
+        setCheckingSession(false);
+      }
+    };
+
+    checkSession();
+  }, [router]);
+
+  if (checkingSession) {
+    return (
+      <div className="session-splash">
+        <div className="session-splash-card">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-gray-950"></div>
+              <span className="text-lg font-bold text-neutral-950 font-['Arimo']">A+ Flow</span>
+            </div>
+            <div className="session-splash-dot"></div>
+          </div>
+          <p className="text-sm text-gray-600 font-['Arimo'] mb-4">
+            Warming up your workspace...
+          </p>
+          <div className="session-splash-bar"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full min-h-screen bg-white">
       {/* Header */}

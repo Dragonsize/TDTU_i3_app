@@ -47,6 +47,46 @@ body {
   animation: fade-in-down 0.4s ease-out both;
 }
 
+.session-splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.12), transparent 55%),
+    radial-gradient(circle at 80% 30%, rgba(127, 19, 236, 0.12), transparent 50%),
+    #ffffff;
+  z-index: 60;
+}
+
+.session-splash-card {
+  width: min(360px, 86vw);
+  border-radius: 20px;
+  padding: 24px 22px 20px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: linear-gradient(135deg, #ffffff 0%, #f6f4ff 100%);
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.12);
+  animation: splash-pop 0.18s ease-out both;
+}
+
+.session-splash-bar {
+  width: 180px;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #7f13ec 0%, #3b82f6 50%, #7f13ec 100%);
+  background-size: 200% 100%;
+  animation: splash-sweep 0.55s linear infinite;
+}
+
+.session-splash-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #0f172a;
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.12);
+  animation: splash-pulse 0.6s ease-in-out infinite;
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -66,5 +106,35 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes splash-sweep {
+  from {
+    background-position: 0% 0%;
+  }
+  to {
+    background-position: 200% 0%;
+  }
+}
+
+@keyframes splash-pulse {
+  0%,
+  100% {
+    transform: scale(0.9);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes splash-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
