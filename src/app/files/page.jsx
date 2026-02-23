@@ -127,15 +127,29 @@ export default function FilesPage() {
       }
       const data = await response.json();
       if (data.url) {
-        const link = document.createElement('a');
-        link.href = data.url;
-        link.download = filename || '';
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        // Open in new tab for download (works for most file types)
+        window.open(data.url, '_blank');
       }
     } catch (err) {
       setError(err.message || 'Failed to download file');
+    }
+  };
+
+  const handlePreview = async (documentId) => {
+    try {
+      const response = await fetch(`/api/documents/${documentId}/download`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || 'Failed to preview file');
+      }
+      const data = await response.json();
+      if (data.url) {
+        window.open(data.url, '_blank');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to preview file');
     }
   };
 
@@ -228,6 +242,13 @@ export default function FilesPage() {
                       type="button"
                     >
                       Open
+                    </button>
+                    <button
+                      onClick={() => handlePreview(file.id)}
+                      className="mt-2 text-sm text-blue-700 font-['Arimo'] underline"
+                      type="button"
+                    >
+                      Preview
                     </button>
                     <button
                       onClick={() => handleDownload(file.id, file.filename)}
