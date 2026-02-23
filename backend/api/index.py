@@ -412,6 +412,16 @@ def health():
     }
 
 
+@app.get("/health")
+def health_root():
+    return health()
+
+
+@app.get("/healthz")
+def healthz_root():
+    return health()
+
+
 class RegisterDirectRequest(BaseModel):
     email: str = Field(..., min_length=1)
     password: str = Field(..., min_length=6)
