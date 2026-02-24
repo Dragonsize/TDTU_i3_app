@@ -293,59 +293,58 @@ export default function FilesPage() {
               {/* Overlay preview for selected file */}
               {selectedFile && (
                 <div
-                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-                  onClick={(e) => {
-                    if (e.target === e.currentTarget) setSelectedFile(null);
-                  }}
+                  className="absolute inset-0 z-50 flex flex-row bg-white/95 border-2 border-blue-400 rounded-[20px] overflow-hidden"
+                  style={{ minHeight: '320px' }}
                 >
-                  <div className="bg-white rounded-2xl shadow-xl flex flex-row max-w-3xl w-full mx-4" style={{ minHeight: '320px' }}>
-                    {/* Left: Content preview */}
-                    <div className="flex-1 flex flex-col items-center justify-center p-8">
-                      <div className="flex-1 flex items-center justify-center w-full">
-                        {selectedFile.file_type && selectedFile.file_type.startsWith('image') ? (
-                          <img src={selectedFile.url || `/api/documents/${selectedFile.id}/download`} alt={selectedFile.filename} className="max-w-full max-h-80 rounded-lg" />
-                        ) : selectedFile.file_type && selectedFile.file_type.startsWith('text') ? (
-                          <div className="text-black text-lg font-['Instrument_Sans'] p-4 overflow-auto max-h-80 w-full">
-                            <TextPreview fileId={selectedFile.id} />
-                          </div>
-                        ) : (
-                          <div className="text-gray-400 text-2xl font-['Instrument_Sans']">No preview</div>
-                        )}
-                      </div>
-                      {/* Action buttons below preview */}
-                      <div className="flex flex-row gap-3 mt-8">
-                        {/* Open/preview button */}
-                        <button
-                          className="flex flex-col items-center bg-gray-100 hover:bg-blue-100 rounded-lg px-3 py-2 shadow border border-gray-200"
-                          title="Open file"
-                          onClick={() => handlePreview(selectedFile.id)}
-                        >
-                          <span className="text-xl">&gt;&gt;</span>
-                        </button>
-                        {/* Share/user button (placeholder) */}
-                        <button
-                          className="flex flex-col items-center bg-gray-100 hover:bg-blue-100 rounded-lg px-3 py-2 shadow border border-gray-200"
-                          title="Share or manage access"
-                        >
-                          <svg width="20" height="20" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-2.5 3.5-4 8-4s8 1.5 8 4"/></svg>
-                        </button>
-                        {/* Delete button */}
-                        <button
-                          className="flex flex-col items-center bg-gray-100 hover:bg-red-100 rounded-lg px-3 py-2 shadow border border-gray-200"
-                          title="Delete file"
-                          onClick={() => handleDelete(selectedFile.id)}
-                        >
-                          <svg width="20" height="20" fill="none" stroke="#dc2626" strokeWidth="2" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
-                        </button>
-                      </div>
+                  {/* Left: Content preview */}
+                  <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white/80">
+                    <div className="flex-1 flex items-center justify-center w-full">
+                      {selectedFile.file_type && selectedFile.file_type.startsWith('image') ? (
+                        <img src={selectedFile.url || `/api/documents/${selectedFile.id}/download`} alt={selectedFile.filename} className="max-w-full max-h-80 rounded-lg" />
+                      ) : selectedFile.file_type && selectedFile.file_type.startsWith('text') ? (
+                        <div className="text-black text-lg font-['Instrument_Sans'] p-4 overflow-auto max-h-80 w-full">
+                          <TextPreview fileId={selectedFile.id} />
+                        </div>
+                      ) : (
+                        <div className="text-gray-400 text-2xl font-['Instrument_Sans']">No preview</div>
+                      )}
                     </div>
-                    {/* Right: File info */}
-                    <div className="w-[320px] flex flex-col justify-center p-8 border-l border-gray-200">
-                      <div className="text-2xl text-black font-bold font-['Instrument_Sans'] mb-2">{selectedFile.filename || 'Untitled'}</div>
-                      <div className="text-xs text-gray-600 font-['Arimo'] mb-1">{selectedFile.project_id ? 'Shared to project' : 'Private'}</div>
-                      <div className="text-xs text-gray-500 font-['Arimo'] mb-1">{selectedFile.file_type || 'Unknown type'} · {formatFileSize(selectedFile.file_size)}</div>
-                      <div className="text-xs text-gray-500 font-['Arimo'] mb-1">Author: {selectedFile.author || 'Unknown'}</div>
+                  </div>
+                  {/* Right: File info and actions */}
+                  <div className="w-[340px] flex flex-col justify-center p-8 border-l border-gray-200 bg-white">
+                    <div className="text-xl text-black font-bold font-['Instrument_Sans'] mb-2 text-center rounded bg-gray-100 px-4 py-1 mb-4">{selectedFile.filename || 'Untitled'}</div>
+                    <div className="flex flex-row gap-3 mb-6 justify-center">
+                      {/* Download button (>>) */}
+                      <button
+                        className="flex flex-col items-center bg-gray-100 hover:bg-blue-100 rounded-lg px-3 py-2 shadow border border-gray-200"
+                        title="Download file"
+                        onClick={() => handleDownload(selectedFile.id, selectedFile.filename)}
+                      >
+                        <span className="text-xl">&gt;&gt;</span>
+                      </button>
+                      {/* Share/user button (placeholder) */}
+                      <button
+                        className="flex flex-col items-center bg-gray-100 hover:bg-blue-100 rounded-lg px-3 py-2 shadow border border-gray-200"
+                        title="Share or manage access"
+                      >
+                        <svg width="20" height="20" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-2.5 3.5-4 8-4s8 1.5 8 4"/></svg>
+                      </button>
+                      {/* Delete button */}
+                      <button
+                        className="flex flex-col items-center bg-gray-100 hover:bg-red-100 rounded-lg px-3 py-2 shadow border border-gray-200"
+                        title="Delete file"
+                        onClick={() => handleDelete(selectedFile.id)}
+                      >
+                        <svg width="20" height="20" fill="none" stroke="#dc2626" strokeWidth="2" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
+                      </button>
                     </div>
+                    <div className="text-xs text-gray-600 font-['Arimo'] mb-1 text-center">{selectedFile.project_id ? 'Shared to project' : 'Private'}</div>
+                    <div className="text-xs text-gray-500 font-['Arimo'] mb-1 text-center">{selectedFile.file_type || 'Unknown type'} · {formatFileSize(selectedFile.file_size)}</div>
+                    <div className="text-xs text-gray-500 font-['Arimo'] mb-1 text-center">Author: {selectedFile.author || 'Unknown'}</div>
+                    <button
+                      className="mt-8 text-xs text-blue-600 underline hover:text-blue-900"
+                      onClick={() => setSelectedFile(null)}
+                    >Back to files</button>
                   </div>
                 </div>
               )}
