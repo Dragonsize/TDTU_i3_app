@@ -306,7 +306,8 @@ export default function FilesPage() {
                           <div className="text-gray-400 text-2xl font-['Instrument_Sans']">No preview</div>
                         )}
                       // Preview image for file hub selection (download URL or blob)
-                      function FileImagePreview({ file }) {
+                      function FileImagePreview(props) {
+                        const file = props.file;
                         const [previewUrl, setPreviewUrl] = React.useState(file.url || "");
 
                         React.useEffect(() => {
