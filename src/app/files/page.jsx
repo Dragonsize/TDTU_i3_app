@@ -257,7 +257,13 @@ export default function FilesPage() {
                     onClick={() => setSelectedFile(file)}
                   >
                     <div className="w-16 h-16 flex items-center justify-center bg-gray-100 rounded-xl mb-2">
-                      <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+                      {/* Document icon for file */}
+                      <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <rect x="6" y="4" width="12" height="16" rx="2" strokeWidth="2.5"/>
+                        <line x1="9" y1="8" x2="15" y2="8" strokeWidth="2.5"/>
+                        <line x1="9" y1="12" x2="15" y2="12" strokeWidth="2.5"/>
+                        <line x1="9" y1="16" x2="13" y2="16" strokeWidth="2.5"/>
+                      </svg>
                     </div>
                     <div className="text-sm text-black font-normal font-['Instrument_Sans'] truncate w-full text-center">{file.filename || 'Untitled'}</div>
                   </div>
@@ -265,7 +271,12 @@ export default function FilesPage() {
                 {/* Upload button as a grid item */}
                 <label className="flex flex-col items-center justify-center bg-white/80 rounded-2xl p-6 shadow-sm border border-white cursor-pointer hover:bg-gray-100 transition-colors">
                   <div className="w-16 h-16 flex items-center justify-center bg-gray-100 rounded-xl mb-2">
-                    <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+                    {/* Plus icon for upload */}
+                    <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <rect x="6" y="4" width="12" height="16" rx="2"/>
+                      <line x1="12" y1="9" x2="12" y2="15"/>
+                      <line x1="9" y1="12" x2="15" y2="12"/>
+                    </svg>
                   </div>
                   <span className="text-sm text-gray-700 font-['Arimo']">Upload Files</span>
                   <input
@@ -310,22 +321,6 @@ export default function FilesPage() {
                   </div>
                 </div>
               )}
-            </div>
-            {/* Upload area at end */}
-            <div className="mt-8 flex items-center justify-center">
-              <label className="inline-flex items-center gap-2 px-6 py-4 rounded-lg bg-white text-gray-900 text-lg font-['Arimo'] cursor-pointer border border-gray-300 shadow-sm">
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={handleUpload}
-                  disabled={uploading}
-                />
-                <svg width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
-                {uploading ? 'Uploading...' : 'Upload Files'}
-              </label>
-              {uploadError ? (
-                <div className="ml-4 text-lg text-red-600 font-['Arimo']">{uploadError}</div>
-              ) : null}
             </div>
           </div>
         </section>
