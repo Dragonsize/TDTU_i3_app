@@ -1,6 +1,54 @@
 
 "use client";
 import React, { useEffect, useState } from "react";
+// FileImagePreview component for image/* files
+function FileImagePreview({ file }) {
+  const [imgUrl, setImgUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+    setError("");
+    setImgUrl(null);
+    fetch(`/api/documents/${file.id}/download`, { credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to fetch file");
+        const data = await res.json().catch(() => null);
+        if (data && data.url) {
+          return fetch(data.url).then((r) => r.blob());
+        }
+        throw new Error("No file URL");
+      })
+      .then((blob) => {
+        if (isMounted) setImgUrl(URL.createObjectURL(blob));
+      })
+      .catch(() => {
+        if (isMounted) setError("Could not preview image.");
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => {
+      isMounted = false;
+      if (imgUrl) URL.revokeObjectURL(imgUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.id]);
+
+  if (loading) return <span className="text-gray-400">Loading image...</span>;
+  if (error) return <span className="text-red-500">{error}</span>;
+  if (!imgUrl) return <span className="text-gray-400">No image</span>;
+  return (
+    <img
+      src={imgUrl}
+      alt={file.filename || "Preview"}
+      className="max-h-80 max-w-full rounded shadow border"
+      style={{ objectFit: "contain" }}
+    />
+  );
+}
 import Link from "next/link";
 
 // TextPreview component for .txt and text/* files
