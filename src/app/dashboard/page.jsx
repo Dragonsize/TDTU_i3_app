@@ -101,12 +101,7 @@ export default function Dashboard() {
                 <span>{user?.fullname ? user.fullname[0].toUpperCase() : (user?.email ? user.email[0].toUpperCase() : "U")}</span>
               )}
             </div>
-            <button
-              onClick={handleLogout}
-              className="px-4 md:px-6 h-9 md:h-10 bg-gray-950 hover:bg-black text-white text-sm md:text-base font-semibold font-['Arimo'] rounded-lg transition-colors"
-            >
-              Logout
-            </button>
+            {/* Logout button removed; now only in settings */}
           </div>
         </div>
       </header>
