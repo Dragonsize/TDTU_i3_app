@@ -12,7 +12,7 @@ export default function FilesPage() {
   const [selectedProject, setSelectedProject] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
+  // Removed selectedFile state for minimal grid layout
 
   const formatFileSize = (bytes) => {
     if (typeof bytes !== 'number' || Number.isNaN(bytes)) {
@@ -248,77 +248,33 @@ export default function FilesPage() {
           <div className="bg-zinc-300 rounded-[20px] min-h-[520px] md:min-h-[620px] p-6 md:p-10 flex flex-col">
             {/* Files table/grid */}
             <div className="flex-1" onDrop={handleDrop} onDragOver={handleDragOver}>
-              {selectedFile ? (
-                <div className="flex flex-row h-full">
-                  {/* Left: Content preview */}
-                  <div className="flex-1 bg-white rounded-l-2xl p-8 flex items-center justify-center">
-                    {selectedFile.file_type && selectedFile.file_type.startsWith('image') ? (
-                      <img src={selectedFile.url || `/api/documents/${selectedFile.id}/download`} alt={selectedFile.filename} className="max-w-full max-h-full rounded-lg" />
-                    ) : selectedFile.file_type && selectedFile.file_type.startsWith('text') ? (
-                      <div className="text-black text-lg font-['Instrument_Sans'] p-4">
-                        <TextPreview fileId={selectedFile.id} />
-                      </div>
-                    ) : (
-                      <div className="text-gray-400 text-2xl font-['Instrument_Sans']">No preview</div>
-                    )}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-8 items-start">
+                {/* File cards */}
+                {files.map((file) => (
+                  <div key={file.id} className="flex flex-col items-center justify-center bg-white/80 rounded-2xl p-6 shadow-sm border border-white">
+                    <div className="w-16 h-16 flex items-center justify-center bg-gray-100 rounded-xl mb-2">
+                      <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+                    </div>
+                    <div className="text-sm text-black font-normal font-['Instrument_Sans'] truncate w-full text-center">{file.filename || 'Untitled'}</div>
                   </div>
-                  {/* Right: File info and actions */}
-                  <div className="w-[320px] bg-white rounded-r-2xl p-8 flex flex-col justify-between border-l border-gray-200">
-                    <div>
-                      <div className="text-2xl text-black font-bold font-['Instrument_Sans'] mb-2">{selectedFile.filename || 'Untitled'}</div>
-                      <div className="text-xs text-gray-600 font-['Arimo'] mb-1">{selectedFile.project_id ? 'Shared to project' : 'Private'}</div>
-                      <div className="text-xs text-gray-500 font-['Arimo'] mb-1">{selectedFile.file_type || 'Unknown type'} · {formatFileSize(selectedFile.file_size)}</div>
-                      <div className="text-xs text-gray-500 font-['Arimo'] mb-1">Author: {selectedFile.author || 'Unknown'}</div>
-                    </div>
-                    <div className="flex flex-row gap-4 mt-8">
-                      {/* Actions: icons with text */}
-                      <button className="flex flex-col items-center" onClick={() => handlePreview(selectedFile.id)}>
-                        <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/></svg>
-                        <span className="text-xs mt-1">Preview</span>
-                      </button>
-                      <button className="flex flex-col items-center" onClick={() => handleDownload(selectedFile.id, selectedFile.filename)}>
-                        <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 16v-8"/><path d="M8 12l4 4 4-4"/><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
-                        <span className="text-xs mt-1">Download</span>
-                      </button>
-                      <button className="flex flex-col items-center" onClick={() => handleDelete(selectedFile.id)}>
-                        <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
-                        <span className="text-xs mt-1">Delete</span>
-                      </button>
-                    </div>
+                ))}
+                {/* Upload button as a grid item */}
+                <label className="flex flex-col items-center justify-center bg-white/80 rounded-2xl p-6 shadow-sm border border-white cursor-pointer hover:bg-gray-100 transition-colors">
+                  <div className="w-16 h-16 flex items-center justify-center bg-gray-100 rounded-xl mb-2">
+                    <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
                   </div>
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-4">
-                  {loading ? (
-                    <div className="text-center text-gray-700 font-['Arimo']">Loading files...</div>
-                  ) : error ? (
-                    <div className="text-center text-red-600 font-['Arimo']">{error}</div>
-                  ) : files.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center w-full h-full">
-                      <div className="flex flex-col items-center justify-center">
-                        <div className="w-24 h-24 bg-white rounded-xl flex items-center justify-center border border-gray-300">
-                          <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
-                        </div>
-                        <div className="mt-4 text-lg text-gray-700 font-['Arimo']">Upload Files</div>
-                      </div>
-                    </div>
-                  ) : (
-                    files.map((file) => (
-                      <div key={file.id} className="bg-white/80 rounded-2xl p-4 shadow-sm border border-white flex flex-row items-center cursor-pointer" onClick={() => setSelectedFile(file)}>
-                        <div className="w-16 h-16 flex items-center justify-center bg-gray-100 rounded-xl">
-                          <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
-                        </div>
-                        <div className="ml-4 flex-1">
-                          <div className="text-base text-black font-normal font-['Instrument_Sans'] truncate">{file.filename || 'Untitled'}</div>
-                          <div className="text-xs text-gray-600 font-['Arimo'] mt-1">{file.project_id ? 'Shared to project' : 'Private'}</div>
-                          <div className="text-xs text-gray-500 font-['Arimo'] mt-1">{file.file_type || 'Unknown type'} · {formatFileSize(file.file_size)}</div>
-                          <div className="text-xs text-gray-500 font-['Arimo'] mt-1">Author: {file.author || 'Unknown'}</div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
+                  <span className="text-sm text-gray-700 font-['Arimo']">Upload Files</span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={handleUpload}
+                    disabled={uploading}
+                  />
+                </label>
+              </div>
+              {uploadError ? (
+                <div className="mt-4 text-lg text-red-600 font-['Arimo']">{uploadError}</div>
+              ) : null}
             </div>
             {/* Upload area at end */}
             <div className="mt-8 flex items-center justify-center">
