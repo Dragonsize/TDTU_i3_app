@@ -105,6 +105,8 @@ export default function FilesPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const formatFileSize = (bytes) => {
     if (typeof bytes !== "number" || Number.isNaN(bytes)) {
@@ -216,15 +218,23 @@ export default function FilesPage() {
     };
 
     const handleDelete = async (documentId) => {
+      setDeleting(true);
+      setDeleteError("");
       try {
-        await fetch(`/api/documents/${documentId}/delete`, {
+        const resp = await fetch(`/api/documents/${documentId}/delete`, {
           method: "POST",
           credentials: "include",
         });
+        if (!resp.ok) {
+          const data = await resp.json().catch(() => ({}));
+          throw new Error(data.detail || "Failed to delete file");
+        }
         await fetchFiles();
         setSelectedFile(null);
       } catch (err) {
-        setError("Failed to delete file");
+        setDeleteError(err.message || "Failed to delete file");
+      } finally {
+        setDeleting(false);
       }
     };
 
@@ -376,12 +386,20 @@ export default function FilesPage() {
                           </button>
                           {/* Delete button */}
                           <button
-                            className="flex flex-col items-center bg-gray-100 hover:bg-red-100 rounded-lg px-3 py-2 shadow border border-gray-200"
+                            className={`flex flex-col items-center bg-gray-100 hover:bg-red-100 rounded-lg px-3 py-2 shadow border border-gray-200 ${deleting ? 'opacity-60 cursor-not-allowed' : ''}`}
                             title="Delete file"
-                            onClick={() => handleDelete(selectedFile.id)}
+                            onClick={() => !deleting && handleDelete(selectedFile.id)}
+                            disabled={deleting}
                           >
-                            <svg width="20" height="20" fill="none" stroke="#dc2626" strokeWidth="2" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
+                            {deleting ? (
+                              <span className="text-xs text-red-600">Deleting...</span>
+                            ) : (
+                              <svg width="20" height="20" fill="none" stroke="#dc2626" strokeWidth="2" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
+                            )}
                           </button>
+                                                {deleteError && (
+                                                  <div className="mt-2 text-xs text-red-600 text-center">{deleteError}</div>
+                                                )}
                         </div>
                         <div className="text-xs text-gray-600 font-['Arimo'] mb-1 text-center">{selectedFile.project_id ? "Shared to project" : "Private"}</div>
                         <div className="text-xs text-gray-500 font-['Arimo'] mb-1 text-center">{selectedFile.file_type || "Unknown type"} · {formatFileSize(selectedFile.file_size)}</div>
