@@ -297,7 +297,7 @@ export default function FilesPage() {
                       {/* Left: Content preview */}
                       <div className="flex-1 flex items-center justify-center p-8">
                         {selectedFile.file_type && selectedFile.file_type.startsWith("image") ? (
-                          <img src={selectedFile.url || `/api/documents/${selectedFile.id}/download`} alt={selectedFile.filename} className="max-w-full max-h-80 rounded-lg" />
+                          <FileImagePreview file={selectedFile} />
                         ) : selectedFile.file_type && selectedFile.file_type.startsWith("text") ? (
                           <div className="text-black text-lg font-['Instrument_Sans'] p-4 overflow-auto max-h-80 w-full">
                             <TextPreview fileId={selectedFile.id} />
@@ -305,6 +305,31 @@ export default function FilesPage() {
                         ) : (
                           <div className="text-gray-400 text-2xl font-['Instrument_Sans']">No preview</div>
                         )}
+                      // Preview image for file hub selection (download URL or blob)
+                      function FileImagePreview({ file }) {
+                        const [previewUrl, setPreviewUrl] = React.useState(file.url || "");
+
+                        React.useEffect(() => {
+                          let url = file.url;
+                          // If no direct URL, fallback to API download endpoint
+                          if (!url) {
+                            url = `/api/documents/${file.id}/download`;
+                          }
+                          setPreviewUrl(url);
+                          return () => {
+                            // No need to revoke for remote URLs, only for blobs
+                          };
+                        }, [file]);
+
+                        return (
+                          <img
+                            src={previewUrl}
+                            alt={file.filename}
+                            className="max-w-full max-h-80 rounded-lg"
+                            style={{ objectFit: "contain" }}
+                          />
+                        );
+                      }
                       </div>
                       {/* Right: File info and actions */}
                       <div className="w-[340px] flex flex-col justify-center p-8 border-l border-gray-200 bg-white">
