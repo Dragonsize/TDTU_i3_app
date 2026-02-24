@@ -232,65 +232,110 @@ export default function FilesPage() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {files.map((file) => (
-                  <div key={file.id} className="bg-white/80 rounded-2xl p-4 shadow-sm border border-white">
-                    <div className="w-14 h-14 bg-gray-200 rounded-xl mb-3"></div>
-                    <div className="text-base text-black font-normal font-['Instrument_Sans'] truncate">
-                      {file.filename || 'Untitled'}
+                  <div key={file.id} className="bg-white/80 rounded-2xl p-4 shadow-sm border border-white flex flex-row">
+                    {/* Left: Preview */}
+                    <div className="flex-1 flex items-center justify-center min-w-[180px] min-h-[180px] bg-gray-100 rounded-xl">
+                      {file.file_type && file.file_type.startsWith('image') ? (
+                        <img src={file.url || `/api/documents/${file.id}/download`} alt={file.filename} className="max-w-full max-h-full rounded-lg" />
+                      ) : file.file_type && file.file_type.startsWith('text') ? (
+                        <div className="text-black text-lg font-['Instrument_Sans'] p-4">
+                          {/* Fetch and show text preview */}
+                          <TextPreview fileId={file.id} />
+                        </div>
+                      ) : (
+                        <div className="text-gray-400 text-2xl font-['Instrument_Sans']">No preview</div>
+                      )}
                     </div>
-                    <div className="text-xs text-gray-600 font-['Arimo'] mt-1">
-                      {file.project_id ? 'Shared to project' : 'Private'}
-                    </div>
-                    <div className="text-xs text-gray-500 font-['Arimo'] mt-1">
-                      {file.file_type || 'Unknown type'} · {formatFileSize(file.file_size)}
-                    </div>
-                    {/* Removed Open button */}
-                    <div className="flex flex-row gap-4 mt-2">
-                      <a
-                        href="#"
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          try {
-                            const response = await fetch(`/api/documents/${file.id}/download`, { credentials: 'include' });
-                            if (!response.ok) throw new Error('Failed to preview file');
-                            const data = await response.json();
-                            if (data.url) window.open(data.url, '_blank');
-                          } catch (err) { setError('Failed to preview file'); }
-                        }}
-                        className="text-sm text-blue-700 font-['Arimo'] underline"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Preview
-                      </a>
-                      <a
-                        href="#"
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          try {
-                            // Get signed URL
-                            const response = await fetch(`/api/documents/${file.id}/download`, { credentials: 'include' });
-                            if (!response.ok) throw new Error('Failed to download file');
-                            const data = await response.json();
-                            if (data.url) {
-                              // Fetch file as blob
-                              const fileResp = await fetch(data.url);
-                              if (!fileResp.ok) throw new Error('Failed to fetch file');
-                              const blob = await fileResp.blob();
-                              const link = document.createElement('a');
-                              link.href = URL.createObjectURL(blob);
-                              link.download = file.filename || '';
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                              URL.revokeObjectURL(link.href);
-                            }
-                          } catch (err) { setError('Failed to download file'); }
-                        }}
-                        className="text-sm text-green-700 font-['Arimo'] underline"
-                        rel="noopener noreferrer"
-                      >
-                        Download
-                      </a>
+                    {/* Right: Controls */}
+                    <div className="flex-1 flex flex-col justify-between p-4">
+                      <div>
+                        <div className="text-base text-black font-normal font-['Instrument_Sans'] truncate">
+                          {file.filename || 'Untitled'}
+                        </div>
+                        <div className="text-xs text-gray-600 font-['Arimo'] mt-1">
+                          {file.project_id ? 'Shared to project' : 'Private'}
+                        </div>
+                        <div className="text-xs text-gray-500 font-['Arimo'] mt-1">
+                          {file.file_type || 'Unknown type'} · {formatFileSize(file.file_size)}
+                        </div>
+                        <div className="text-xs text-gray-500 font-['Arimo'] mt-1">
+                          Author: {file.author || 'Unknown'}
+                        </div>
+                      </div>
+                      <div className="flex flex-row gap-2 mt-4 items-center">
+                        {/* Project assignment dropdown */}
+                        <select
+                          className="px-2 py-1 rounded-lg bg-white text-xs text-gray-700 font-['Arimo'] border border-gray-300 shadow-sm"
+                          value={file.project_id || ''}
+                          onChange={async (event) => {
+                            const projectId = event.target.value;
+                            try {
+                              await fetch(`/api/documents/${file.id}/assign`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ project_id: projectId }),
+                                credentials: 'include',
+                              });
+                              await fetchFiles();
+                            } catch (err) { setError('Failed to assign project'); }
+                          }}
+                        >
+                          <option value="">Private (just me)</option>
+                          {projects.map((project) => (
+                            <option key={project.id} value={project.id}>
+                              {project.title || project.name || 'Untitled project'}
+                            </option>
+                          ))}
+                        </select>
+                        {/* Preview button */}
+                        <button
+                          className="px-2 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-['Arimo']"
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(`/api/documents/${file.id}/download`, { credentials: 'include' });
+                              if (!response.ok) throw new Error('Failed to preview file');
+                              const data = await response.json();
+                              if (data.url) window.open(data.url, '_blank');
+                            } catch (err) { setError('Failed to preview file'); }
+                          }}
+                        >Preview</button>
+                        {/* Download button */}
+                        <button
+                          className="px-2 py-1 rounded-lg bg-green-100 text-green-700 text-xs font-['Arimo']"
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(`/api/documents/${file.id}/download`, { credentials: 'include' });
+                              if (!response.ok) throw new Error('Failed to download file');
+                              const data = await response.json();
+                              if (data.url) {
+                                const fileResp = await fetch(data.url);
+                                if (!fileResp.ok) throw new Error('Failed to fetch file');
+                                const blob = await fileResp.blob();
+                                const link = document.createElement('a');
+                                link.href = URL.createObjectURL(blob);
+                                link.download = file.filename || '';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                URL.revokeObjectURL(link.href);
+                              }
+                            } catch (err) { setError('Failed to download file'); }
+                          }}
+                        >Download</button>
+                        {/* Delete button */}
+                        <button
+                          className="px-2 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-['Arimo']"
+                          onClick={async () => {
+                            try {
+                              await fetch(`/api/documents/${file.id}/delete`, {
+                                method: 'POST',
+                                credentials: 'include',
+                              });
+                              await fetchFiles();
+                            } catch (err) { setError('Failed to delete file'); }
+                          }}
+                        >Delete</button>
+                      </div>
                     </div>
                   </div>
                 ))}
