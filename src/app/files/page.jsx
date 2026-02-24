@@ -349,4 +349,7 @@ export default function FilesPage() {
             </div>
           </section>
         </main>
+      </div>
+  );
+}
 
