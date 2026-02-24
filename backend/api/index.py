@@ -639,6 +639,20 @@ def refresh_session(response: Response, http_request: Request, refresh_token: Op
         http_request.headers.get("user-agent"),
         http_request.client.host if http_request.client else None,
     )
+    # Clean up old tokens: keep only the newest for this user
+    db = require_db_client()
+    user_id = payload.get("sub")
+    # Get all tokens for user, order by created_at desc
+    tokens_response = db.table("refresh_tokens").select("id, created_at, revoked_at").eq("user_id", user_id).order("created_at", desc=True).execute()
+    if getattr(tokens_response, "error", None) is None and tokens_response.data:
+        # Keep the newest token (not revoked), revoke others
+        kept = 0
+        for token_row in tokens_response.data:
+            if token_row.get("revoked_at"):
+                continue
+            kept += 1
+            if kept > 1:
+                db.table("refresh_tokens").update({"revoked_at": datetime.now(timezone.utc).isoformat()}).eq("id", token_row["id"]).execute()
     return {"status": "success"}
 
 
