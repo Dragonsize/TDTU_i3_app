@@ -350,13 +350,9 @@ export default function FilesPage() {
           </section>
         </main>
       </div>
+=======
     );
   }
-// --- END FilesPage ---
-}
-
-// TextPreview component for .txt and text/* files
-=======
 >>>>>>> parent of 4fa79f0 (Update page.jsx)
                     </div>
                   </div>
