@@ -305,33 +305,8 @@ export default function FilesPage() {
                         ) : (
                           <div className="text-gray-400 text-2xl font-['Instrument_Sans']">No preview</div>
                         )}
-
-                      // Preview image for file hub selection (download URL or blob)
-                      function FileImagePreview({ file }) {
-                        const [previewUrl, setPreviewUrl] = React.useState(file.url || "");
-
-                        React.useEffect(() => {
-                          let url = file.url;
-                          // If no direct URL, fallback to API download endpoint
-                          if (!url) {
-                            url = `/api/documents/${file.id}/download`;
-                          }
-                          setPreviewUrl(url);
-                          return () => {
-                            // No need to revoke for remote URLs, only for blobs
-                          };
-                        }, [file]);
-
-                        return (
-                          <img
-                            src={previewUrl}
-                            alt={file.filename}
-                            className="max-w-full max-h-80 rounded-lg"
-                            style={{ objectFit: "contain" }}
-                          />
-                        );
-                      }
                       </div>
+
                       {/* Right: File info and actions */}
                       <div className="w-[340px] flex flex-col justify-center p-8 border-l border-gray-200 bg-white">
                         <div className="text-xl text-black font-bold font-['Instrument_Sans'] mb-2 text-center rounded bg-gray-100 px-4 py-1 mb-4">{selectedFile.filename || "Untitled"}</div>
