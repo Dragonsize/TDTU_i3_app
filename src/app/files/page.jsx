@@ -77,25 +77,6 @@ export default function FilesPage() {
   const fetchFiles = async () => {
     try {
       const response = await fetch("/api/documents", { credentials: "include" });
-            if (!response.ok) {
-              const data = await response.json().catch(() => ({}));
-              throw new Error(data.detail || 'Failed to load files');
-            }
-            const data = await response.json();
-            setFiles(Array.isArray(data) ? data : []);
-            setError('');
-          } catch (err) {
-            setError(err.message || 'Failed to load files');
-          } finally {
-            setLoading(false);
-          }
-        };
-
-        const fetchProjects = async () => {
-          try {
-            const response = await fetch('/api/projects', { credentials: 'include' });
-            if (!response.ok) {
-
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.detail || "Failed to load files");
@@ -104,11 +85,11 @@ export default function FilesPage() {
       setFiles(Array.isArray(data) ? data : []);
       setError("");
     } catch (err) {
-            setError(err.message || "Failed to load files");
-        } finally {
-            setLoading(false);
-        }
-    };
+      setError(err.message || "Failed to load files");
+    } finally {
+      setLoading(false);
+    }
+  };
 
     const fetchProjects = async () => {
       try {
