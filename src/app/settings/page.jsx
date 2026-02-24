@@ -2,7 +2,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getProfile } from "../lib/supabaseClient";
+import { getProfile } from "../lib/supabaseClient.js";
 
 export default function SettingsPage() {
   const [profile, setProfile] = useState(null);
