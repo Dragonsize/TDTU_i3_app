@@ -1,3 +1,5 @@
+  const [selectedFile, setSelectedFile] = useState(null);
+
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -128,12 +130,84 @@ export default function FilesPage() {
       }
       const data = await response.json();
       if (data.url) {
-        // Preview: open in new tab for viewing
         window.open(data.url, '_blank');
       }
     } catch (err) {
       setError(err.message || 'Failed to preview file');
     }
+  };
+
+  const handleDownload = async (documentId, filename) => {
+    try {
+      const response = await fetch(`/api/documents/${documentId}/download`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || 'Failed to download file');
+      }
+      const data = await response.json();
+      if (data.url) {
+        const fileResp = await fetch(data.url);
+        if (!fileResp.ok) throw new Error('Failed to fetch file');
+        const blob = await fileResp.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename || '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to download file');
+    }
+  };
+
+  const handleDelete = async (documentId) => {
+    try {
+      await fetch(`/api/documents/${documentId}/delete`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      await fetchFiles();
+      setSelectedFile(null);
+    } catch (err) {
+      setError('Failed to delete file');
+    }
+  };
+
+  // Drag-and-drop upload
+  const handleDrop = async (event) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (selectedProject) {
+        formData.append('project_id', selectedProject);
+      }
+      const response = await fetch('/api/documents/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || 'Upload failed');
+      }
+      await fetchFiles();
+    } catch (err) {
+      setUploadError(err.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+  const handleDragOver = (event) => {
+    event.preventDefault();
   };
 
   const handleDownload = async (documentId, filename) => {
@@ -160,6 +234,9 @@ export default function FilesPage() {
     }
   };
 
+  // ...existing code...
+  // Redesigned layout: large grey box for files, upload button at end, drag-and-drop support
+  // Split view and icon actions will be implemented in next steps
   return (
     <div className="min-h-screen bg-white">
       <header className="w-full h-16 bg-white/60 border-b border-black/10 flex items-center">
@@ -189,158 +266,97 @@ export default function FilesPage() {
         <div className="text-center text-black text-5xl font-normal font-['Instrument_Sans']">Files</div>
 
         <section className="mt-10">
-          <div className="bg-zinc-300 rounded-[20px] min-h-[520px] md:min-h-[620px] p-6 md:p-10">
-            <div className="flex items-center justify-between mb-6">
-              <div className="text-black text-2xl font-normal font-['Instrument_Sans']">Your Files</div>
-              <div className="text-sm text-gray-600 font-['Arimo']">{files.length} items</div>
+          <div className="bg-zinc-300 rounded-[20px] min-h-[520px] md:min-h-[620px] p-6 md:p-10 flex flex-col">
+            {/* Files table/grid */}
+            <div className="flex-1" onDrop={handleDrop} onDragOver={handleDragOver}>
+              {selectedFile ? (
+                <div className="flex flex-row h-full">
+                  {/* Left: Content preview */}
+                  <div className="flex-1 bg-white rounded-l-2xl p-8 flex items-center justify-center">
+                    {selectedFile.file_type && selectedFile.file_type.startsWith('image') ? (
+                      <img src={selectedFile.url || `/api/documents/${selectedFile.id}/download`} alt={selectedFile.filename} className="max-w-full max-h-full rounded-lg" />
+                    ) : selectedFile.file_type && selectedFile.file_type.startsWith('text') ? (
+                      <div className="text-black text-lg font-['Instrument_Sans'] p-4">
+                        <TextPreview fileId={selectedFile.id} />
+                      </div>
+                    ) : (
+                      <div className="text-gray-400 text-2xl font-['Instrument_Sans']">No preview</div>
+                    )}
+                  </div>
+                  {/* Right: File info and actions */}
+                  <div className="w-[320px] bg-white rounded-r-2xl p-8 flex flex-col justify-between border-l border-gray-200">
+                    <div>
+                      <div className="text-2xl text-black font-bold font-['Instrument_Sans'] mb-2">{selectedFile.filename || 'Untitled'}</div>
+                      <div className="text-xs text-gray-600 font-['Arimo'] mb-1">{selectedFile.project_id ? 'Shared to project' : 'Private'}</div>
+                      <div className="text-xs text-gray-500 font-['Arimo'] mb-1">{selectedFile.file_type || 'Unknown type'} · {formatFileSize(selectedFile.file_size)}</div>
+                      <div className="text-xs text-gray-500 font-['Arimo'] mb-1">Author: {selectedFile.author || 'Unknown'}</div>
+                    </div>
+                    <div className="flex flex-row gap-4 mt-8">
+                      {/* Actions: icons with text */}
+                      <button className="flex flex-col items-center" onClick={() => handlePreview(selectedFile.id)}>
+                        <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/></svg>
+                        <span className="text-xs mt-1">Preview</span>
+                      </button>
+                      <button className="flex flex-col items-center" onClick={() => handleDownload(selectedFile.id, selectedFile.filename)}>
+                        <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 16v-8"/><path d="M8 12l4 4 4-4"/><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+                        <span className="text-xs mt-1">Download</span>
+                      </button>
+                      <button className="flex flex-col items-center" onClick={() => handleDelete(selectedFile.id)}>
+                        <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9l6 6M15 9l-6 6"/></svg>
+                        <span className="text-xs mt-1">Delete</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-4">
+                  {loading ? (
+                    <div className="text-center text-gray-700 font-['Arimo']">Loading files...</div>
+                  ) : error ? (
+                    <div className="text-center text-red-600 font-['Arimo']">{error}</div>
+                  ) : files.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center w-full h-full">
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="w-24 h-24 bg-white rounded-xl flex items-center justify-center border border-gray-300">
+                          <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+                        </div>
+                        <div className="mt-4 text-lg text-gray-700 font-['Arimo']">Upload Files</div>
+                      </div>
+                    </div>
+                  ) : (
+                    files.map((file) => (
+                      <div key={file.id} className="bg-white/80 rounded-2xl p-4 shadow-sm border border-white flex flex-row items-center cursor-pointer" onClick={() => setSelectedFile(file)}>
+                        <div className="w-16 h-16 flex items-center justify-center bg-gray-100 rounded-xl">
+                          <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+                        </div>
+                        <div className="ml-4 flex-1">
+                          <div className="text-base text-black font-normal font-['Instrument_Sans'] truncate">{file.filename || 'Untitled'}</div>
+                          <div className="text-xs text-gray-600 font-['Arimo'] mt-1">{file.project_id ? 'Shared to project' : 'Private'}</div>
+                          <div className="text-xs text-gray-500 font-['Arimo'] mt-1">{file.file_type || 'Unknown type'} · {formatFileSize(file.file_size)}</div>
+                          <div className="text-xs text-gray-500 font-['Arimo'] mt-1">Author: {file.author || 'Unknown'}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
-
-            <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 mb-6">
-              <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-gray-900 text-sm font-['Arimo'] cursor-pointer border border-white shadow-sm">
+            {/* Upload area at end */}
+            <div className="mt-8 flex items-center justify-center">
+              <label className="inline-flex items-center gap-2 px-6 py-4 rounded-lg bg-white text-gray-900 text-lg font-['Arimo'] cursor-pointer border border-gray-300 shadow-sm">
                 <input
                   type="file"
                   className="hidden"
                   onChange={handleUpload}
                   disabled={uploading}
                 />
-                {uploading ? 'Uploading...' : 'Upload file'}
+                <svg width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+                {uploading ? 'Uploading...' : 'Upload Files'}
               </label>
-              <select
-                className="px-3 py-2 rounded-lg bg-white text-sm text-gray-700 font-['Arimo'] border border-white shadow-sm"
-                value={selectedProject}
-                onChange={(event) => setSelectedProject(event.target.value)}
-                disabled={uploading}
-              >
-                <option value="">Private (just me)</option>
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.title || project.name || 'Untitled project'}
-                  </option>
-                ))}
-              </select>
               {uploadError ? (
-                <div className="text-sm text-red-600 font-['Arimo']">{uploadError}</div>
+                <div className="ml-4 text-lg text-red-600 font-['Arimo']">{uploadError}</div>
               ) : null}
             </div>
-
-            {loading ? (
-              <div className="text-center text-gray-700 font-['Arimo']">Loading files...</div>
-            ) : error ? (
-              <div className="text-center text-red-600 font-['Arimo']">{error}</div>
-            ) : files.length === 0 ? (
-              <div className="text-center text-gray-700 font-['Arimo']">No files yet.</div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {files.map((file) => (
-                  <div key={file.id} className="bg-white/80 rounded-2xl p-4 shadow-sm border border-white flex flex-row">
-                    {/* Left: Preview */}
-                    <div className="flex-1 flex items-center justify-center min-w-[180px] min-h-[180px] bg-gray-100 rounded-xl">
-                      {file.file_type && file.file_type.startsWith('image') ? (
-                        <img src={file.url || `/api/documents/${file.id}/download`} alt={file.filename} className="max-w-full max-h-full rounded-lg" />
-                      ) : file.file_type && file.file_type.startsWith('text') ? (
-                        <div className="text-black text-lg font-['Instrument_Sans'] p-4">
-                          {/* Fetch and show text preview */}
-                          <TextPreview fileId={file.id} />
-                        </div>
-                      ) : (
-                        <div className="text-gray-400 text-2xl font-['Instrument_Sans']">No preview</div>
-                      )}
-                    </div>
-                    {/* Right: Controls */}
-                    <div className="flex-1 flex flex-col justify-between p-4">
-                      <div>
-                        <div className="text-base text-black font-normal font-['Instrument_Sans'] truncate">
-                          {file.filename || 'Untitled'}
-                        </div>
-                        <div className="text-xs text-gray-600 font-['Arimo'] mt-1">
-                          {file.project_id ? 'Shared to project' : 'Private'}
-                        </div>
-                        <div className="text-xs text-gray-500 font-['Arimo'] mt-1">
-                          {file.file_type || 'Unknown type'} · {formatFileSize(file.file_size)}
-                        </div>
-                        <div className="text-xs text-gray-500 font-['Arimo'] mt-1">
-                          Author: {file.author || 'Unknown'}
-                        </div>
-                      </div>
-                      <div className="flex flex-row gap-2 mt-4 items-center">
-                        {/* Project assignment dropdown */}
-                        <select
-                          className="px-2 py-1 rounded-lg bg-white text-xs text-gray-700 font-['Arimo'] border border-gray-300 shadow-sm"
-                          value={file.project_id || ''}
-                          onChange={async (event) => {
-                            const projectId = event.target.value;
-                            try {
-                              await fetch(`/api/documents/${file.id}/assign`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ project_id: projectId }),
-                                credentials: 'include',
-                              });
-                              await fetchFiles();
-                            } catch (err) { setError('Failed to assign project'); }
-                          }}
-                        >
-                          <option value="">Private (just me)</option>
-                          {projects.map((project) => (
-                            <option key={project.id} value={project.id}>
-                              {project.title || project.name || 'Untitled project'}
-                            </option>
-                          ))}
-                        </select>
-                        {/* Preview button */}
-                        <button
-                          className="px-2 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-['Arimo']"
-                          onClick={async () => {
-                            try {
-                              const response = await fetch(`/api/documents/${file.id}/download`, { credentials: 'include' });
-                              if (!response.ok) throw new Error('Failed to preview file');
-                              const data = await response.json();
-                              if (data.url) window.open(data.url, '_blank');
-                            } catch (err) { setError('Failed to preview file'); }
-                          }}
-                        >Preview</button>
-                        {/* Download button */}
-                        <button
-                          className="px-2 py-1 rounded-lg bg-green-100 text-green-700 text-xs font-['Arimo']"
-                          onClick={async () => {
-                            try {
-                              const response = await fetch(`/api/documents/${file.id}/download`, { credentials: 'include' });
-                              if (!response.ok) throw new Error('Failed to download file');
-                              const data = await response.json();
-                              if (data.url) {
-                                const fileResp = await fetch(data.url);
-                                if (!fileResp.ok) throw new Error('Failed to fetch file');
-                                const blob = await fileResp.blob();
-                                const link = document.createElement('a');
-                                link.href = URL.createObjectURL(blob);
-                                link.download = file.filename || '';
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                                URL.revokeObjectURL(link.href);
-                              }
-                            } catch (err) { setError('Failed to download file'); }
-                          }}
-                        >Download</button>
-                        {/* Delete button */}
-                        <button
-                          className="px-2 py-1 rounded-lg bg-red-100 text-red-700 text-xs font-['Arimo']"
-                          onClick={async () => {
-                            try {
-                              await fetch(`/api/documents/${file.id}/delete`, {
-                                method: 'POST',
-                                credentials: 'include',
-                              });
-                              await fetchFiles();
-                            } catch (err) { setError('Failed to delete file'); }
-                          }}
-                        >Delete</button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </section>
       </main>
