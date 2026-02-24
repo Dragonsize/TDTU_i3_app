@@ -295,16 +295,13 @@ export default function FilesPage() {
                   if (typeof window !== 'undefined') {
                     try { user = JSON.parse(localStorage.getItem('userProfile')); } catch {}
                   }
+                  const fullName = user?.full_name || 'User';
                   return (
                     <>
                       <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 border-2 border-white hover:shadow-lg transition">
-                        {user?.avatar_url ? (
-                          <img src={user.avatar_url} alt="avatar" className="w-full h-full rounded-full object-cover" />
-                        ) : (
-                          <span>{user?.full_name ? user.full_name[0].toUpperCase() : (user?.email ? user.email[0].toUpperCase() : "U")}</span>
-                        )}
+                        <span>{fullName[0]}</span>
                       </div>
-                      <div className="text-neutral-950 text-xs font-normal font-['Arimo']">{user?.full_name || user?.email || 'User'}</div>
+                      <div className="text-neutral-950 text-xs font-normal font-['Arimo']">{fullName}</div>
                     </>
                   );
                 })()}
