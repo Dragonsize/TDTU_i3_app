@@ -605,32 +605,32 @@ function TextPreview({ fileId }) {
                 {files.map((file) => (
                   <div
                     key={file.id}
-                    className="flex flex-col items-center justify-center bg-white rounded-2xl p-6 shadow-lg border border-gray-300 cursor-pointer hover:bg-blue-50 transition-colors"
+                    className="flex flex-col items-center justify-center bg-white/80 rounded-2xl p-6 shadow-sm border border-white cursor-pointer hover:bg-gray-200 transition-colors"
                     onClick={() => setSelectedFile(file)}
                   >
-                    <div className="w-16 h-16 flex items-center justify-center bg-blue-100 rounded-xl mb-2 border-2 border-blue-400">
-                      {/* Document icon for file - bolder */}
-                      <svg width="40" height="40" fill="none" stroke="#2563eb" strokeWidth="3" viewBox="0 0 24 24">
-                        <rect x="6" y="4" width="12" height="16" rx="2" strokeWidth="3"/>
-                        <line x1="9" y1="8" x2="15" y2="8" strokeWidth="3"/>
-                        <line x1="9" y1="12" x2="15" y2="12" strokeWidth="3"/>
-                        <line x1="9" y1="16" x2="13" y2="16" strokeWidth="3"/>
+                    <div className="w-16 h-16 flex items-center justify-center bg-gray-100 rounded-xl mb-2">
+                      {/* Document icon for file */}
+                      <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <rect x="6" y="4" width="12" height="16" rx="2" strokeWidth="2.5"/>
+                        <line x1="9" y1="8" x2="15" y2="8" strokeWidth="2.5"/>
+                        <line x1="9" y1="12" x2="15" y2="12" strokeWidth="2.5"/>
+                        <line x1="9" y1="16" x2="13" y2="16" strokeWidth="2.5"/>
                       </svg>
                     </div>
-                    <div className="text-base text-blue-900 font-semibold font-['Instrument_Sans'] truncate w-full text-center drop-shadow-sm">{file.filename || 'Untitled'}</div>
+                    <div className="text-sm text-black font-normal font-['Instrument_Sans'] truncate w-full text-center">{file.filename || 'Untitled'}</div>
                   </div>
                 ))}
                 {/* Upload button as a grid item */}
                 <label className="flex flex-col items-center justify-center bg-white/80 rounded-2xl p-6 shadow-sm border border-white cursor-pointer hover:bg-gray-100 transition-colors">
-                  <div className="w-16 h-16 flex items-center justify-center bg-blue-100 rounded-xl mb-2 border-2 border-blue-400">
-                    {/* Plus icon for upload - bolder */}
-                    <svg width="40" height="40" fill="none" stroke="#2563eb" strokeWidth="3" viewBox="0 0 24 24">
+                  <div className="w-16 h-16 flex items-center justify-center bg-gray-100 rounded-xl mb-2">
+                    {/* Plus icon for upload */}
+                    <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                       <rect x="6" y="4" width="12" height="16" rx="2"/>
                       <line x1="12" y1="9" x2="12" y2="15"/>
                       <line x1="9" y1="12" x2="15" y2="12"/>
                     </svg>
                   </div>
-                  <span className="text-base text-blue-900 font-semibold font-['Arimo'] drop-shadow-sm">Upload Files</span>
+                  <span className="text-sm text-gray-700 font-['Arimo']">Upload Files</span>
                   <input
                     type="file"
                     className="hidden"
@@ -648,6 +648,7 @@ function TextPreview({ fileId }) {
                   className="absolute inset-0 z-50 flex flex-row bg-white/95 border-2 border-blue-400 rounded-[20px] overflow-hidden"
                   style={{ minHeight: '320px' }}
                 >
+<<<<<<< HEAD
                   {/* Left: Content preview */}
                   <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white/80">
                     <div className="flex-1 flex items-center justify-center w-full">
@@ -662,6 +663,13 @@ function TextPreview({ fileId }) {
                         >
                           Open PDF in new tab
                         </button>
+=======
+                  <div className="bg-white rounded-2xl shadow-xl flex flex-row max-w-3xl w-full mx-4" style={{ minHeight: '320px' }}>
+                    {/* Left: Content preview */}
+                    <div className="flex-1 flex items-center justify-center p-8">
+                      {selectedFile.file_type && selectedFile.file_type.startsWith('image') ? (
+                        <img src={selectedFile.url || `/api/documents/${selectedFile.id}/download`} alt={selectedFile.filename} className="max-w-full max-h-80 rounded-lg" />
+>>>>>>> parent of 4fa79f0 (Update page.jsx)
                       ) : selectedFile.file_type && selectedFile.file_type.startsWith('text') ? (
                         <div className="text-black text-lg font-['Instrument_Sans'] p-4 overflow-auto max-h-80 w-full">
                           <TextPreview fileId={selectedFile.id} />
@@ -669,6 +677,7 @@ function TextPreview({ fileId }) {
                       ) : (
                         <div className="text-gray-400 text-2xl font-['Instrument_Sans']">No preview</div>
                       )}
+<<<<<<< HEAD
 
 
                     // TextPreview component for .txt and text/* files
@@ -720,6 +729,8 @@ function TextPreview({ fileId }) {
 }
 
 // TextPreview component for .txt and text/* files
+=======
+>>>>>>> parent of 4fa79f0 (Update page.jsx)
                     </div>
                   </div>
                   {/* Right: File info and actions */}
