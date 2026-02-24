@@ -287,26 +287,7 @@ export default function FilesPage() {
                 <Link href="/files" className="text-gray-900">File</Link>
               </nav>
             </div>
-            <div className="flex items-center gap-3.5">
-              <div className="px-3.5 py-1.5 rounded-md flex items-center gap-1.5 cursor-pointer" onClick={() => window.location.href = '/settings'} title="Account settings">
-                {/* Dynamic avatar and name from localStorage */}
-                {(() => {
-                  let user = null;
-                  if (typeof window !== 'undefined') {
-                    try { user = JSON.parse(localStorage.getItem('userProfile')); } catch {}
-                  }
-                  const fullName = user?.full_name || 'User';
-                  return (
-                    <>
-                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 border-2 border-white hover:shadow-lg transition">
-                        <span>{fullName[0]}</span>
-                      </div>
-                      <div className="text-neutral-950 text-xs font-normal font-['Arimo']">{fullName}</div>
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
+            {/* Removed duplicate avatar and name; only global avatar remains */}
           </div>
         </header>
 
