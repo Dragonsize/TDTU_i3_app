@@ -1,8 +1,8 @@
-  const [selectedFile, setSelectedFile] = useState(null);
 
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+
 
 export default function FilesPage() {
   const [files, setFiles] = useState([]);
@@ -210,29 +210,7 @@ export default function FilesPage() {
     event.preventDefault();
   };
 
-  const handleDownload = async (documentId, filename) => {
-    try {
-      const response = await fetch(`/api/documents/${documentId}/download`, {
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.detail || 'Failed to download file');
-      }
-      const data = await response.json();
-      if (data.url) {
-        // Download: create a temporary link and trigger download
-        const link = document.createElement('a');
-        link.href = data.url;
-        link.download = filename || '';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    } catch (err) {
-      setError(err.message || 'Failed to download file');
-    }
-  };
+
 
   // ...existing code...
   // Redesigned layout: large grey box for files, upload button at end, drag-and-drop support
