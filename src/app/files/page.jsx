@@ -12,6 +12,7 @@ export default function FilesPage() {
   const [selectedProject, setSelectedProject] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const formatFileSize = (bytes) => {
     if (typeof bytes !== 'number' || Number.isNaN(bytes)) {
