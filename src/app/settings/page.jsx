@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 
 
+export default function SettingsPage() {
   // Static placeholder profile for build success
   const profile = {
     full_name: "User Name",
