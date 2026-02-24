@@ -1,74 +1,30 @@
 
-'use client';
-import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
+// TextPreview component for .txt and text/* files
+function TextPreview({ fileId }) {
+  const [content, setContent] = React.useState('');
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState('');
 
-
-export default function FilesPage() {
-  const [files, setFiles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [projects, setProjects] = useState([]);
-  const [selectedProject, setSelectedProject] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
-
-  const formatFileSize = (bytes) => {
-    if (typeof bytes !== 'number' || Number.isNaN(bytes)) {
-      return 'Unknown size';
-    }
-    if (bytes < 1024) {
-      return `${bytes} B`;
-    }
-    if (bytes < 1024 * 1024) {
-      return `${(bytes / 1024).toFixed(1)} KB`;
-    }
-    if (bytes < 1024 * 1024 * 1024) {
-      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    }
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-  };
-
-  const fetchFiles = async () => {
-    try {
-      const response = await fetch('/api/documents', { credentials: 'include' });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.detail || 'Failed to load files');
-      }
-      const data = await response.json();
-      setFiles(Array.isArray(data) ? data : []);
-      setError('');
-    } catch (err) {
-      setError(err.message || 'Failed to load files');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchProjects = async () => {
-    try {
-      const response = await fetch('/api/projects', { credentials: 'include' });
-      if (!response.ok) {
-        return;
-      }
-      const data = await response.json();
-      setProjects(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.warn('Failed to load projects:', err);
-    }
-  };
-
-  useEffect(() => {
-    fetchFiles();
-    fetchProjects();
-  }, []);
-
-  const handleUpload = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
+  React.useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+    setError('');
+    setContent('');
+    fetch(`/api/documents/${fileId}/download`, { credentials: 'include' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Failed to fetch file');
+        // Try to read as text
+        const data = await res.json().catch(() => null);
+        if (data && data.url) {
+          // Fetch the actual file content from the storage URL
+          return fetch(data.url).then((r) => r.text());
+        }
+        throw new Error('No file URL');
+      })
+      .then((txt) => {
+        if (isMounted) setContent(txt);
+      })
+      // ...existing code...
     }
 
     setUploading(true);
@@ -301,6 +257,15 @@ export default function FilesPage() {
                     <div className="flex-1 flex items-center justify-center w-full">
                       {selectedFile.file_type && selectedFile.file_type.startsWith('image') ? (
                         <img src={selectedFile.url || `/api/documents/${selectedFile.id}/download`} alt={selectedFile.filename} className="max-w-full max-h-80 rounded-lg" />
+                      ) : selectedFile.file_type === 'application/pdf' ? (
+                        <button
+                          className="text-blue-600 underline text-lg font-['Instrument_Sans'] px-4 py-2 rounded hover:text-blue-900"
+                          onClick={() => {
+                            window.open(selectedFile.url || `/api/documents/${selectedFile.id}/download`, '_blank', 'noopener,noreferrer');
+                          }}
+                        >
+                          Open PDF in new tab
+                        </button>
                       ) : selectedFile.file_type && selectedFile.file_type.startsWith('text') ? (
                         <div className="text-black text-lg font-['Instrument_Sans'] p-4 overflow-auto max-h-80 w-full">
                           <TextPreview fileId={selectedFile.id} />
@@ -308,6 +273,57 @@ export default function FilesPage() {
                       ) : (
                         <div className="text-gray-400 text-2xl font-['Instrument_Sans']">No preview</div>
                       )}
+
+
+                    // TextPreview component for .txt and text/* files
+
+
+// TextPreview component for .txt and text/* files
+function TextPreview({ fileId }) {
+  const [content, setContent] = React.useState('');
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState('');
+
+  React.useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+    setError('');
+    setContent('');
+    fetch(`/api/documents/${fileId}/download`, { credentials: 'include' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Failed to fetch file');
+        // Try to read as text
+        const data = await res.json().catch(() => null);
+        if (data && data.url) {
+          // Fetch the actual file content from the storage URL
+          return fetch(data.url).then((r) => r.text());
+        }
+        throw new Error('No file URL');
+      })
+      .then((txt) => {
+        if (isMounted) setContent(txt);
+      })
+      .catch(() => {
+        if (isMounted) setError('Could not preview file.');
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [fileId]);
+
+  if (loading) return <span className="text-gray-400">Loading...</span>;
+  if (error) return <span className="text-red-500">{error}</span>;
+  if (!content) return <span className="text-gray-400">No content</span>;
+  // Limit preview to first 2000 chars
+  return <pre className="whitespace-pre-wrap break-words text-sm max-h-72 overflow-auto">{content.length > 2000 ? content.slice(0, 2000) + '\n... (truncated)' : content}</pre>;
+}
+// --- END FilesPage ---
+}
+
+// TextPreview component for .txt and text/* files
                     </div>
                   </div>
                   {/* Right: File info and actions */}
@@ -340,7 +356,7 @@ export default function FilesPage() {
                     </div>
                     <div className="text-xs text-gray-600 font-['Arimo'] mb-1 text-center">{selectedFile.project_id ? 'Shared to project' : 'Private'}</div>
                     <div className="text-xs text-gray-500 font-['Arimo'] mb-1 text-center">{selectedFile.file_type || 'Unknown type'} · {formatFileSize(selectedFile.file_size)}</div>
-                    <div className="text-xs text-gray-500 font-['Arimo'] mb-1 text-center">Author: {selectedFile.author || 'Unknown'}</div>
+                    <div className="text-xs text-gray-500 font-['Arimo'] mb-1 text-center">Author: {selectedFile.profiles?.username || selectedFile.username || 'Unknown'}</div>
                     <button
                       className="mt-8 text-xs text-blue-600 underline hover:text-blue-900"
                       onClick={() => setSelectedFile(null)}
