@@ -1,28 +1,6 @@
-@app.post("/api/documents/{document_id}/delete")
-def delete_document(document_id: str, user=Depends(get_current_user)):
-    db = require_db_client()
-    user_id = user.get("sub")
-    # Fetch document
-    response = db.table("documents").select("*").eq("id", document_id).limit(1).execute()
-    if not response.data:
-        raise HTTPException(status_code=404, detail="Document not found")
-    document = response.data[0]
-    project_id = document.get("project_id")
-    if project_id:
-        require_project_member(user_id, project_id)
-    elif document.get("uploaded_by") != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-    file_path = document.get("file_url")
-    # Delete from storage bucket if file_path exists
-    if file_path:
-        try:
-            db.storage.from_("documents").remove([file_path])
-        except Exception as e:
-            # Log error but continue to delete DB row
-            print(f"Warning: Failed to delete file from storage: {e}")
-    # Delete from database
-    db.table("documents").delete().eq("id", document_id).execute()
-    return {"status": "success"}
+
+
+
 import os
 import re
 import hashlib
@@ -1056,3 +1034,31 @@ def notifications_unsubscribe(request: NotificationSubscriptionRequest):
     if not request.subscription:
         raise HTTPException(status_code=400, detail="No subscription provided")
     return {"success": True, "message": "Unsubscribed"}
+
+
+@app.post("/api/documents/{document_id}/delete")
+def delete_document(document_id: str, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+    # Fetch document
+    response = db.table("documents").select("*").eq("id", document_id).limit(1).execute()
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Document not found")
+    document = response.data[0]
+    project_id = document.get("project_id")
+    if project_id:
+        require_project_member(user_id, project_id)
+    elif document.get("uploaded_by") != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    file_path = document.get("file_url")
+    # Delete from storage bucket if file_path exists
+    if file_path:
+        try:
+            db.storage.from_("documents").remove([file_path])
+        except Exception as e:
+            # Log error but continue to delete DB row
+            print(f"Warning: Failed to delete file from storage: {e}")
+    # Delete from database
+    db.table("documents").delete().eq("id", document_id).execute()
+    return {"status": "success"}
+
