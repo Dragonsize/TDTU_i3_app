@@ -12,7 +12,7 @@ export default function FilesPage() {
   const [selectedProject, setSelectedProject] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  // Removed selectedFile state for minimal grid layout
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const formatFileSize = (bytes) => {
     if (typeof bytes !== 'number' || Number.isNaN(bytes)) {
@@ -247,11 +247,15 @@ export default function FilesPage() {
         <section className="mt-10">
           <div className="bg-zinc-300 rounded-[20px] min-h-[520px] md:min-h-[620px] p-6 md:p-10 flex flex-col">
             {/* Files table/grid */}
-            <div className="flex-1" onDrop={handleDrop} onDragOver={handleDragOver}>
+            <div className="flex-1 relative" onDrop={handleDrop} onDragOver={handleDragOver}>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-8 items-start">
                 {/* File cards */}
                 {files.map((file) => (
-                  <div key={file.id} className="flex flex-col items-center justify-center bg-white/80 rounded-2xl p-6 shadow-sm border border-white">
+                  <div
+                    key={file.id}
+                    className="flex flex-col items-center justify-center bg-white/80 rounded-2xl p-6 shadow-sm border border-white cursor-pointer hover:bg-gray-200 transition-colors"
+                    onClick={() => setSelectedFile(file)}
+                  >
                     <div className="w-16 h-16 flex items-center justify-center bg-gray-100 rounded-xl mb-2">
                       <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
                     </div>
@@ -275,6 +279,37 @@ export default function FilesPage() {
               {uploadError ? (
                 <div className="mt-4 text-lg text-red-600 font-['Arimo']">{uploadError}</div>
               ) : null}
+              {/* Overlay preview for selected file */}
+              {selectedFile && (
+                <div
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget) setSelectedFile(null);
+                  }}
+                >
+                  <div className="bg-white rounded-2xl shadow-xl flex flex-row max-w-3xl w-full mx-4" style={{ minHeight: '320px' }}>
+                    {/* Left: Content preview */}
+                    <div className="flex-1 flex items-center justify-center p-8">
+                      {selectedFile.file_type && selectedFile.file_type.startsWith('image') ? (
+                        <img src={selectedFile.url || `/api/documents/${selectedFile.id}/download`} alt={selectedFile.filename} className="max-w-full max-h-80 rounded-lg" />
+                      ) : selectedFile.file_type && selectedFile.file_type.startsWith('text') ? (
+                        <div className="text-black text-lg font-['Instrument_Sans'] p-4 overflow-auto max-h-80 w-full">
+                          <TextPreview fileId={selectedFile.id} />
+                        </div>
+                      ) : (
+                        <div className="text-gray-400 text-2xl font-['Instrument_Sans']">No preview</div>
+                      )}
+                    </div>
+                    {/* Right: File info */}
+                    <div className="w-[320px] flex flex-col justify-center p-8 border-l border-gray-200">
+                      <div className="text-2xl text-black font-bold font-['Instrument_Sans'] mb-2">{selectedFile.filename || 'Untitled'}</div>
+                      <div className="text-xs text-gray-600 font-['Arimo'] mb-1">{selectedFile.project_id ? 'Shared to project' : 'Private'}</div>
+                      <div className="text-xs text-gray-500 font-['Arimo'] mb-1">{selectedFile.file_type || 'Unknown type'} · {formatFileSize(selectedFile.file_size)}</div>
+                      <div className="text-xs text-gray-500 font-['Arimo'] mb-1">Author: {selectedFile.author || 'Unknown'}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             {/* Upload area at end */}
             <div className="mt-8 flex items-center justify-center">
