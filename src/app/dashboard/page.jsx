@@ -90,9 +90,17 @@ export default function Dashboard() {
 
           {/* User Menu */}
           <div className="flex items-center gap-4 md:gap-6">
-            <span className="text-sm md:text-base text-gray-600 font-['Arimo'] hidden md:block">
-              {user?.fullname || user?.email}
-            </span>
+            <div
+              className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 cursor-pointer border-2 border-white hover:shadow-lg transition"
+              onClick={() => router.push('/settings')}
+              title="Account settings"
+            >
+              {user?.avatar_url ? (
+                <img src={user.avatar_url} alt="avatar" className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <span>{user?.fullname ? user.fullname[0].toUpperCase() : (user?.email ? user.email[0].toUpperCase() : "U")}</span>
+              )}
+            </div>
             <button
               onClick={handleLogout}
               className="px-4 md:px-6 h-9 md:h-10 bg-gray-950 hover:bg-black text-white text-sm md:text-base font-semibold font-['Arimo'] rounded-lg transition-colors"
