@@ -35,7 +35,14 @@ export default function ProjectPage() {
         <div className="absolute left-[100.92px] top-[168.85px] w-[1034px] h-16 bg-zinc-300 rounded-[20px]"></div>
         <div className="absolute left-[127.55px] top-[190.08px] text-black/40 text-4xl font-normal font-['Arimo'] leading-4">Search Your project</div>
         <div className="absolute left-[1148.90px] top-[163.12px] w-48 h-16 bg-zinc-300 rounded-[20px]"></div>
-        <div className="absolute left-[1175.02px] top-[185.98px] w-44 h-14 flex items-center text-black text-xl font-normal font-['IM_FELL_Great_Primer_SC']">NEW PROJECT</div>
+        <button
+          className="absolute left-[1175.02px] top-[185.98px] w-44 h-14 flex items-center justify-center text-black text-xl font-normal font-['IM_FELL_Great_Primer_SC'] bg-zinc-300 rounded-[20px] border border-gray-300 cursor-pointer hover:bg-zinc-400 transition"
+          type="button"
+          title="Coming soon!"
+          disabled
+        >
+          NEW PROJECT
+        </button>
 
         {/* Table Headers */}
         <div className="absolute left-[138px] top-[272px] w-[1177px] h-16 bg-white rounded-[20px]"></div>
