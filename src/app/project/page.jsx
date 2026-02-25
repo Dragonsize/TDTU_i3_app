@@ -1,8 +1,12 @@
 "use client";
 import React, { useState } from "react";
 
+export default function ProjectPage() {
   const [showModal, setShowModal] = useState(false);
   const [projectName, setProjectName] = useState("");
+
+  // ...existing code...
+
   return (
     <div className="min-h-screen bg-white overflow-x-auto">
       {/* Header */}
@@ -46,10 +50,10 @@ import React, { useState } from "react";
           </button>
         </div>
 
-        {/* Modal for creating new project */}
+        {/* Modal for creating new project (updated to match sample) */}
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div className="relative w-[1440px] h-[900px] bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="w-[1440px] h-[900px] relative bg-white overflow-hidden rounded-xl shadow-lg">
               {/* Modal header bar */}
               <div className="w-[1438.96px] h-16 px-32 pb-px left-[1px] top-[13px] absolute bg-white/60 border-b border-black/10 inline-flex flex-col justify-between items-center">
                 <div className="w-[1387px] h-9 inline-flex justify-between items-start">
@@ -84,52 +88,28 @@ import React, { useState } from "react";
                 </div>
               </div>
               {/* Modal Title */}
-              <div className="w-96 h-14 left-[97px] top-[90px] absolute text-black text-5xl font-normal font-['IM_FELL_Great_Primer_SC']">Create Project</div>
-              {/* Input Row */}
-              <div className="w-96 h-16 left-[600px] top-[415px] absolute bg-zinc-300 rounded-[10px] flex items-center">
-                <input
-                  className="w-full h-full bg-transparent px-4 text-2xl font-normal font-['Habibi'] text-stone-600 focus:outline-none"
-                  placeholder="Enter Name of Project"
-                  value={projectName}
-                  onChange={e => setProjectName(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <div className="left-[393px] top-[435px] absolute text-black text-2xl font-normal font-['Habibi']">Name of Project:</div>
+              <div className="w-96 h-14 left-[97px] top-[90px] absolute justify-start text-black text-5xl font-normal font-['IM_FELL_Great_Primer_SC']">Create Project</div>
+              {/* Input Row BG */}
+              <div className="w-96 h-16 left-[600px] top-[415px] absolute bg-zinc-300 rounded-[10px]"></div>
+              {/* Input Placeholder/Text */}
+              <div className="left-[634px] top-[435px] absolute text-center justify-center text-stone-600 text-2xl font-normal font-['Habibi']">Enter Name of Project</div>
+              {/* Label */}
+              <div className="left-[393px] top-[435px] absolute text-center justify-center text-black text-2xl font-normal font-['Habibi']">Name of Project:</div>
               {/* Next Button */}
+              <div className="w-72 h-16 left-[1134px] top-[809px] absolute bg-gray-950 rounded-md">
+                <div className="w-44 h-9 left-[44.01px] top-[17px] absolute text-center justify-center text-white text-xl font-normal font-['Arimo'] leading-4">Next</div>
+                <div className="w-11 h-11 left-[202.01px] top-[13px] absolute overflow-hidden">
+                  <div className="w-7 h-0 left-[9.38px] top-[22.50px] absolute outline outline-1 outline-offset-[-0.58px] outline-white"></div>
+                  <div className="w-3.5 h-7 left-[22.50px] top-[9.38px] absolute outline outline-1 outline-offset-[-0.58px] outline-white"></div>
+                </div>
+              </div>
+              {/* Close modal on background click */}
               <button
-                className="w-72 h-16 left-[1134px] top-[809px] absolute bg-gray-950 rounded-md flex items-center justify-center group"
-                type="button"
-                onClick={() => setShowModal(false)}
-              >
-                <span className="w-44 h-9 text-center text-white text-xl font-normal font-['Arimo'] leading-4">Next</span>
-                <span className="w-11 h-11 ml-2 relative flex items-center justify-center">
-                  <span className="w-7 h-0 absolute left-[9.38px] top-[22.5px] outline outline-1 outline-offset-[-0.58px] outline-white"></span>
-                  <span className="w-3.5 h-7 absolute left-[22.5px] top-[9.38px] outline outline-1 outline-offset-[-0.58px] outline-white"></span>
-                </span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Modal for creating new project */}
-        {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md relative">
-              <button
-                className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl font-bold"
+                className="absolute top-4 right-4 text-2xl text-gray-400 hover:text-gray-700 z-10"
                 onClick={() => setShowModal(false)}
                 aria-label="Close"
               >
                 ×
-              </button>
-              <h2 className="text-2xl font-bold mb-4">Create New Project</h2>
-              <div className="text-gray-500 mb-4">(Form coming soon...)</div>
-              <button
-                className="mt-2 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-                onClick={() => setShowModal(false)}
-              >
-                Close
               </button>
             </div>
           </div>
