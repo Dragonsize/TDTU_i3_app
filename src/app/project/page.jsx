@@ -230,7 +230,7 @@ export default function ProjectPage() {
                     {/* Search Input */}
                     <div className="relative">
                       <input
-                        className="w-full h-14 bg-zinc-100 rounded-[10px] px-4 text-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400"
+                        className="w-full h-14 bg-zinc-100 rounded-[10px] px-4 text-lg text-gray-900 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400"
                         placeholder="Search by email or username..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}

@@ -496,6 +496,7 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
             "id": user.id,
             "email": user.email,
             "full_name": full_name,
+            "username": user.email,
         }).execute()
 
         ensure_profile_upsert(profile_response, "Failed to create profile")
@@ -560,6 +561,7 @@ def register(request: RegisterRequest, response: Response, http_request: Request
             "id": user.id,
             "email": user.email,
             "full_name": full_name,
+            "username": user.email,
         }).execute()
 
         ensure_profile_upsert(profile_response, "Failed to create profile")
