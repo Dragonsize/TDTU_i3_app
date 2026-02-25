@@ -7,6 +7,8 @@ export default function ProjectPage() {
   const [projectName, setProjectName] = useState("");
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
   const [step, setStep] = useState(1);
   const [currentUser, setCurrentUser] = useState(null);
   const [members, setMembers] = useState([]);
@@ -41,35 +43,45 @@ export default function ProjectPage() {
   // Handle creating a new project
   const handleCreateProject = async (e) => {
     e.preventDefault();
+    setIsCreating(true);
+    setCreateError("");
+
     try {
       // 1. Create Project
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: projectName }),
+        body: JSON.stringify({ title: projectName.trim() }),
         credentials: "include",
       });
-      if (res.ok) {
-        const newProject = await res.json();
-
-        // 2. Add selected members (excluding current user who is already lead)
-        const membersToAdd = members.filter((m) => m.id !== currentUser?.id);
-        await Promise.all(
-          membersToAdd.map((member) =>
-            fetch(`/api/projects/${newProject.id}/members`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ member_username: member.username, role: "member" }),
-              credentials: "include",
-            })
-          )
-        );
-
-        setProjects([...projects, { ...newProject, deadline_count: 0 }]); // Add new project to list
-        resetModal();
+      
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || "Failed to create project");
       }
+
+      const newProject = await res.json();
+
+      // 2. Add selected members (excluding current user who is already lead)
+      const membersToAdd = members.filter((m) => m.id !== currentUser?.id);
+      await Promise.all(
+        membersToAdd.map((member) =>
+          fetch(`/api/projects/${newProject.id}/members`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ member_username: member.username, role: "member" }),
+            credentials: "include",
+          })
+        )
+      );
+
+      setProjects([...projects, { ...newProject, deadline_count: 0 }]); // Add new project to list
+      resetModal();
     } catch (error) {
       console.error("Failed to create project", error);
+      setCreateError(error.message);
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -80,6 +92,8 @@ export default function ProjectPage() {
     setMembers(currentUser ? [currentUser] : []);
     setSearchQuery("");
     setSearchResults([]);
+    setCreateError("");
+    setIsCreating(false);
   };
 
   // Search users effect
@@ -213,7 +227,15 @@ export default function ProjectPage() {
               </h2>
               <form
                 className="w-full max-w-2xl flex flex-col gap-8"
-                onSubmit={step === 1 ? (e) => { e.preventDefault(); if (projectName) setStep(2); } : handleCreateProject}
+                onSubmit={step === 1 ? (e) => { 
+                  e.preventDefault(); 
+                  if (projectName.trim()) {
+                    setStep(2); 
+                    setCreateError("");
+                  } else {
+                    setCreateError("Please enter a project name");
+                  }
+                } : handleCreateProject}
               >
                 {step === 1 ? (
                   <div className="flex flex-col md:flex-row items-center gap-6 justify-center">
@@ -284,12 +306,17 @@ export default function ProjectPage() {
                   </div>
                 )}
 
+                {createError && (
+                  <div className="text-red-500 text-center text-lg font-['Arimo']">{createError}</div>
+                )}
+
                 <div className="flex justify-end mt-8">
                   <button
                     type="submit"
-                    className="w-full md:w-72 h-16 bg-gray-950 rounded-md flex items-center justify-center text-white text-xl font-normal font-['Arimo'] hover:bg-gray-800 transition shadow-lg"
+                    disabled={isCreating}
+                    className={`w-full md:w-72 h-16 bg-gray-950 rounded-md flex items-center justify-center text-white text-xl font-normal font-['Arimo'] transition shadow-lg ${isCreating ? "opacity-70 cursor-not-allowed" : "hover:bg-gray-800"}`}
                   >
-                    {step === 1 ? "Next" : "Create Project"}
+                    {isCreating ? "Creating..." : (step === 1 ? "Next" : "Create Project")}
                   </button>
                 </div>
               </form>
