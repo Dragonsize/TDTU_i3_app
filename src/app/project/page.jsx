@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 
   const [showModal, setShowModal] = useState(false);
+  const [projectName, setProjectName] = useState("");
   return (
     <div className="min-h-screen bg-white overflow-x-auto">
       {/* Header */}
@@ -35,13 +36,81 @@ import React, { useState } from "react";
         <div className="absolute left-[100.92px] top-[168.85px] w-[1034px] h-16 bg-zinc-300 rounded-[20px]"></div>
         <div className="absolute left-[127.55px] top-[190.08px] text-black/40 text-4xl font-normal font-['Arimo'] leading-4">Search Your project</div>
         <div className="absolute left-[1148.90px] top-[163.12px] w-48 h-16 bg-zinc-300 rounded-[20px]"></div>
-        <button
-          className="absolute left-[1175.02px] top-[185.98px] w-44 h-14 flex items-center justify-center text-black text-xl font-normal font-['IM_FELL_Great_Primer_SC'] bg-zinc-300 rounded-[20px] border border-gray-300 cursor-pointer hover:bg-zinc-400 transition"
-          type="button"
-          onClick={() => setShowModal(true)}
-        >
-          NEW PROJECT
-        </button>
+        <div className="absolute left-[1148.90px] top-[163.12px] w-48 h-16 bg-zinc-300 rounded-[20px] flex items-center justify-center">
+          <button
+            className="w-44 h-14 flex items-center justify-center text-black text-xl font-normal font-['IM_FELL_Great_Primer_SC'] bg-zinc-300 rounded-[20px] border border-gray-300 cursor-pointer hover:bg-zinc-400 transition"
+            type="button"
+            onClick={() => setShowModal(true)}
+          >
+            NEW PROJECT
+          </button>
+        </div>
+
+        {/* Modal for creating new project */}
+        {showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="relative w-[1440px] h-[900px] bg-white rounded-xl shadow-lg overflow-hidden">
+              {/* Modal header bar */}
+              <div className="w-[1438.96px] h-16 px-32 pb-px left-[1px] top-[13px] absolute bg-white/60 border-b border-black/10 inline-flex flex-col justify-between items-center">
+                <div className="w-[1387px] h-9 inline-flex justify-between items-start">
+                  <div className="w-[589px] h-7 flex justify-between items-center">
+                    <div className="w-24 h-7 flex justify-start items-center gap-1.5">
+                      <div className="w-7 h-7 relative bg-gray-950 rounded-lg"></div>
+                      <div className="flex-1 h-5 relative">
+                        <div className="left-0 top-[-1px] absolute justify-start text-neutral-950 text-xl font-bold font-['Arimo'] leading-5">A+ Flow</div>
+                      </div>
+                    </div>
+                    <div className="w-96 h-5 flex justify-start items-center gap-5">
+                      <div className="w-24 inline-flex flex-col justify-center items-center gap-2.5">
+                        <div className="justify-start text-gray-500 text-base font-normal font-['Inter'] leading-5">Project</div>
+                      </div>
+                      <div className="w-24 self-stretch inline-flex flex-col justify-center items-center gap-2.5">
+                        <div className="justify-start text-gray-500 text-base font-normal font-['Arimo'] leading-5">ChatBot</div>
+                      </div>
+                      <div className="w-24 self-stretch inline-flex flex-col justify-center items-center gap-2.5">
+                        <div className="justify-start text-gray-500 text-base font-normal font-['Arimo'] leading-5">Chat</div>
+                      </div>
+                      <div className="w-24 inline-flex flex-col justify-center items-center gap-2.5">
+                        <div className="justify-start text-gray-500 text-base font-normal font-['Arimo'] leading-5">File </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="w-20 h-8 flex justify-start items-center gap-3.5">
+                    <div className="w-16 h-8 px-3.5 py-1.5 rounded-md flex justify-center items-center gap-1.5">
+                      <img className="w-10 h-10" src="https://placehold.co/41x41" />
+                      <div className="text-center justify-start text-neutral-950 text-xs font-normal font-['Arimo'] leading-4">User</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Modal Title */}
+              <div className="w-96 h-14 left-[97px] top-[90px] absolute text-black text-5xl font-normal font-['IM_FELL_Great_Primer_SC']">Create Project</div>
+              {/* Input Row */}
+              <div className="w-96 h-16 left-[600px] top-[415px] absolute bg-zinc-300 rounded-[10px] flex items-center">
+                <input
+                  className="w-full h-full bg-transparent px-4 text-2xl font-normal font-['Habibi'] text-stone-600 focus:outline-none"
+                  placeholder="Enter Name of Project"
+                  value={projectName}
+                  onChange={e => setProjectName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="left-[393px] top-[435px] absolute text-black text-2xl font-normal font-['Habibi']">Name of Project:</div>
+              {/* Next Button */}
+              <button
+                className="w-72 h-16 left-[1134px] top-[809px] absolute bg-gray-950 rounded-md flex items-center justify-center group"
+                type="button"
+                onClick={() => setShowModal(false)}
+              >
+                <span className="w-44 h-9 text-center text-white text-xl font-normal font-['Arimo'] leading-4">Next</span>
+                <span className="w-11 h-11 ml-2 relative flex items-center justify-center">
+                  <span className="w-7 h-0 absolute left-[9.38px] top-[22.5px] outline outline-1 outline-offset-[-0.58px] outline-white"></span>
+                  <span className="w-3.5 h-7 absolute left-[22.5px] top-[9.38px] outline outline-1 outline-offset-[-0.58px] outline-white"></span>
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Modal for creating new project */}
         {showModal && (
