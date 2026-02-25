@@ -739,6 +739,14 @@ def get_projects(user=Depends(get_current_user)):
     return projects
 
 
+@app.delete("/api/projects/{project_id}")
+def delete_project(project_id: str, user=Depends(get_current_user)):
+    db = require_db_client()
+    require_project_lead(user.get("sub"), project_id)
+    db.table("projects").delete().eq("id", project_id).execute()
+    return {"status": "success"}
+
+
 @app.post("/api/projects")
 def create_project(request: CreateProjectRequest, user=Depends(get_current_user)):
     try:

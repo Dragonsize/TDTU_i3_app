@@ -14,6 +14,7 @@ export default function ProjectPage() {
   const [members, setMembers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  const [activeMenu, setActiveMenu] = useState(null);
 
   // Fetch projects from API on load
   useEffect(() => {
@@ -119,6 +120,26 @@ export default function ProjectPage() {
     setSearchResults([]);
   };
 
+  const handleDeleteProject = async (projectId) => {
+    if (!window.confirm("Are you sure you want to delete this project? This action cannot be undone.")) return;
+
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        setProjects(projects.filter((p) => p.id !== projectId));
+      } else {
+        console.error("Failed to delete project");
+      }
+    } catch (error) {
+      console.error("Error deleting project:", error);
+    }
+    setActiveMenu(null);
+  };
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -194,7 +215,24 @@ export default function ProjectPage() {
                     <button className="px-3.5 py-1.5 bg-black rounded-md text-white text-xs font-normal font-['Arimo'] hover:bg-gray-800">
                       Manager Deadline
                     </button>
-                    <button className="text-stone-200 text-2xl font-bold pb-2">...</button>
+                    <div className="relative">
+                      <button
+                        className="text-stone-200 text-2xl font-bold pb-2 focus:outline-none hover:text-white transition"
+                        onClick={() => setActiveMenu(activeMenu === project.id ? null : project.id)}
+                      >
+                        ...
+                      </button>
+                      {activeMenu === project.id && (
+                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-50 py-1 overflow-hidden border border-gray-100">
+                          <button
+                            onClick={() => handleDeleteProject(project.id)}
+                            className="block w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition font-medium"
+                          >
+                            Delete Project
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
