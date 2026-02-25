@@ -729,7 +729,13 @@ def get_projects(user=Depends(get_current_user)):
     db = require_db_client()
     user_id = user.get("sub")
     response = db.table("project_members").select("*, projects(*)").eq("user_id", user_id).execute()
-    projects = [item["projects"] for item in response.data if item.get("projects")]
+    projects = []
+    for item in response.data:
+        if item.get("projects"):
+            p = item["projects"]
+            # Map DB 'name' to API 'title' for frontend compatibility
+            p["title"] = p.get("name", p.get("title"))
+            projects.append(p)
     return projects
 
 
@@ -739,16 +745,18 @@ def create_project(request: CreateProjectRequest, user=Depends(get_current_user)
         db = require_db_client()
         user_id = user.get("sub")
         project_data = {
-            "title": request.title,
+            "name": request.title,
             "description": request.description or "",
-            "created_by": user_id,
-            "status": "active",
+            "creator_id": user_id,
+            "status": "in_process",
         }
         response = db.table("projects").insert(project_data).execute()
         if not response.data:
             raise HTTPException(status_code=500, detail="Failed to create project: No data returned from DB")
 
         project = response.data[0]
+        project["title"] = project.get("name") # Map for frontend
+        
         db.table("project_members").insert({
             "project_id": project["id"],
             "user_id": user_id,
