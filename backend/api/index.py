@@ -793,8 +793,12 @@ def add_project_member(project_id: str, request: AddMemberRequest, user=Depends(
 def get_workflows(project_id: str, user=Depends(get_current_user)):
     db = require_db_client()
     require_project_member(user.get("sub"), project_id)
-    response = db.table("workflows").select("*").eq("project_id", project_id).execute()
-    return response.data
+    response = db.table("workspaces").select("*").eq("project_id", project_id).execute()
+    data = []
+    for item in response.data:
+        item["title"] = item.get("name", item.get("title"))
+        data.append(item)
+    return data
 
 
 @app.post("/api/projects/{project_id}/workflows")
@@ -803,21 +807,24 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
     require_project_lead(user.get("sub"), project_id)
     workflow_data = {
         "project_id": project_id,
-        "title": request.title,
+        "name": request.title,
         "description": request.description or "",
-        "created_by": user.get("sub"),
+        "creator_id": user.get("sub"),
         "status": "active",
     }
-    response = db.table("workflows").insert(workflow_data).execute()
+    response = db.table("workspaces").insert(workflow_data).execute()
     if not response.data:
         raise HTTPException(status_code=500, detail="Failed to create workflow")
-    return response.data[0]
+    
+    workflow = response.data[0]
+    workflow["title"] = workflow.get("name")
+    return workflow
 
 
 @app.post("/api/workflows/{workflow_id}/members")
 def assign_workflow_member(workflow_id: str, request: AssignWorkflowMemberRequest, user=Depends(get_current_user)):
     db = require_db_client()
-    workflow = db.table("workflows").select("project_id").eq("id", workflow_id).execute()
+    workflow = db.table("workspaces").select("project_id").eq("id", workflow_id).execute()
     if not workflow.data:
         raise HTTPException(status_code=404, detail="Workflow not found")
     require_project_lead(user.get("sub"), workflow.data[0]["project_id"])
@@ -826,8 +833,8 @@ def assign_workflow_member(workflow_id: str, request: AssignWorkflowMemberReques
         raise HTTPException(status_code=404, detail="User not found")
 
     member_id = profile_response.data[0]["id"]
-    insert_response = db.table("workflow_members").insert({
-        "workflow_id": workflow_id,
+    insert_response = db.table("workspace_members").insert({
+        "workspace_id": workflow_id,
         "user_id": member_id,
         "role": request.role,
     }).execute()
@@ -839,7 +846,7 @@ def assign_workflow_member(workflow_id: str, request: AssignWorkflowMemberReques
 @app.post("/api/workflows/{workflow_id}/deadlines")
 def create_deadline(workflow_id: str, request: CreateDeadlineRequest, user=Depends(get_current_user)):
     db = require_db_client()
-    workflow = db.table("workflows").select("project_id").eq("id", workflow_id).execute()
+    workflow = db.table("workspaces").select("project_id").eq("id", workflow_id).execute()
     if not workflow.data:
         raise HTTPException(status_code=404, detail="Workflow not found")
     require_project_lead(user.get("sub"), workflow.data[0]["project_id"])
@@ -849,7 +856,7 @@ def create_deadline(workflow_id: str, request: CreateDeadlineRequest, user=Depen
 
     assignee_id = profile_response.data[0]["id"]
     response = db.table("deadlines").insert({
-        "workflow_id": workflow_id,
+        "workspace_id": workflow_id,
         "title": request.title,
         "due_date": request.due_date,
         "assigned_to": assignee_id,
@@ -865,8 +872,14 @@ def get_deadlines(days: int = 7, user=Depends(get_current_user)):
     db = require_db_client()
     user_id = user.get("sub")
     max_date = datetime.now(timezone.utc) + timedelta(days=days)
-    response = db.table("deadlines").select("*, workflows(title, project_id)").eq("assigned_to", user_id).eq("status", "pending").lte("due_date", max_date.isoformat()).execute()
-    return response.data
+    response = db.table("deadlines").select("*, workspaces(name, project_id)").eq("assigned_to", user_id).eq("status", "pending").lte("due_date", max_date.isoformat()).execute()
+    
+    data = response.data
+    for item in data:
+        if item.get("workspaces"):
+            item["workflows"] = item["workspaces"]
+            item["workflows"]["title"] = item["workspaces"].get("name")
+    return data
 
 
 @app.post("/api/busy-times")
