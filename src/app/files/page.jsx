@@ -107,6 +107,7 @@ export default function FilesPage() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [currentUser, setCurrentUser] = useState(null);
 
   const formatFileSize = (bytes) => {
     if (typeof bytes !== "number" || Number.isNaN(bytes)) {
@@ -157,6 +158,13 @@ export default function FilesPage() {
     useEffect(() => {
       fetchFiles();
       fetchProjects();
+      // Fetch profile for header
+      fetch("/api/profile", { credentials: "include" })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.profile) setCurrentUser(data.profile);
+        })
+        .catch((err) => console.warn("Failed to fetch profile", err));
     }, []);
 
     const handleUpload = async (event) => {
@@ -287,7 +295,12 @@ export default function FilesPage() {
                 <Link href="/files" className="text-gray-900">File</Link>
               </nav>
             </div>
-            {/* Removed duplicate avatar and name; only global avatar remains */}
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 border-2 border-white overflow-hidden">
+                {currentUser?.full_name?.[0]?.toUpperCase() || currentUser?.email?.[0]?.toUpperCase() || "U"}
+              </div>
+              <div className="text-neutral-950 text-xs font-normal font-['Arimo'] hidden sm:block">{currentUser?.full_name || currentUser?.username || "User"}</div>
+            </div>
           </div>
         </header>
 
@@ -414,4 +427,3 @@ export default function FilesPage() {
       </div>
   );
 }
-
