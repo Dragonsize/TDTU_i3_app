@@ -1,7 +1,7 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 
-export default function ProjectPage() {
+  const [showModal, setShowModal] = useState(false);
   return (
     <div className="min-h-screen bg-white overflow-x-auto">
       {/* Header */}
@@ -38,11 +38,33 @@ export default function ProjectPage() {
         <button
           className="absolute left-[1175.02px] top-[185.98px] w-44 h-14 flex items-center justify-center text-black text-xl font-normal font-['IM_FELL_Great_Primer_SC'] bg-zinc-300 rounded-[20px] border border-gray-300 cursor-pointer hover:bg-zinc-400 transition"
           type="button"
-          title="Coming soon!"
-          disabled
+          onClick={() => setShowModal(true)}
         >
           NEW PROJECT
         </button>
+
+        {/* Modal for creating new project */}
+        {showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md relative">
+              <button
+                className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl font-bold"
+                onClick={() => setShowModal(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+              <h2 className="text-2xl font-bold mb-4">Create New Project</h2>
+              <div className="text-gray-500 mb-4">(Form coming soon...)</div>
+              <button
+                className="mt-2 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                onClick={() => setShowModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Table Headers */}
         <div className="absolute left-[138px] top-[272px] w-[1177px] h-16 bg-white rounded-[20px]"></div>
