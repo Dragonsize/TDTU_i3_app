@@ -46,8 +46,6 @@ export default function ProjectPage() {
     setIsCreating(true);
     setCreateError("");
 
-    console.log("Attempting to create project:", projectName); // DEBUG
-
     try {
       // 1. Create Project
       const res = await fetch("/api/projects", {
@@ -56,21 +54,16 @@ export default function ProjectPage() {
         body: JSON.stringify({ title: projectName.trim() }),
         credentials: "include",
       });
-      
-      console.log("Create project response status:", res.status); // DEBUG
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({ detail: "Server error (invalid JSON response)" }));
-        console.error("Create project error details:", data); // DEBUG
         throw new Error(data.detail || "Failed to create project");
       }
 
       const newProject = await res.json();
-      console.log("Project created:", newProject); // DEBUG
 
       // 2. Add selected members (excluding current user who is already lead)
       const membersToAdd = members.filter((m) => m.id !== currentUser?.id);
-      console.log("Adding members:", membersToAdd); // DEBUG
 
       await Promise.all(
         membersToAdd.map((member) =>
@@ -79,9 +72,6 @@ export default function ProjectPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ member_username: member.username, role: "member" }),
             credentials: "include",
-          }).then(async (r) => { // DEBUG
-             if (!r.ok) console.error(`Failed to add member ${member.username}`, await r.json());
-             return r;
           })
         )
       );
