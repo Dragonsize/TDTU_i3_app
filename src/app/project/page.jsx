@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import Link from "next/link";
 
 export default function ProjectPage() {
   const [showModal, setShowModal] = useState(false);
@@ -9,15 +10,15 @@ export default function ProjectPage() {
       {/* Header */}
       <header className="w-full h-16 bg-white/60 border-b border-black/10 flex items-center justify-between px-8 lg:px-32 sticky top-0 z-10 backdrop-blur-sm">
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-1.5">
+          <Link href="/dashboard" className="flex items-center gap-1.5">
             <div className="w-7 h-7 bg-gray-950 rounded-lg"></div>
             <span className="text-neutral-950 text-xl font-bold font-['Arimo']">A+ Flow</span>
-          </div>
+          </Link>
           <nav className="hidden md:flex items-center gap-5 text-base text-gray-500">
-            <span className="font-['Inter'] text-black font-medium">Project</span>
-            <span className="font-['Arimo'] hover:text-black cursor-pointer">ChatBot</span>
-            <span className="font-['Arimo'] hover:text-black cursor-pointer">Chat</span>
-            <span className="font-['Arimo'] hover:text-black cursor-pointer">File</span>
+            <Link href="/project" className="font-['Inter'] text-black font-medium">Project</Link>
+            <Link href="/chatbot" className="font-['Arimo'] hover:text-black cursor-pointer">ChatBot</Link>
+            <Link href="/chat" className="font-['Arimo'] hover:text-black cursor-pointer">Chat</Link>
+            <Link href="/file" className="font-['Arimo'] hover:text-black cursor-pointer">File</Link>
           </nav>
         </div>
         <div className="flex items-center gap-3.5">
