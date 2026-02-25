@@ -81,7 +81,7 @@ export default function Dashboard() {
               <span className="text-lg md:text-xl font-bold text-neutral-950 font-['Arimo']">A+ Flow</span>
             </Link>
             <nav className="hidden md:flex items-center gap-6 text-sm text-gray-500 font-['Arimo']">
-              <Link href="/dashboard" className="hover:text-gray-900 transition-colors">Project</Link>
+              <Link href="/project" className="hover:text-gray-900 transition-colors">Project</Link>
               <Link href="/chatbot" className="hover:text-gray-900 transition-colors">ChatBot</Link>
               <Link href="/chat" className="hover:text-gray-900 transition-colors">Chat</Link>
               <Link href="/files" className="hover:text-gray-900 transition-colors">File</Link>
