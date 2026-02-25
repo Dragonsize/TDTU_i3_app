@@ -236,7 +236,7 @@ export default function ProjectPage() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
           <div className="relative w-full md:w-2/3">
             <input
-              className="w-full h-16 bg-zinc-300 rounded-[20px] px-6 text-xl font-normal font-['Arimo'] placeholder-black/40 focus:outline-none focus:ring-2 focus:ring-gray-400"
+              className="w-full h-16 bg-zinc-300 rounded-[20px] px-6 text-xl font-normal font-['Arimo'] placeholder-black/40 text-black focus:outline-none focus:ring-2 focus:ring-gray-400"
               placeholder="Search Your project"
               value={projectSearchQuery}
               onChange={(e) => setProjectSearchQuery(e.target.value)}
@@ -480,7 +480,7 @@ export default function ProjectPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Project Name</label>
                 <input
-                  className="w-full h-12 bg-zinc-100 rounded-lg px-4 text-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black"
+                  className="w-full h-12 bg-zinc-100 rounded-lg px-4 text-lg border border-gray-300 text-black focus:outline-none focus:ring-2 focus:ring-black"
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
                   autoFocus
