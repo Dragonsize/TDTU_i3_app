@@ -741,10 +741,32 @@ def get_projects(user=Depends(get_current_user)):
 
 @app.delete("/api/projects/{project_id}")
 def delete_project(project_id: str, user=Depends(get_current_user)):
-    db = require_db_client()
-    require_project_lead(user.get("sub"), project_id)
-    db.table("projects").delete().eq("id", project_id).execute()
-    return {"status": "success"}
+    try:
+        db = require_db_client()
+        require_project_lead(user.get("sub"), project_id)
+
+        # 1. Get workspaces to delete their dependencies
+        workspaces = db.table("workspaces").select("id").eq("project_id", project_id).execute()
+        workspace_ids = [w["id"] for w in workspaces.data]
+        
+        if workspace_ids:
+            # Delete deadlines and workspace members
+            db.table("deadlines").delete().in_("workspace_id", workspace_ids).execute()
+            db.table("workspace_members").delete().in_("workspace_id", workspace_ids).execute()
+            # Delete workspaces
+            db.table("workspaces").delete().in_("id", workspace_ids).execute()
+
+        # 2. Delete project documents and members
+        db.table("documents").delete().eq("project_id", project_id).execute()
+        db.table("project_members").delete().eq("project_id", project_id).execute()
+        
+        # 3. Delete project
+        db.table("projects").delete().eq("id", project_id).execute()
+        
+        return {"status": "success"}
+    except Exception as e:
+        print(f"Delete project error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete project: {str(e)}")
 
 
 @app.post("/api/projects")

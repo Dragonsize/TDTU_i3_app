@@ -132,10 +132,13 @@ export default function ProjectPage() {
       if (res.ok) {
         setProjects(projects.filter((p) => p.id !== projectId));
       } else {
-        console.error("Failed to delete project");
+        const data = await res.json().catch(() => ({}));
+        console.error("Failed to delete project", data);
+        alert(data.detail || "Failed to delete project");
       }
     } catch (error) {
       console.error("Error deleting project:", error);
+      alert("Error deleting project: " + error.message);
     }
     setActiveMenu(null);
   };
