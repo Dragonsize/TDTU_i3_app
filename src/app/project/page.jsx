@@ -1,10 +1,48 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 
 export default function ProjectPage() {
   const [showModal, setShowModal] = useState(false);
   const [projectName, setProjectName] = useState("");
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch projects from API on load
+  useEffect(() => {
+    fetch("/api/projects", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setProjects(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch projects", err);
+        setLoading(false);
+      });
+  }, []);
+
+  // Handle creating a new project
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: projectName }),
+        credentials: "include",
+      });
+      if (res.ok) {
+        const newProject = await res.json();
+        setProjects([...projects, newProject]); // Add new project to list
+        setShowModal(false);
+        setProjectName("");
+      }
+    } catch (error) {
+      console.error("Failed to create project", error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -61,33 +99,28 @@ export default function ProjectPage() {
 
           {/* Rows */}
           <div className="space-y-4">
-            {/* Row 1 */}
-            <div className="bg-stone-500 rounded-[20px] p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center text-white">
-              <div className="col-span-4 text-xl md:text-2xl font-normal font-['Habibi']">Robot Lau sàn</div>
-              <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi']">12/01/2026</div>
-              <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi']">In process</div>
-              <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi']">3</div>
-              <div className="col-span-2 flex justify-end items-center gap-4">
-                <button className="px-3.5 py-1.5 bg-black rounded-md text-white text-xs font-normal font-['Arimo'] hover:bg-gray-800">
-                  Manager Deadline
-                </button>
-                <button className="text-stone-200 text-2xl font-bold pb-2">...</button>
-              </div>
-            </div>
-
-            {/* Row 2 */}
-            <div className="bg-stone-500 rounded-[20px] p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center text-white">
-              <div className="col-span-4 text-xl md:text-2xl font-normal font-['Habibi']">Phần mềm máy tính cầm tay</div>
-              <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi']">1/12/2025</div>
-              <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi']">In process</div>
-              <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi']">3</div>
-              <div className="col-span-2 flex justify-end items-center gap-4">
-                <button className="px-3.5 py-1.5 bg-black rounded-md text-white text-xs font-normal font-['Arimo'] hover:bg-gray-800">
-                  Manager Deadline
-                </button>
-                <button className="text-stone-200 text-2xl font-bold pb-2">...</button>
-              </div>
-            </div>
+            {loading ? (
+              <div className="text-center text-gray-500 py-10">Loading projects...</div>
+            ) : projects.length === 0 ? (
+              <div className="text-center text-gray-500 py-10">No projects found. Create one!</div>
+            ) : (
+              projects.map((project) => (
+                <div key={project.id} className="bg-stone-500 rounded-[20px] p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center text-white">
+                  <div className="col-span-4 text-xl md:text-2xl font-normal font-['Habibi'] truncate">{project.title}</div>
+                  <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi']">
+                    {project.created_at ? new Date(project.created_at).toLocaleDateString() : "N/A"}
+                  </div>
+                  <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi'] capitalize">{project.status || "Active"}</div>
+                  <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi']">-</div>
+                  <div className="col-span-2 flex justify-end items-center gap-4">
+                    <button className="px-3.5 py-1.5 bg-black rounded-md text-white text-xs font-normal font-['Arimo'] hover:bg-gray-800">
+                      Manager Deadline
+                    </button>
+                    <button className="text-stone-200 text-2xl font-bold pb-2">...</button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </main>
@@ -115,7 +148,7 @@ export default function ProjectPage() {
               <h2 className="text-black text-4xl md:text-5xl font-normal font-['IM_FELL_Great_Primer_SC'] mb-12 text-center">Create Project</h2>
               <form
                 className="w-full max-w-2xl flex flex-col gap-8"
-                onSubmit={e => { e.preventDefault(); setShowModal(false); }}
+                onSubmit={handleCreateProject}
               >
                 <div className="flex flex-col md:flex-row items-center gap-6 justify-center">
                   <label htmlFor="projectName" className="text-black text-2xl font-normal font-['Habibi'] whitespace-nowrap">Name of Project:</label>
