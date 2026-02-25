@@ -60,7 +60,7 @@ export default function ProjectPage() {
       console.log("Create project response status:", res.status); // DEBUG
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
+        const data = await res.json().catch(() => ({ detail: "Server error (invalid JSON response)" }));
         console.error("Create project error details:", data); // DEBUG
         throw new Error(data.detail || "Failed to create project");
       }

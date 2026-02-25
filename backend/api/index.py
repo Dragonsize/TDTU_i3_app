@@ -735,26 +735,30 @@ def get_projects(user=Depends(get_current_user)):
 
 @app.post("/api/projects")
 def create_project(request: CreateProjectRequest, user=Depends(get_current_user)):
-    db = require_db_client()
-    user_id = user.get("sub")
-    project_data = {
-        "title": request.title,
-        "description": request.description or "",
-        "created_by": user_id,
-        "status": "active",
-    }
-    response = db.table("projects").insert(project_data).execute()
-    if not response.data:
-        raise HTTPException(status_code=500, detail="Failed to create project")
+    try:
+        db = require_db_client()
+        user_id = user.get("sub")
+        project_data = {
+            "title": request.title,
+            "description": request.description or "",
+            "created_by": user_id,
+            "status": "active",
+        }
+        response = db.table("projects").insert(project_data).execute()
+        if not response.data:
+            raise HTTPException(status_code=500, detail="Failed to create project: No data returned from DB")
 
-    project = response.data[0]
-    db.table("project_members").insert({
-        "project_id": project["id"],
-        "user_id": user_id,
-        "role": "lead",
-    }).execute()
+        project = response.data[0]
+        db.table("project_members").insert({
+            "project_id": project["id"],
+            "user_id": user_id,
+            "role": "lead",
+        }).execute()
 
-    return project
+        return project
+    except Exception as e:
+        print(f"Create project error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
 
 @app.post("/api/projects/{project_id}/members")
