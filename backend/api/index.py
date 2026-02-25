@@ -230,6 +230,7 @@ class ProfileUpdateRequest(BaseModel):
 class CreateProjectRequest(BaseModel):
     title: str = Field(..., min_length=1)
     description: Optional[str] = ""
+    color: Optional[str] = "#78716c"
 
 
 class AddMemberRequest(BaseModel):
@@ -739,6 +740,27 @@ def get_projects(user=Depends(get_current_user)):
     return projects
 
 
+@app.put("/api/projects/{project_id}")
+def update_project(project_id: str, request: CreateProjectRequest, user=Depends(get_current_user)):
+    db = require_db_client()
+    require_project_lead(user.get("sub"), project_id)
+    
+    updates = {
+        "name": request.title,
+        "description": request.description or "",
+        "color": request.color
+    }
+    
+    response = db.table("projects").update(updates).eq("id", project_id).execute()
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    project = response.data[0]
+    project["title"] = project.get("name")
+    project["color"] = project.get("color")
+    return project
+
+
 @app.delete("/api/projects/{project_id}")
 def delete_project(project_id: str, user=Depends(get_current_user)):
     try:
@@ -779,6 +801,7 @@ def create_project(request: CreateProjectRequest, user=Depends(get_current_user)
             "description": request.description or "",
             "creator_id": user_id,
             "status": "in_process",
+            "color": request.color or "#78716c",
         }
         response = db.table("projects").insert(project_data).execute()
         if not response.data:
@@ -786,6 +809,7 @@ def create_project(request: CreateProjectRequest, user=Depends(get_current_user)
 
         project = response.data[0]
         project["title"] = project.get("name") # Map for frontend
+        project["color"] = project.get("color")
         
         db.table("project_members").insert({
             "project_id": project["id"],
