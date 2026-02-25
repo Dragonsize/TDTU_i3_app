@@ -7,6 +7,11 @@ export default function ProjectPage() {
   const [projectName, setProjectName] = useState("");
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [step, setStep] = useState(1);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
 
   // Fetch projects from API on load
   useEffect(() => {
@@ -20,12 +25,24 @@ export default function ProjectPage() {
         console.error("Failed to fetch projects", err);
         setLoading(false);
       });
+
+    // Fetch current user profile
+    fetch("/api/profile", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.profile) {
+          setCurrentUser(data.profile);
+          setMembers([data.profile]);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch profile", err));
   }, []);
 
   // Handle creating a new project
   const handleCreateProject = async (e) => {
     e.preventDefault();
     try {
+      // 1. Create Project
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -34,13 +51,57 @@ export default function ProjectPage() {
       });
       if (res.ok) {
         const newProject = await res.json();
+
+        // 2. Add selected members (excluding current user who is already lead)
+        const membersToAdd = members.filter((m) => m.id !== currentUser?.id);
+        await Promise.all(
+          membersToAdd.map((member) =>
+            fetch(`/api/projects/${newProject.id}/members`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ member_username: member.username, role: "member" }),
+              credentials: "include",
+            })
+          )
+        );
+
         setProjects([...projects, newProject]); // Add new project to list
-        setShowModal(false);
-        setProjectName("");
+        resetModal();
       }
     } catch (error) {
       console.error("Failed to create project", error);
     }
+  };
+
+  const resetModal = () => {
+    setShowModal(false);
+    setProjectName("");
+    setStep(1);
+    setMembers(currentUser ? [currentUser] : []);
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  // Search users effect
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`, { credentials: "include" })
+        .then((res) => res.json())
+        .then((data) => setSearchResults(data || []));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const addMember = (user) => {
+    if (!members.find((m) => m.id === user.id)) {
+      setMembers([...members, user]);
+    }
+    setSearchQuery("");
+    setSearchResults([]);
   };
 
   return (
@@ -137,7 +198,7 @@ export default function ProjectPage() {
               </div>
               <button
                 className="text-3xl text-gray-400 hover:text-gray-700 leading-none"
-                onClick={() => setShowModal(false)}
+                onClick={resetModal}
               >
                 &times;
               </button>
@@ -145,28 +206,85 @@ export default function ProjectPage() {
 
             {/* Modal Content */}
             <div className="flex-1 p-12 flex flex-col items-center justify-center">
-              <h2 className="text-black text-4xl md:text-5xl font-normal font-['IM_FELL_Great_Primer_SC'] mb-12 text-center">Create Project</h2>
+              <h2 className="text-black text-4xl md:text-5xl font-normal font-['IM_FELL_Great_Primer_SC'] mb-8 text-center">
+                {step === 1 ? "Create Project" : "Add Members"}
+              </h2>
               <form
                 className="w-full max-w-2xl flex flex-col gap-8"
-                onSubmit={handleCreateProject}
+                onSubmit={step === 1 ? (e) => { e.preventDefault(); if (projectName) setStep(2); } : handleCreateProject}
               >
-                <div className="flex flex-col md:flex-row items-center gap-6 justify-center">
-                  <label htmlFor="projectName" className="text-black text-2xl font-normal font-['Habibi'] whitespace-nowrap">Name of Project:</label>
-                  <input
-                    id="projectName"
-                    className="w-full md:w-96 h-16 bg-zinc-300 rounded-[10px] px-6 text-2xl font-normal font-['Habibi'] text-stone-800 focus:outline-none focus:ring-2 focus:ring-gray-400"
-                    placeholder="Enter Name of Project"
-                    value={projectName}
-                    onChange={e => setProjectName(e.target.value)}
-                    autoFocus
-                  />
-                </div>
+                {step === 1 ? (
+                  <div className="flex flex-col md:flex-row items-center gap-6 justify-center">
+                    <label htmlFor="projectName" className="text-black text-2xl font-normal font-['Habibi'] whitespace-nowrap">Name of Project:</label>
+                    <input
+                      id="projectName"
+                      className="w-full md:w-96 h-16 bg-zinc-300 rounded-[10px] px-6 text-2xl font-normal font-['Habibi'] text-stone-800 focus:outline-none focus:ring-2 focus:ring-gray-400"
+                      placeholder="Enter Name of Project"
+                      value={projectName}
+                      onChange={e => setProjectName(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-6 w-full">
+                    {/* Search Input */}
+                    <div className="relative">
+                      <input
+                        className="w-full h-14 bg-zinc-100 rounded-[10px] px-4 text-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400"
+                        placeholder="Search by email or username..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                      {/* Search Results Dropdown */}
+                      {searchResults.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto z-20">
+                          {searchResults.map((user) => (
+                            <div
+                              key={user.id}
+                              className="p-3 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+                              onClick={() => addMember(user)}
+                            >
+                              <span className="font-medium">{user.full_name || user.username}</span>
+                              <span className="text-sm text-gray-500">{user.email}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Selected Members List */}
+                    <div className="bg-zinc-50 rounded-lg p-4 min-h-[200px] max-h-[300px] overflow-y-auto border border-gray-200">
+                      <h3 className="text-gray-500 text-sm font-bold mb-3 uppercase">Group Members</h3>
+                      <div className="space-y-2">
+                        {members.map((member) => (
+                          <div key={member.id} className="flex items-center justify-between bg-white p-3 rounded shadow-sm border border-gray-100">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-white text-xs">
+                                {(member.full_name || member.email || "?")[0].toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{member.full_name || member.username}</div>
+                                <div className="text-xs text-gray-500">{member.email}</div>
+                              </div>
+                            </div>
+                            {member.id === currentUser?.id ? (
+                              <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">Lead (You)</span>
+                            ) : (
+                              <button type="button" onClick={() => setMembers(members.filter(m => m.id !== member.id))} className="text-red-500 hover:text-red-700 text-sm">Remove</button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex justify-end mt-8">
                   <button
                     type="submit"
                     className="w-full md:w-72 h-16 bg-gray-950 rounded-md flex items-center justify-center text-white text-xl font-normal font-['Arimo'] hover:bg-gray-800 transition shadow-lg"
                   >
-                    Next
+                    {step === 1 ? "Next" : "Create Project"}
                   </button>
                 </div>
               </form>

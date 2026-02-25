@@ -693,6 +693,17 @@ def update_profile(request: ProfileUpdateRequest, user=Depends(get_current_user)
     return {"profile": response.data[0]}
 
 
+@app.get("/api/users/search")
+def search_users(q: str, user=Depends(get_current_user)):
+    if not q:
+        return []
+    db = require_db_client()
+    response = db.table("profiles").select("id, email, username, full_name").or_(
+        f"email.ilike.%{q}%,username.ilike.%{q}%,full_name.ilike.%{q}%"
+    ).limit(5).execute()
+    return response.data
+
+
 @app.get("/api/projects")
 def get_projects(user=Depends(get_current_user)):
     db = require_db_client()
@@ -1061,4 +1072,3 @@ def delete_document(document_id: str, user=Depends(get_current_user)):
     # Delete from database
     db.table("documents").delete().eq("id", document_id).execute()
     return {"status": "success"}
-
