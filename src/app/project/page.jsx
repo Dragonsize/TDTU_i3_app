@@ -225,9 +225,9 @@ export default function ProjectPage() {
         </div>
         <div className="flex items-center gap-3.5">
           <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 border-2 border-white overflow-hidden">
-            <img className="w-full h-full object-cover" src="https://placehold.co/41x41" alt="User" />
+            {currentUser?.full_name?.[0]?.toUpperCase() || currentUser?.email?.[0]?.toUpperCase() || "U"}
           </div>
-          <div className="text-neutral-950 text-xs font-normal font-['Arimo'] hidden sm:block">User</div>
+          <div className="text-neutral-950 text-xs font-normal font-['Arimo'] hidden sm:block">{currentUser?.full_name || currentUser?.username || "User"}</div>
         </div>
       </header>
 
