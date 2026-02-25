@@ -194,6 +194,7 @@ class RegisterRequest(BaseModel):
 class ProfileUpdateRequest(BaseModel):
     fullname: Optional[str] = None
     email: Optional[str] = None
+    username: Optional[str] = None
 
     @validator("fullname")
     def validate_fullname_safe(cls, value: Optional[str]) -> Optional[str]:
@@ -213,6 +214,16 @@ class ProfileUpdateRequest(BaseModel):
             raise ValueError("Email contains invalid characters")
         if contains_disallowed_username_chars(value):
             raise ValueError("Email contains invalid characters")
+        return value
+
+    @validator("username")
+    def validate_username_safe(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if contains_control_chars(value) or contains_emoji(value):
+            raise ValueError("Username contains invalid characters")
+        if contains_disallowed_username_chars(value):
+            raise ValueError("Username contains invalid characters")
         return value
 
 
@@ -685,6 +696,13 @@ def get_profile(user=Depends(get_current_user)):
 @app.post("/api/profile")
 def update_profile(request: ProfileUpdateRequest, user=Depends(get_current_user)):
     db = require_db_client()
+    
+    # Check for username uniqueness if being updated
+    if request.username:
+        existing = db.table("profiles").select("id").eq("username", request.username).neq("id", user.get("sub")).execute()
+        if existing.data:
+            raise HTTPException(status_code=409, detail="Username is already taken")
+            
     updates = {k: v for k, v in request.dict().items() if v is not None}
     if not updates:
         raise HTTPException(status_code=400, detail="No updates provided")

@@ -65,7 +65,7 @@ export default function ProjectPage() {
           )
         );
 
-        setProjects([...projects, newProject]); // Add new project to list
+        setProjects([...projects, { ...newProject, deadline_count: 0 }]); // Add new project to list
         resetModal();
       }
     } catch (error) {
@@ -169,10 +169,12 @@ export default function ProjectPage() {
                 <div key={project.id} className="bg-stone-500 rounded-[20px] p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center text-white">
                   <div className="col-span-4 text-xl md:text-2xl font-normal font-['Habibi'] truncate">{project.title}</div>
                   <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi']">
-                    {project.created_at ? new Date(project.created_at).toLocaleDateString() : "N/A"}
+                    {new Date(project.created_at || Date.now()).toLocaleDateString("en-GB")}
                   </div>
-                  <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi'] capitalize">{project.status || "Active"}</div>
-                  <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi']">-</div>
+                  <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi']">
+                    {project.status === "active" ? "In process" : project.status}
+                  </div>
+                  <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi']">{project.deadline_count || 0}</div>
                   <div className="col-span-2 flex justify-end items-center gap-4">
                     <button className="px-3.5 py-1.5 bg-black rounded-md text-white text-xs font-normal font-['Arimo'] hover:bg-gray-800">
                       Manager Deadline
@@ -245,7 +247,10 @@ export default function ProjectPage() {
                               onClick={() => addMember(user)}
                             >
                               <span className="font-medium">{user.full_name || user.username}</span>
-                              <span className="text-sm text-gray-500">{user.email}</span>
+                              <span className="text-sm text-gray-500">
+                                {user.email}
+                                {user.username && user.username !== user.email && <span className="text-gray-400 ml-1">({user.username})</span>}
+                              </span>
                             </div>
                           ))}
                         </div>
