@@ -84,7 +84,7 @@ export default function Dashboard() {
               <Link href="/project" className="hover:text-gray-900 transition-colors">Project</Link>
               <Link href="/chatbot" className="hover:text-gray-900 transition-colors">ChatBot</Link>
               <Link href="/chat" className="hover:text-gray-900 transition-colors">Chat</Link>
-              <Link href="/files" className="hover:text-gray-900 transition-colors">File</Link>
+              <Link href="/files" className="hover:text-gray-900 transition-colors">Files</Link>
             </nav>
           </div>
 

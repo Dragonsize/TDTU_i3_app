@@ -292,14 +292,14 @@ export default function FilesPage() {
                 <Link href="/project" className="hover:text-gray-900 transition-colors">Project</Link>
                 <Link href="/chatbot" className="hover:text-gray-900 transition-colors">ChatBot</Link>
                 <Link href="/chat" className="hover:text-gray-900 transition-colors">Chat</Link>
-                <Link href="/files" className="text-gray-900">File</Link>
+                <Link href="/files" className="text-gray-900">Files</Link>
               </nav>
             </div>
             <div className="flex items-center gap-3.5">
               <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 border-2 border-white overflow-hidden">
-                {currentUser?.full_name?.[0]?.toUpperCase() || currentUser?.email?.[0]?.toUpperCase() || "U"}
+                {currentUser ? (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase()) : ""}
               </div>
-              <div className="text-neutral-950 text-xs font-normal font-['Arimo'] hidden sm:block">{currentUser?.full_name || currentUser?.username || "User"}</div>
+              <div className="text-neutral-950 text-xs font-normal font-['Arimo'] hidden sm:block">{currentUser ? (currentUser.full_name || currentUser.username) : ""}</div>
             </div>
           </div>
         </header>
