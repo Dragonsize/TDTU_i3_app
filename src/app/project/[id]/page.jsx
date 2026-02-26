@@ -38,7 +38,8 @@ export default function ProjectDetailPage() {
   if (!project) return <div className="min-h-screen flex items-center justify-center">Project not found.</div>;
 
   return (
-    <div className="w-[1440px] h-[900px] relative bg-white overflow-hidden mx-auto shadow-lg my-4">
+    <div className="min-h-screen bg-white flex items-center justify-center overflow-auto">
+      <div className="w-[1440px] h-[900px] relative bg-white overflow-hidden shadow-lg shrink-0">
       <div className="w-[1438.96px] h-16 px-32 pb-px left-[-1.43px] top-[0.08px] absolute bg-white/60 border-b border-black/10 inline-flex flex-col justify-between items-center z-10">
         <div className="w-[1387px] h-9 inline-flex justify-between items-start">
           <div className="w-[589px] h-7 flex justify-between items-center">
@@ -112,6 +113,7 @@ export default function ProjectDetailPage() {
           ))
         )}
       </div>
+    </div>
     </div>
   );
 }
