@@ -279,7 +279,9 @@ export default function ProjectPage() {
                   className="rounded-[20px] p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center text-white transition-colors duration-300"
                   style={{ backgroundColor: project.color || "#78716c" }}
                 >
-                  <div className="col-span-4 text-xl md:text-2xl font-normal font-['Habibi'] truncate">{project.title}</div>
+                  <Link href={`/project/${project.id}`} className="col-span-4 text-xl md:text-2xl font-normal font-['Habibi'] truncate hover:underline cursor-pointer">
+                    {project.title}
+                  </Link>
                   <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi']">
                     {new Date(project.created_at || Date.now()).toLocaleDateString("en-GB")}
                   </div>
