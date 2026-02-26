@@ -223,12 +223,11 @@ export default function ProjectPage() {
             <Link href="/files" className="font-['Arimo'] hover:text-black cursor-pointer">File</Link>
           </nav>
         </div>
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 border-2 border-white overflow-hidden">
-            {currentUser ? (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase()) : ""}
+        <Link href="/settings" className="flex items-center gap-2" title="Settings">
+          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 border-2 border-white">
+            {currentUser ? (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase()) : "U"}
           </div>
-          <div className="text-neutral-950 text-xs font-normal font-['Arimo'] hidden sm:block">{currentUser ? (currentUser.full_name || currentUser.username) : ""}</div>
-        </div>
+        </Link>
       </header>
 
       <main className="max-w-[1440px] mx-auto p-8 lg:px-32 py-12">
