@@ -740,6 +740,25 @@ def get_projects(user=Depends(get_current_user)):
             projects.append(p)
     return projects
 
+@app.get("/api/projects/{project_id}")
+def get_project_details(project_id: str, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+    require_project_member(user_id, project_id)
+
+    # Fetch project details and join with creator's profile
+    response = db.table("projects").select("*, creator:creator_id(full_name, username)").eq("id", project_id).single().execute()
+
+    if getattr(response, "error", None):
+        raise HTTPException(status_code=404, detail="Project not found or error fetching data")
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    project = response.data
+    # Map DB 'name' to API 'title' for frontend compatibility
+    project["title"] = project.get("name", project.get("title"))
+    
+    return project
 
 @app.put("/api/projects/{project_id}")
 def update_project(project_id: str, request: CreateProjectRequest, user=Depends(get_current_user)):
@@ -823,6 +842,23 @@ def create_project(request: CreateProjectRequest, user=Depends(get_current_user)
         print(f"Create project error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
+
+@app.get("/api/projects/{project_id}/members")
+def get_project_members(project_id: str, user=Depends(get_current_user)):
+    db = require_db_client()
+    require_project_member(user.get("sub"), project_id)
+    
+    response = db.table("project_members").select("role, profiles:user_id(id, username, full_name, email)").eq("project_id", project_id).execute()
+    if getattr(response, "error", None):
+        raise HTTPException(status_code=500, detail="Failed to fetch members")
+    
+    members = []
+    for row in response.data:
+        if row.get("profiles"):
+            member_data = row["profiles"]
+            member_data["role"] = row.get("role")
+            members.append(member_data)
+    return members
 
 @app.post("/api/projects/{project_id}/members")
 def add_project_member(project_id: str, request: AddMemberRequest, user=Depends(get_current_user)):
