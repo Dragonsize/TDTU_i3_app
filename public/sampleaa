@@ -1,0 +1,57 @@
+<div class="w-[1440px] h-[900px] relative bg-white overflow-hidden">
+    <div class="w-[1438.96px] h-16 px-32 pb-px left-[-1.43px] top-[0.08px] absolute bg-white/60 border-b border-black/10 inline-flex flex-col justify-between items-center">
+        <div class="w-[1387px] h-9 inline-flex justify-between items-start">
+            <div class="w-[589px] h-7 flex justify-between items-center">
+                <div class="w-24 h-7 flex justify-start items-center gap-1.5">
+                    <div class="w-7 h-7 relative bg-gray-950 rounded-lg"></div>
+                    <div class="flex-1 h-5 relative">
+                        <div class="left-0 top-[-1px] absolute justify-start text-neutral-950 text-xl font-bold font-['Arimo'] leading-5">A+ Flow</div>
+                    </div>
+                </div>
+                <div class="w-96 h-5 flex justify-start items-center gap-5">
+                    <div class="w-24 inline-flex flex-col justify-center items-center gap-2.5">
+                        <div class="justify-start text-gray-500 text-base font-normal font-['Inter'] leading-5">Project</div>
+                    </div>
+                    <div class="w-24 self-stretch inline-flex flex-col justify-center items-center gap-2.5">
+                        <div class="justify-start text-gray-500 text-base font-normal font-['Arimo'] leading-5">ChatBot</div>
+                    </div>
+                    <div class="w-24 self-stretch inline-flex flex-col justify-center items-center gap-2.5">
+                        <div class="justify-start text-gray-500 text-base font-normal font-['Arimo'] leading-5">Chat</div>
+                    </div>
+                    <div class="w-24 inline-flex flex-col justify-center items-center gap-2.5">
+                        <div class="justify-start text-gray-500 text-base font-normal font-['Arimo'] leading-5">File </div>
+                    </div>
+                </div>
+            </div>
+            <div class="w-20 h-8 flex justify-start items-center gap-3.5">
+                <div class="w-16 h-8 px-3.5 py-1.5 rounded-md flex justify-center items-center gap-1.5">
+                    <img class="w-10 h-10" src="https://placehold.co/41x41" />
+                    <div class="text-center justify-start text-neutral-950 text-xs font-normal font-['Arimo'] leading-4">User</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="w-60 left-[39px] top-[97px] absolute text-center justify-center text-neutral-950 text-4xl font-normal font-['Habibi']">Robot Lau sàn </div>
+    <div class="w-60 left-[223px] top-[162px] absolute text-center justify-start text-black text-2xl font-normal font-['Habibi']">12/01/2026</div>
+    <div class="w-60 left-[770px] top-[546px] absolute text-center justify-start text-white text-2xl font-normal font-['Habibi']">3</div>
+    <div class="w-60 left-[190px] top-[225px] absolute text-center justify-start text-black text-2xl font-normal font-['Habibi']">In process</div>
+    <div class="w-44 h-14 px-3.5 py-1.5 left-[1190px] top-[373px] absolute bg-black rounded-md inline-flex justify-center items-center gap-1.5">
+        <div class="text-center justify-start text-white text-base font-normal font-['Arimo'] leading-4">Manager Deadline</div>
+    </div>
+    <div class="w-44 h-14 px-3.5 py-1.5 left-[46px] top-[401px] absolute bg-black rounded-md inline-flex justify-center items-center gap-1.5">
+        <div class="flex justify-center items-center gap-2.5">
+            <div class="text-center justify-start text-white text-base font-normal font-['Arimo'] leading-4">Member list</div>
+        </div>
+    </div>
+    <div class="w-44 h-14 px-3.5 py-1.5 left-[973px] top-[372px] absolute bg-black rounded-md inline-flex justify-center items-center gap-1.5">
+        <div class="text-center justify-start text-white text-base font-normal font-['Arimo'] leading-4">Manage workspace</div>
+    </div>
+    <div class="left-[112px] top-[226px] absolute text-center justify-start text-black text-2xl font-normal font-['Habibi']">Status</div>
+    <div class="left-[110px] top-[163px] absolute text-center justify-start text-black text-2xl font-normal font-['Habibi']">Day Create</div>
+    <div class="w-9 left-[1249px] top-[461px] absolute text-center justify-center text-stone-200 text-5xl font-normal font-['IM_FELL_Great_Primer_SC']">...</div>
+    <div class="left-[96px] top-[290px] absolute text-center justify-start text-black text-2xl font-normal font-['Arimo'] leading-4">Creater by</div>
+    <div class="left-[247px] top-[293px] absolute text-center justify-start text-black text-base font-normal font-['Arimo'] leading-4">Nguyễn Tuấn Anh</div>
+    <div class="w-[1345px] h-96 left-[51px] top-[450px] absolute bg-zinc-300"></div>
+    <div class="w-[1177px] h-24 left-[138px] top-[474px] absolute bg-stone-500 rounded-[20px]"></div>
+    <div class="w-96 left-[138px] top-[506px] absolute text-center justify-start text-black text-2xl font-normal font-['ABeeZee']">Nguyen Tuan Anh(12345)</div>
+</div>

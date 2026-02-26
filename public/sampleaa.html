@@ -1,0 +1,71 @@
+<div class="min-h-screen bg-white font-['Arimo']">
+    <!-- Navigation -->
+    <nav class="w-full h-16 px-8 bg-white/60 border-b border-black/10 flex justify-between items-center sticky top-0 z-10 backdrop-blur-sm">
+        <div class="flex items-center gap-12">
+            <!-- Logo -->
+            <div class="flex items-center gap-2">
+                <div class="w-7 h-7 bg-gray-950 rounded-lg"></div>
+                <span class="text-neutral-950 text-xl font-bold">A+ Flow</span>
+            </div>
+            <!-- Menu -->
+            <div class="hidden md:flex items-center gap-8">
+                <a href="#" class="text-gray-500 hover:text-gray-900 text-base font-normal font-['Inter']">Project</a>
+                <a href="#" class="text-gray-500 hover:text-gray-900 text-base font-normal">ChatBot</a>
+                <a href="#" class="text-gray-500 hover:text-gray-900 text-base font-normal">Chat</a>
+                <a href="#" class="text-gray-500 hover:text-gray-900 text-base font-normal">File</a>
+            </div>
+        </div>
+        <!-- User Profile -->
+        <div class="flex items-center gap-2 px-3 py-1 rounded-md hover:bg-gray-100 cursor-pointer">
+            <img class="w-10 h-10 rounded-full" src="https://placehold.co/41x41" alt="User" />
+            <span class="text-neutral-950 text-xs">User</span>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-8 py-12">
+        <!-- Project Header -->
+        <div class="mb-12">
+            <h1 class="text-neutral-950 text-4xl font-normal font-['Habibi'] mb-8">Robot Lau sàn</h1>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <h3 class="text-black text-2xl font-normal font-['Habibi'] mb-2">Day Create</h3>
+                    <p class="text-black text-xl">12/01/2026</p>
+                </div>
+                <div>
+                    <h3 class="text-black text-2xl font-normal font-['Habibi'] mb-2">Status</h3>
+                    <p class="text-black text-xl">In process</p>
+                </div>
+                <div>
+                    <h3 class="text-black text-2xl font-normal font-['Arimo'] mb-2">Created by</h3>
+                    <p class="text-black text-base">Nguyễn Tuấn Anh</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Bar -->
+        <div class="flex flex-wrap gap-4 mb-6">
+            <button class="h-14 px-6 bg-black text-white rounded-md flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors text-base">
+                Member list
+            </button>
+            <button class="h-14 px-6 bg-black text-white rounded-md flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors text-base">
+                Manage workspace
+            </button>
+            <button class="h-14 px-6 bg-black text-white rounded-md flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors text-base">
+                Manager Deadline
+            </button>
+        </div>
+
+        <!-- Member List Area -->
+        <div class="w-full bg-zinc-300 rounded-lg p-6 min-h-[400px] relative">
+            <!-- List Item -->
+            <div class="w-full md:w-10/12 bg-stone-500 rounded-[20px] h-24 flex items-center px-8 mb-4 shadow-sm">
+                <span class="text-black text-2xl font-normal font-['ABeeZee']">Nguyen Tuan Anh(12345)</span>
+            </div>
+            
+            <!-- Pagination / More -->
+            <div class="absolute right-8 top-8 text-stone-200 text-5xl font-normal font-['IM_FELL_Great_Primer_SC']">...</div>
+        </div>
+    </main>
+</div>
