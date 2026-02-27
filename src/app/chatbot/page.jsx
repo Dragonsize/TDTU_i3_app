@@ -64,10 +64,11 @@ export default function ChatbotPage() {
                   user && (user.full_name ? user.full_name.split(" ")[0][0].toUpperCase() : user.email?.[0]?.toUpperCase())
                 )}
               </div>
-              <div className="text-neutral-950 text-xs font-normal font-['Arimo'] leading-4 text-center">
-                {user?.full_name || ""}
-              </div>
+            <div className="text-neutral-950 text-xs font-normal font-['Arimo'] leading-4 text-center">
+              {user?.full_name || ""}
             </div>
+          </div>
+        </Link>
           </Link>
       </header>
       <div className="flex items-center justify-center text-2xl font-bold min-h-[calc(100vh-4rem)]">
