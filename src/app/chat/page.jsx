@@ -69,7 +69,6 @@ export default function ChatPage() {
             </div>
           </div>
         </Link>
-          </Link>
       </header>
       <div className="flex items-center justify-center text-2xl font-bold min-h-[calc(100vh-4rem)]">
         Chat placeholder page
