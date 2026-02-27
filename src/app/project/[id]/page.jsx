@@ -325,29 +325,30 @@ export default function ProjectDetailPage() {
             )}
           </div>
         </div>
-// Workspace Flow Creation Backend Integration
-const [showCreateFlowModal, setShowCreateFlowModal] = useState(false);
-const [newFlowName, setNewFlowName] = useState("");
-const [newFlowDesc, setNewFlowDesc] = useState("");
-const [newFlowDeadline, setNewFlowDeadline] = useState("");
-const [selectedFlowMembers, setSelectedFlowMembers] = useState([]);
+        // ...existing code...
+            // Workspace Flow Creation Backend Integration
+            const [showCreateFlowModal, setShowCreateFlowModal] = useState(false);
+            const [newFlowName, setNewFlowName] = useState("");
+            const [newFlowDesc, setNewFlowDesc] = useState("");
+            const [newFlowDeadline, setNewFlowDeadline] = useState("");
+            const [selectedFlowMembers, setSelectedFlowMembers] = useState([]);
 
-const handleFlowMemberToggle = (memberId, checked) => {
-  setSelectedFlowMembers(prev => checked ? [...prev, memberId] : prev.filter(id => id !== memberId));
-};
+            const handleFlowMemberToggle = (memberId, checked) => {
+              setSelectedFlowMembers(prev => checked ? [...prev, memberId] : prev.filter(id => id !== memberId));
+            };
 
-const handleCreateFlowSubmit = async (e) => {
-  e.preventDefault();
-  if (!newFlowName || !newFlowDeadline || selectedFlowMembers.length === 0) return;
-  try {
-    // 1. Create workflow
-    const workflowRes = await fetch(`/api/projects/${id}/workflows`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newFlowName, description: newFlowDesc })
-    });
-    if (!workflowRes.ok) throw new Error("Failed to create workflow");
+            const handleCreateFlowSubmit = async (e) => {
+              e.preventDefault();
+              if (!newFlowName || !newFlowDeadline || selectedFlowMembers.length === 0) return;
+              try {
+                // 1. Create workflow
+                const workflowRes = await fetch(`/api/projects/${id}/workflows`, {
+                  method: "POST",
+                  credentials: "include",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ title: newFlowName, description: newFlowDesc })
+                });
+                if (!workflowRes.ok) throw new Error("Failed to create workflow");
           const workflow = await workflowRes.json();
           // 2. Assign members
           for (const memberId of selectedFlowMembers) {
