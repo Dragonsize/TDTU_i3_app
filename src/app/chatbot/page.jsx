@@ -1,3 +1,4 @@
+import Link from "next/link";
 export default function ChatbotPage() {
   return (
     <div className="min-h-screen bg-white">
@@ -26,4 +27,5 @@ export default function ChatbotPage() {
         Chatbot placeholder page
       </div>
     </div>
+  );
 }
