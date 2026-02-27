@@ -162,9 +162,6 @@ export default function ProjectDetailPage() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-4 mb-8">
-          <div className="mb-2">
-            <span className="inline-block px-4 py-2 bg-black text-white text-base font-normal font-['Arimo'] rounded-md">Member list</span>
-          </div>
           <button
             className="px-6 py-3 bg-black rounded-md text-white text-base font-normal font-['Arimo'] hover:bg-gray-800 transition"
             onClick={() => setShowWorkspaceModal(true)}
@@ -311,6 +308,7 @@ export default function ProjectDetailPage() {
 
         {/* Member List */}
         <div className="bg-zinc-300 rounded-[20px] p-6 min-h-[400px]">
+          <div className="text-white text-2xl font-bold mb-6 px-2">Members</div>
           <div className="flex flex-col gap-4">
             {members.length === 0 ? (
               <div className="text-center text-gray-500 mt-10">No members found</div>
@@ -327,6 +325,66 @@ export default function ProjectDetailPage() {
             )}
           </div>
         </div>
+      // Workspace Flow Creation Backend Integration
+      const [showCreateFlowModal, setShowCreateFlowModal] = useState(false);
+      const [newFlowName, setNewFlowName] = useState("");
+      const [newFlowDesc, setNewFlowDesc] = useState("");
+      const [newFlowDeadline, setNewFlowDeadline] = useState("");
+      const [selectedFlowMembers, setSelectedFlowMembers] = useState([]);
+
+      const handleFlowMemberToggle = (memberId, checked) => {
+        setSelectedFlowMembers(prev => checked ? [...prev, memberId] : prev.filter(id => id !== memberId));
+      };
+
+      const handleCreateFlowSubmit = async (e) => {
+        e.preventDefault();
+        if (!newFlowName || !newFlowDeadline || selectedFlowMembers.length === 0) return;
+        try {
+          // 1. Create workflow
+          const workflowRes = await fetch(`/api/projects/${id}/workflows`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: newFlowName, description: newFlowDesc })
+          });
+          if (!workflowRes.ok) throw new Error("Failed to create workflow");
+          const workflow = await workflowRes.json();
+          // 2. Assign members
+          for (const memberId of selectedFlowMembers) {
+            const member = members.find(m => m.id === memberId);
+            if (!member) continue;
+            await fetch(`/api/workflows/${workflow.id}/members`, {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ username: member.username, role: member.role || "member" })
+            });
+          }
+          // 3. Create deadline (assign to lead or first member)
+          const deadlineAssignee = members.find(m => m.id === selectedFlowMembers[0]);
+          await fetch(`/api/workflows/${workflow.id}/deadlines`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: `${newFlowName} Deadline`, due_date: newFlowDeadline, assigned_to: deadlineAssignee.username })
+          });
+          // 4. Refresh workspace list
+          setShowCreateFlowModal(false);
+          setNewFlowName("");
+          setNewFlowDesc("");
+          setNewFlowDeadline("");
+          setSelectedFlowMembers([]);
+          // Optionally, refetch workspaces
+          setWorkspaceLoading(true);
+          fetch(`/api/projects/${id}/workflows`, { credentials: "include" })
+            .then(res => res.json())
+            .then(data => setWorkspaces(Array.isArray(data) ? data : []))
+            .catch(() => setWorkspaces([]))
+            .finally(() => setWorkspaceLoading(false));
+        } catch (err) {
+          alert("Failed to create workspace flow: " + err.message);
+        }
+      };
       </main>
     </div>
   );
