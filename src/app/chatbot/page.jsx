@@ -1,18 +1,44 @@
 
-import Link from "next/link";
-import { useEffect } from "react";
+"use client";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function ChatbotPage() {
   const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    fetch("/api/profile", { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.profile) router.push("/login");
-      })
-      .catch(() => router.push("/login"));
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/me', { credentials: 'include' });
+        if (!response.ok) {
+          router.push('/login');
+          return;
+        }
+        const data = await response.json();
+        setUser(data.user);
+      } catch (err) {
+        router.push('/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkAuth();
   }, [router]);
+
+  if (loading) {
+    return (
+      <div className="w-full min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-950 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 font-['Arimo']">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -31,8 +57,7 @@ export default function ChatbotPage() {
         </div>
         <Link href="/settings" className="flex items-center gap-2" title="Settings">
           <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 border-2 border-white">
-            {/* TODO: fetch user info for initials if needed */}
-            U
+            {user?.full_name ? user.full_name[0].toUpperCase() : (user?.email ? user.email[0].toUpperCase() : "")}
           </div>
         </Link>
       </header>
