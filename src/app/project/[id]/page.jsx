@@ -357,24 +357,17 @@ export default function ProjectDetailPage() {
                                     type="text"
                                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black bg-white focus:outline-none focus:border-blue-500 hover:border-blue-400 transition-colors pr-10"
                                     style={{ color: 'black', backgroundColor: 'white' }}
-                                    value={(() => {
-                                      if (!newFlowDeadline) return "";
-                                      if (newFlowDeadline.includes("/")) return newFlowDeadline;
-                                      const [y, m, d] = newFlowDeadline.split("-");
-                                      return d && m && y ? `${d}/${m}/${y}` : newFlowDeadline;
-                                    })()}
+                                    value={newFlowDeadline}
                                     onChange={e => {
-                                      // Accept only dd/mm/yyyy or empty
-                                      const val = e.target.value;
-                                      if (!val) return setNewFlowDeadline("");
-                                      const match = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-                                      if (match) {
-                                        setNewFlowDeadline(`${match[3]}-${match[2]}-${match[1]}`);
-                                      } else {
-                                        setNewFlowDeadline(val); // allow typing, but only save valid on submit
-                                      }
+                                      const input = e.target.value;
+                                      const numbers = input.replace(/\D/g, "");
+                                      let formatted = numbers;
+                                      if (numbers.length > 2) formatted = `${numbers.slice(0, 2)}/${numbers.slice(2)}`;
+                                      if (numbers.length > 4) formatted = `${formatted.slice(0, 5)}/${numbers.slice(4, 8)}`;
+                                      setNewFlowDeadline(formatted);
                                     }}
-                                    placeholder="dd/mm/yyyy (type or pick)"
+                                    placeholder="dd/mm/yyyy"
+                                    maxLength={10}
                                     required
                                   />
                                   <button
@@ -386,12 +379,18 @@ export default function ProjectDetailPage() {
                                       // Open a hidden date input and sync value
                                       const input = document.createElement('input');
                                       input.type = 'date';
-                                      input.value = newFlowDeadline && newFlowDeadline.includes('-') ? newFlowDeadline : '';
+                                      if (newFlowDeadline && newFlowDeadline.length === 10) {
+                                        const [d, m, y] = newFlowDeadline.split('/');
+                                        input.value = `${y}-${m}-${d}`;
+                                      }
                                       input.style.position = 'absolute';
                                       input.style.left = '-9999px';
                                       document.body.appendChild(input);
                                       input.onchange = (e) => {
-                                        if (input.value) setNewFlowDeadline(input.value);
+                                        if (input.value) {
+                                          const [y, m, d] = input.value.split('-');
+                                          setNewFlowDeadline(`${d}/${m}/${y}`);
+                                        }
                                         document.body.removeChild(input);
                                       };
                                       input.click();
