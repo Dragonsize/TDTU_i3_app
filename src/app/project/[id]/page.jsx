@@ -256,9 +256,49 @@ export default function ProjectDetailPage() {
                     ))
                   )}
                   {/* Create Flow Button */}
-                  <button className="mt-6 w-full h-12 bg-stone-400 rounded-[14px] flex items-center justify-center text-white text-base font-normal font-['Habibi'] hover:bg-stone-500 transition">
+                  <button
+                    className="mt-6 w-full h-12 bg-stone-400 rounded-[14px] flex items-center justify-center text-white text-base font-normal font-['Habibi'] hover:bg-stone-500 transition"
+                    onClick={() => setShowCreateFlowModal(true)}
+                  >
                     + Create Flow
                   </button>
+                      {/* Create Flow Modal */}
+                      {showCreateFlowModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                          <div className="relative w-[95vw] max-w-[480px] h-[70vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                            {/* Header */}
+                            <div className="w-full h-14 px-6 bg-white/60 border-b border-black/10 flex items-center justify-between">
+                              <span className="text-neutral-950 text-lg font-bold font-['Arimo']">Create Workspace Flow</span>
+                              <button className="text-2xl text-gray-400 hover:text-gray-700" onClick={() => setShowCreateFlowModal(false)}>&times;</button>
+                            </div>
+                            {/* Modal Content */}
+                            <form className="flex-1 bg-white flex flex-col items-center pt-6 px-6" onSubmit={handleCreateFlowSubmit}>
+                              <div className="w-full flex flex-col gap-4">
+                                <label className="text-black text-base font-normal font-['Arimo']">Flow Name</label>
+                                <input type="text" className="w-full rounded-md border border-gray-300 px-3 py-2 text-base" value={newFlowName} onChange={e => setNewFlowName(e.target.value)} required />
+                                <label className="text-black text-base font-normal font-['Arimo']">Description</label>
+                                <textarea className="w-full rounded-md border border-gray-300 px-3 py-2 text-base" value={newFlowDesc} onChange={e => setNewFlowDesc(e.target.value)} />
+                                <label className="text-black text-base font-normal font-['Arimo']">Deadline</label>
+                                <input type="date" className="w-full rounded-md border border-gray-300 px-3 py-2 text-base" value={newFlowDeadline} onChange={e => setNewFlowDeadline(e.target.value)} required />
+                                <label className="text-black text-base font-normal font-['Arimo']">Assign Members</label>
+                                <div className="w-full flex flex-col gap-2">
+                                  {members.map(member => (
+                                    <label key={member.id} className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedFlowMembers.includes(member.id)}
+                                        onChange={e => handleFlowMemberToggle(member.id, e.target.checked)}
+                                      />
+                                      <span className="text-black text-base font-normal font-['Arimo']">{member.full_name || member.username} ({member.username})</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                              <button type="submit" className="mt-6 w-full h-12 bg-black rounded-md flex items-center justify-center text-white text-base font-normal font-['Arimo'] hover:bg-gray-800 transition">Finish</button>
+                            </form>
+                          </div>
+                        </div>
+                      )}
                 </div>
                 <button className="mt-8 w-40 h-10 bg-gray-950 rounded-md flex items-center justify-center">
                   <span className="text-white text-base font-normal font-['Arimo']">Finish</span>
