@@ -52,14 +52,23 @@ export default function ChatPage() {
             <Link href="/project" className="font-['Inter'] text-black font-medium">Project</Link>
             <Link href="/chatbot" className="font-['Arimo'] hover:text-black cursor-pointer">ChatBot</Link>
             <Link href="/chat" className="font-['Arimo'] hover:text-black cursor-pointer">Chat</Link>
-            <Link href="/files" className="font-['Arimo'] hover:text-black cursor-pointer">File</Link>
+            <Link href="/files" className="font-['Arimo'] hover:text-black cursor-pointer">Files</Link>
           </nav>
         </div>
-        <Link href="/settings" className="flex items-center gap-2" title="Settings">
-          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 border-2 border-white">
-            {user?.full_name ? user.full_name[0].toUpperCase() : (user?.email ? user.email[0].toUpperCase() : "")}
-          </div>
-        </Link>
+          <Link href="/settings" className="flex items-center gap-2" title="Settings">
+            <div className="px-3.5 py-1.5 rounded-md flex justify-center items-center gap-1.5 hover:bg-gray-100 transition-colors">
+              <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden">
+                {currentUser?.avatar_url ? (
+                  <img src={currentUser.avatar_url} alt="User" className="w-full h-full object-cover" />
+                ) : (
+                  currentUser && (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase())
+                )}
+              </div>
+              <div className="text-center justify-start text-neutral-950 text-xs font-normal font-['Arimo'] leading-4">
+                {currentUser?.full_name || ""}
+              </div>
+            </div>
+          </Link>
       </header>
       <div className="flex items-center justify-center text-2xl font-bold min-h-[calc(100vh-4rem)]">
         Chat placeholder page

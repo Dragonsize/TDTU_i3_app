@@ -300,7 +300,7 @@ export default function FilesPage() {
                 <Link href="/project" className="font-['Inter'] hover:text-black font-normal">Project</Link>
                 <Link href="/chatbot" className="font-['Arimo'] hover:text-black cursor-pointer font-normal">ChatBot</Link>
                 <Link href="/chat" className="font-['Arimo'] hover:text-black cursor-pointer font-normal">Chat</Link>
-                <Link href="/files" className="font-['Arimo'] hover:text-black cursor-pointer font-normal">File</Link>
+                <Link href="/files" className="font-['Arimo'] hover:text-black cursor-pointer font-normal">Files</Link>
               </nav>
             </div>
             <Link href="/settings" className="flex items-center gap-2" title="Settings">
