@@ -18,8 +18,10 @@ export default function SettingsPage() {
       .then((res) => res.json())
       .then((data) => {
         if (data.profile) setProfile(data.profile);
-      });
-  }, []);
+        else router.push("/login");
+      })
+      .catch(() => router.push("/login"));
+  }, [router]);
 
   const handleRename = async () => {
     setSaving(true);

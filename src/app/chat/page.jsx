@@ -1,5 +1,18 @@
+
 import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
 export default function ChatPage() {
+  const router = useRouter();
+  useEffect(() => {
+    fetch("/api/profile", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.profile) router.push("/login");
+      })
+      .catch(() => router.push("/login"));
+  }, [router]);
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}

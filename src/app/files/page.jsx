@@ -155,6 +155,7 @@ export default function FilesPage() {
       }
     };
 
+    const router = typeof window !== "undefined" ? require('next/navigation').useRouter() : null;
     useEffect(() => {
       fetchFiles();
       fetchProjects();
@@ -162,9 +163,15 @@ export default function FilesPage() {
       fetch("/api/profile", { credentials: "include" })
         .then((res) => res.json())
         .then((data) => {
-          if (data.profile) setCurrentUser(data.profile);
+          if (data.profile) {
+            setCurrentUser(data.profile);
+          } else {
+            if (router) router.push("/login");
+          }
         })
-        .catch((err) => console.warn("Failed to fetch profile", err));
+        .catch((err) => {
+          if (router) router.push("/login");
+        });
     }, []);
 
     const handleUpload = async (event) => {

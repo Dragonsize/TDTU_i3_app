@@ -49,15 +49,20 @@ export default function ProjectPage() {
       });
 
     // Fetch current user profile
+    const router = typeof window !== "undefined" ? require('next/navigation').useRouter() : null;
     fetch("/api/profile", { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
         if (data.profile) {
           setCurrentUser(data.profile);
           setMembers([data.profile]);
+        } else {
+          if (router) router.push("/login");
         }
       })
-      .catch((err) => console.error("Failed to fetch profile", err));
+      .catch((err) => {
+        if (router) router.push("/login");
+      });
   }, []);
 
   // Handle creating a new project
