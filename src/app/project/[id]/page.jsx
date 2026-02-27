@@ -336,11 +336,44 @@ export default function ProjectDetailPage() {
                             <form className="flex-1 bg-white flex flex-col items-center pt-6 px-6" onSubmit={handleCreateFlowSubmit}>
                               <div className="w-full flex flex-col gap-4">
                                 <label className="text-black text-base font-normal font-['Arimo']">Flow Name</label>
-                                <input type="text" className="w-full rounded-md border border-gray-300 px-3 py-2 text-base" value={newFlowName} onChange={e => setNewFlowName(e.target.value)} required />
+                                <input type="text" className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black" value={newFlowName} onChange={e => setNewFlowName(e.target.value)} required />
                                 <label className="text-black text-base font-normal font-['Arimo']">Description</label>
-                                <textarea className="w-full rounded-md border border-gray-300 px-3 py-2 text-base" value={newFlowDesc} onChange={e => setNewFlowDesc(e.target.value)} />
+                                <textarea className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black" value={newFlowDesc} onChange={e => setNewFlowDesc(e.target.value)} />
                                 <label className="text-black text-base font-normal font-['Arimo']">Deadline</label>
-                                <input type="date" className="w-full rounded-md border border-gray-300 px-3 py-2 text-base" value={newFlowDeadline} onChange={e => setNewFlowDeadline(e.target.value)} required />
+                                <div className="relative w-full">
+                                  <input
+                                    type="text"
+                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black bg-white focus:outline-none"
+                                    value={newFlowDeadline ? (() => {
+                                      const [y, m, d] = newFlowDeadline.split("-");
+                                      return d && m && y ? `${d}/${m}/${y}` : "";
+                                    })() : ""}
+                                    onChange={e => {
+                                      // Accept only dd/mm/yyyy or empty
+                                      const val = e.target.value;
+                                      if (!val) return setNewFlowDeadline("");
+                                      const match = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+                                      if (match) {
+                                        setNewFlowDeadline(`${match[3]}-${match[2]}-${match[1]}`);
+                                      }
+                                    }}
+                                    placeholder="dd/mm/yyyy"
+                                    required
+                                  />
+                                  <input
+                                    type="text"
+                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black bg-white focus:outline-none"
+                                    style={{ color: 'black' }}
+                                    value={newFlowDeadline ? (() => {
+                                      const [y, m, d] = newFlowDeadline.split("-");
+                                      return d && m && y ? `${d}/${m}/${y}` : "";
+                                    })() : ""}
+                                    onChange={e => {
+                                      // Accept only dd/mm/yyyy or empty
+                                      const val = e.target.value;
+                                      if (!val) return setNewFlowDeadline("");
+                                      const match = val.match(/^(
+                                </div>
                                 <label className="text-black text-base font-normal font-['Arimo']">Assign Members</label>
                                 <div className="w-full flex flex-col gap-2">
                                   {members.map(member => (
