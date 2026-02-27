@@ -162,7 +162,9 @@ export default function ProjectDetailPage() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-4 mb-8">
-          <button className="px-6 py-3 bg-black rounded-md text-white text-base font-normal font-['Arimo'] hover:bg-gray-800 transition">Member list</button>
+          <div className="mb-2">
+            <span className="inline-block px-4 py-2 bg-black text-white text-base font-normal font-['Arimo'] rounded-md">Member list</span>
+          </div>
           <button
             className="px-6 py-3 bg-black rounded-md text-white text-base font-normal font-['Arimo'] hover:bg-gray-800 transition"
             onClick={() => setShowWorkspaceModal(true)}
@@ -269,7 +271,6 @@ export default function ProjectDetailPage() {
 
         {/* Member List */}
         <div className="bg-zinc-300 rounded-[20px] p-6 min-h-[400px]">
-          <h2 className="text-2xl font-bold mb-6 px-2">Members</h2>
           <div className="flex flex-col gap-4">
             {members.length === 0 ? (
               <div className="text-center text-gray-500 mt-10">No members found</div>
