@@ -372,7 +372,7 @@ export default function FilesPage() {
                         )}
                       </div>
 
-                      {/* Right: File info and actions */}
+                      {/* Right: File info and actions a*/}
                       <div className="w-[340px] flex flex-col justify-center p-8 border-l border-gray-200 bg-white">
                         <div className="text-xl text-black font-bold font-['Instrument_Sans'] mb-2 text-center rounded bg-gray-100 px-4 py-1 mb-4">{selectedFile.filename || "Untitled"}</div>
                         <div className="flex flex-row gap-3 mb-6 justify-center">
