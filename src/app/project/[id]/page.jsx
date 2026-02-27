@@ -1,19 +1,36 @@
 "use client";
-import { useParams } from "next/navigation";
+
+import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const id = params.id;
+  const router = typeof window !== "undefined" ? require('next/navigation').useRouter() : null;
   const [project, setProject] = useState(null);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userLoading, setUserLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
     const fetchData = async () => {
       try {
+        // Fetch user profile for header and auth
+        const profileRes = await fetch("/api/profile", { credentials: "include" });
+        const profileData = await profileRes.json();
+        if (profileData.profile) {
+          setCurrentUser(profileData.profile);
+        } else {
+          if (router) router.push("/login");
+          return;
+        }
+        setUserLoading(false);
+
+        // Fetch project and members
         const [projRes, memRes] = await Promise.all([
           fetch(`/api/projects/${id}`, { credentials: "include" }),
           fetch(`/api/projects/${id}/members`, { credentials: "include" })
@@ -26,6 +43,7 @@ export default function ProjectDetailPage() {
           setMembers(memData);
         }
       } catch (error) {
+        if (router) router.push("/login");
         console.error("Error loading project:", error);
       } finally {
         setLoading(false);
@@ -34,7 +52,7 @@ export default function ProjectDetailPage() {
     fetchData();
   }, [id]);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (loading || userLoading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   if (!project) return <div className="min-h-screen flex items-center justify-center">Project not found.</div>;
 
   return (
@@ -53,12 +71,20 @@ export default function ProjectDetailPage() {
             <Link href="/files" className="font-['Arimo'] hover:text-black cursor-pointer">File</Link>
           </nav>
         </div>
-        <div className="flex items-center gap-3.5">
-          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 border-2 border-white overflow-hidden">
-            U
+        <Link href="/settings" className="flex items-center gap-2" title="Settings">
+          <div className="px-3.5 py-1.5 rounded-md flex justify-center items-center gap-1.5 hover:bg-gray-100 transition-colors">
+            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden">
+              {currentUser?.avatar_url ? (
+                <img src={currentUser.avatar_url} alt="User" className="w-full h-full object-cover" />
+              ) : (
+                currentUser && (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase())
+              )}
+            </div>
+            <div className="text-center justify-start text-neutral-950 text-xs font-normal font-['Arimo'] leading-4">
+              {currentUser?.full_name || ""}
+            </div>
           </div>
-          <div className="text-neutral-950 text-xs font-normal font-['Arimo'] hidden sm:block">User</div>
-        </div>
+        </Link>
       </header>
 
       <main className="max-w-[1440px] mx-auto p-8 lg:px-32 py-12">
