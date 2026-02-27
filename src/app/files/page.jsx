@@ -1,6 +1,7 @@
 
 "use client";
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 // FileImagePreview component for image/* files
 function FileImagePreview({ file }) {
   const [imgUrl, setImgUrl] = useState(null);
@@ -49,7 +50,6 @@ function FileImagePreview({ file }) {
     />
   );
 }
-import Link from "next/link";
 
 // TextPreview component for .txt and text/* files
 function TextPreview({ fileId }) {
@@ -281,34 +281,27 @@ export default function FilesPage() {
 
     return (
       <div className="min-h-screen bg-white">
-        <header className="w-full h-16 bg-white/60 border-b border-black/10 flex items-center">
-          <div className="max-w-7xl mx-auto w-full px-6 flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <Link href="/dashboard" className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-gray-950 rounded-lg"></div>
-                <span className="text-xl font-bold text-neutral-950 font-['Arimo']">A+ Flow</span>
-              return (
-                <div className="min-h-screen bg-white">
-                  {/* Header */}
-                  <header className="w-full h-16 bg-white/60 border-b border-black/10 flex items-center justify-between px-8 lg:px-32 sticky top-0 z-10 backdrop-blur-sm">
-                    <div className="flex items-center gap-6">
-                      <Link href="/dashboard" className="flex items-center gap-1.5">
-                        <div className="w-7 h-7 bg-gray-950 rounded-lg"></div>
-                        <span className="text-neutral-950 text-xl font-bold font-['Arimo']">A+ Flow</span>
-                      </Link>
-                      <nav className="hidden md:flex items-center gap-5 text-base text-gray-500">
-                        <Link href="/project" className="font-['Inter'] text-black font-medium">Project</Link>
-                        <Link href="/chatbot" className="font-['Arimo'] hover:text-black cursor-pointer">ChatBot</Link>
-                        <Link href="/chat" className="font-['Arimo'] hover:text-black cursor-pointer">Chat</Link>
-                        <Link href="/files" className="font-['Arimo'] hover:text-black cursor-pointer">File</Link>
-                      </nav>
-                    </div>
-                    <Link href="/settings" className="flex items-center gap-2" title="Settings">
-                      <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 border-2 border-white">
-                        {currentUser ? (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase()) : "U"}
-                      </div>
-                    </Link>
-                  </header>
+        {/* Header */}
+        <header className="w-full h-16 bg-white/60 border-b border-black/10 flex items-center justify-between px-8 lg:px-32 sticky top-0 z-10 backdrop-blur-sm">
+          <div className="flex items-center gap-6">
+            <Link href="/dashboard" className="flex items-center gap-1.5">
+              <div className="w-7 h-7 bg-gray-950 rounded-lg"></div>
+              <span className="text-neutral-950 text-xl font-bold font-['Arimo']">A+ Flow</span>
+            </Link>
+            <nav className="hidden md:flex items-center gap-5 text-base text-gray-500">
+              <Link href="/project" className="font-['Inter'] text-black font-medium">Project</Link>
+              <Link href="/chatbot" className="font-['Arimo'] hover:text-black cursor-pointer">ChatBot</Link>
+              <Link href="/chat" className="font-['Arimo'] hover:text-black cursor-pointer">Chat</Link>
+              <Link href="/files" className="font-['Arimo'] hover:text-black cursor-pointer">File</Link>
+            </nav>
+          </div>
+          <Link href="/settings" className="flex items-center gap-2" title="Settings">
+            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold text-gray-600 border-2 border-white">
+              {currentUser ? (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase()) : "U"}
+            </div>
+          </Link>
+        </header>
+        <main className="max-w-[1440px] mx-auto p-8 lg:px-32 py-12">
               <div className="flex-1 relative" onDrop={handleDrop} onDragOver={handleDragOver}>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-8 items-start">
                   {/* File cards */}
@@ -420,8 +413,6 @@ export default function FilesPage() {
                   </div>
                 )}
               </div>
-            </div>
-          </section>
         </main>
       </div>
   );
