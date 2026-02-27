@@ -61,7 +61,7 @@ export default function ChatbotPage() {
                 {user?.avatar_url ? (
                   <img src={user.avatar_url} alt="User" className="w-full h-full object-cover" />
                 ) : (
-                  user && (user.full_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase())
+                  user && (user.full_name ? user.full_name.split(" ")[0][0].toUpperCase() : user.email?.[0]?.toUpperCase())
                 )}
               </div>
               <div className="text-neutral-950 text-xs font-normal font-['Arimo'] leading-4 text-center">

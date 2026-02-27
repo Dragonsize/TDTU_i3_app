@@ -230,7 +230,7 @@ export default function ProjectPage() {
                 {currentUser?.avatar_url ? (
                   <img src={currentUser.avatar_url} alt="User" className="w-full h-full object-cover" />
                 ) : (
-                  currentUser && (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase())
+                  currentUser && (currentUser.full_name ? currentUser.full_name.split(" ")[0][0].toUpperCase() : currentUser.email?.[0]?.toUpperCase())
                 )}
               </div>
               <div className="text-neutral-950 text-xs font-normal font-['Arimo'] leading-4 text-center">
