@@ -184,29 +184,23 @@ export default function ProjectDetailPage() {
             <div className="w-7 h-7 bg-gray-950 rounded-lg"></div>
             <span className="text-neutral-950 text-xl font-bold font-['Arimo']">A+ Flow</span>
           </Link>
-                                    value={(() => {
-                                      // Always show as dd/mm/yyyy mask
-                                      if (!newFlowDeadline) return '';
-                                      // If already masked, show as is
-                                      if (/^\d{2}\/\d{2}\/\d{4}$/.test(newFlowDeadline)) return newFlowDeadline;
-                                      // If ISO, convert
-                                      if (/^\d{4}-\d{2}-\d{2}$/.test(newFlowDeadline)) {
-                                        const [y, m, d] = newFlowDeadline.split('-');
-                                        return `${d}/${m}/${y}`;
-                                      }
-                                      return newFlowDeadline;
-                                    })()}
-                                    onChange={e => {
-                                      let val = e.target.value.replace(/[^\d]/g, '');
-                                      if (!val) return setNewFlowDeadline("");
-                                      if (val.length > 8) val = val.slice(0, 8);
-                                      let masked = '';
-                                      if (val.length > 0) masked += val.slice(0, 2);
-                                      if (val.length > 2) masked += '/' + val.slice(2, 4);
-                                      if (val.length > 4) masked += '/' + val.slice(4, 8);
-                                      setNewFlowDeadline(masked);
-                                    }}
-                                    placeholder="__/__/____"
+          <nav className="hidden md:flex items-center gap-5 text-base text-gray-500">
+            <Link href="/project" className="font-['Inter'] text-black font-medium">Project</Link>
+            <Link href="/chatbot" className="font-['Arimo'] hover:text-black cursor-pointer">ChatBot</Link>
+            <Link href="/chat" className="font-['Arimo'] hover:text-black cursor-pointer">Chat</Link>
+            <Link href="/files" className="font-['Arimo'] hover:text-black cursor-pointer">Files</Link>
+          </nav>
+        </div>
+        <Link href="/settings" className="flex items-center gap-2" title="Settings">
+          <div className="px-3.5 py-1.5 rounded-md flex justify-center items-center gap-1.5 hover:bg-gray-100 transition-colors">
+            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden">
+              {currentUser?.avatar_url ? (
+                <img src={currentUser.avatar_url} alt="User" className="w-full h-full object-cover" />
+              ) : (
+                currentUser && (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase())
+              )}
+            </div>
+            <div className="text-neutral-950 text-xs font-normal font-['Arimo'] leading-4 text-center">
               {currentUser?.full_name || ""}
             </div>
           </div>
