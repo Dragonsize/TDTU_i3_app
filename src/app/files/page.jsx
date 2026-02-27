@@ -302,11 +302,11 @@ export default function FilesPage() {
                   {currentUser?.avatar_url ? (
                     <img src={currentUser.avatar_url} alt="User" className="w-full h-full object-cover" />
                   ) : (
-                    <span>{currentUser ? (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase()) : "U"}</span>
+                    currentUser && (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase())
                   )}
                 </div>
                 <div className="text-center justify-start text-neutral-950 text-xs font-normal font-['Arimo'] leading-4">
-                  {currentUser?.full_name || "User"}
+                  {currentUser?.full_name || ""}
                 </div>
               </div>
             </Link>
@@ -392,7 +392,7 @@ export default function FilesPage() {
                             title="Download file"
                             onClick={() => handleDownload(selectedFile.id, selectedFile.filename)}
                           >
-                            <span className="text-xl">&gt;&gt;</span>
+                            <span className="text-xl text-black font-bold">&gt;&gt;</span>
                           </button>
                           {/* Share/user button (placeholder) */}
                           <button
