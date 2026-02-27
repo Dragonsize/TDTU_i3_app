@@ -360,6 +360,18 @@ export default function ProjectDetailPage() {
                                     placeholder="dd/mm/yyyy"
                                     required
                                   />
+                                  <input
+                                    type="date"
+                                    className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
+                                    value={newFlowDeadline}
+                                    onChange={e => setNewFlowDeadline(e.target.value)}
+                                    tabIndex={-1}
+                                  />
+                                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3.75 7.5h16.5M4.5 21h15a.75.75 0 00.75-.75V7.5a.75.75 0 00-.75-.75h-15A.75.75 0 003.75 7.5v12.75c0 .414.336.75.75.75z" />
+                                    </svg>
+                                  </span>
                                 </div>
                                 <label className="text-black text-base font-normal font-['Arimo']">Assign Members</label>
                                 <div className="w-full flex flex-col gap-2">
