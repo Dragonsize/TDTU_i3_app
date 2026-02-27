@@ -180,24 +180,9 @@ export default function ProjectDetailPage() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                   <div className="relative w-[95vw] max-w-[540px] h-[70vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
                     {/* Header */}
-                    <div className="w-full h-16 px-12 pb-px bg-white/60 border-b border-black/10 flex flex-col justify-between items-center">
-                      <div className="w-full flex justify-between items-center">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-7 h-7 bg-gray-950 rounded-lg"></div>
-                          <span className="text-neutral-950 text-xl font-bold font-['Arimo']">A+ Flow</span>
-                        </div>
-                        <div className="flex items-center gap-3.5">
-                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden">
-                            {currentUser?.avatar_url ? (
-                              <img src={currentUser.avatar_url} alt="User" className="w-full h-full object-cover" />
-                            ) : (
-                              currentUser && (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase())
-                            )}
-                          </div>
-                          <div className="text-neutral-950 text-xs font-normal font-['Arimo'] hidden sm:block">{currentUser?.full_name || "User"}</div>
-                          <button className="ml-4 text-2xl text-gray-400 hover:text-gray-700" onClick={() => setShowDeadlineModal(false)}>&times;</button>
-                        </div>
-                      </div>
+                    <div className="w-full h-14 px-6 bg-white/60 border-b border-black/10 flex items-center justify-between">
+                      <span className="text-neutral-950 text-lg font-bold font-['Arimo']">Deadlines</span>
+                      <button className="text-2xl text-gray-400 hover:text-gray-700" onClick={() => setShowDeadlineModal(false)}>&times;</button>
                     </div>
                     {/* Modal Content */}
                     <div className="flex-1 bg-white flex flex-col items-center pt-6">
