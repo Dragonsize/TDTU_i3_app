@@ -233,7 +233,7 @@ export default function ProjectPage() {
                   currentUser && (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase())
                 )}
               </div>
-              <div className="text-center justify-start text-neutral-950 text-xs font-normal font-['Arimo'] leading-4">
+              <div className="text-neutral-950 text-xs font-normal font-['Arimo'] leading-4 text-center">
                 {currentUser?.full_name || ""}
               </div>
             </div>

@@ -64,7 +64,7 @@ export default function ChatPage() {
                   user && (user.full_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase())
                 )}
               </div>
-              <div className="text-center justify-start text-neutral-950 text-xs font-normal font-['Arimo'] leading-4">
+              <div className="text-neutral-950 text-xs font-normal font-['Arimo'] leading-4 text-center">
                 {user?.full_name || ""}
               </div>
             </div>
