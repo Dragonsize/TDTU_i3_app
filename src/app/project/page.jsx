@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 const PROJECT_COLORS = [
@@ -35,35 +36,30 @@ export default function ProjectPage() {
   const [projectColor, setProjectColor] = useState(PROJECT_COLORS[0]);
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
 
-  // Fetch projects from API on load
+  const router = useRouter();
   useEffect(() => {
-    fetch("/api/projects", { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setProjects(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch projects", err);
-        setLoading(false);
-      });
-
-    // Fetch current user profile
-    const router = typeof window !== "undefined" ? require('next/navigation').useRouter() : null;
-    fetch("/api/profile", { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.profile) {
-          setCurrentUser(data.profile);
-          setMembers([data.profile]);
-        } else {
-          if (router) router.push("/login");
+    const checkAuthAndFetch = async () => {
+      try {
+        // Check authentication
+        const authRes = await fetch('/api/auth/me', { credentials: 'include' });
+        if (!authRes.ok) {
+          router.push('/login');
+          return;
         }
-      })
-      .catch((err) => {
-        if (router) router.push("/login");
-      });
-  }, []);
+        const authData = await authRes.json();
+        setCurrentUser(authData.user);
+        setMembers([authData.user]);
+        // Fetch projects
+        const projRes = await fetch("/api/projects", { credentials: "include" });
+        const projData = await projRes.json();
+        if (Array.isArray(projData)) setProjects(projData);
+        setLoading(false);
+      } catch (err) {
+        router.push('/login');
+      }
+    };
+    checkAuthAndFetch();
+  }, [router]);
 
   // Handle creating a new project
   const handleCreateProject = async (e) => {
