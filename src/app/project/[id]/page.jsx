@@ -20,6 +20,68 @@ export default function ProjectDetailPage() {
   const [showDeadlineModal, setShowDeadlineModal] = useState(false);
   const [deadlines, setDeadlines] = useState([]);
   const [deadlineLoading, setDeadlineLoading] = useState(false);
+  const [showCreateFlowModal, setShowCreateFlowModal] = useState(false);
+  const [newFlowName, setNewFlowName] = useState("");
+  const [newFlowDesc, setNewFlowDesc] = useState("");
+  const [newFlowDeadline, setNewFlowDeadline] = useState("");
+  const [selectedFlowMembers, setSelectedFlowMembers] = useState([]);
+
+  const handleFlowMemberToggle = (memberId, checked) => {
+    if (checked) {
+      setSelectedFlowMembers((prev) => [...prev, memberId]);
+    } else {
+      setSelectedFlowMembers((prev) => prev.filter((id) => id !== memberId));
+    }
+  };
+
+  const handleCreateFlowSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const workflowRes = await fetch(`/api/projects/${id}/workflows`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newFlowName, description: newFlowDesc }),
+      });
+
+      if (!workflowRes.ok) throw new Error("Failed to create workflow");
+      const workflow = await workflowRes.json();
+      // 2. Assign members
+      for (const memberId of selectedFlowMembers) {
+        const member = members.find(m => m.id === memberId);
+        if (!member) continue;
+        await fetch(`/api/workflows/${workflow.id}/members`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: member.username, role: member.role || "member" })
+        });
+      }
+      // 3. Create deadline (assign to lead or first member)
+      const deadlineAssignee = members.find(m => m.id === selectedFlowMembers[0]);
+      await fetch(`/api/workflows/${workflow.id}/deadlines`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: `${newFlowName} Deadline`, due_date: newFlowDeadline, assigned_to: deadlineAssignee.username })
+      });
+      // 4. Refresh workspace list
+      setShowCreateFlowModal(false);
+      setNewFlowName("");
+      setNewFlowDesc("");
+      setNewFlowDeadline("");
+      setSelectedFlowMembers([]);
+      // Optionally, refetch workspaces
+      setWorkspaceLoading(true);
+      fetch(`/api/projects/${id}/workflows`, { credentials: "include" })
+        .then(res => res.json())
+        .then(data => setWorkspaces(Array.isArray(data) ? data : []))
+        .catch(() => setWorkspaces([]))
+        .finally(() => setWorkspaceLoading(false));
+    } catch (err) {
+      alert("Failed to create workspace flow: " + err.message);
+    }
+  };
 
   // Fetch deadlines for all workflows in this project when modal opens
   useEffect(() => {
