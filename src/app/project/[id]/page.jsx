@@ -41,7 +41,7 @@ export default function ProjectDetailPage() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: newFlowName, description: newFlowDesc }),
+        body: JSON.stringify({ title: newFlowName, description: newFlowDesc, deadline: newFlowDeadline }),
       });
 
       if (!workflowRes.ok) throw new Error("Failed to create workflow");
