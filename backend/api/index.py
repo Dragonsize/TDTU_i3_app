@@ -964,7 +964,7 @@ def create_deadline(workflow_id: str, request: CreateDeadlineRequest, user=Depen
         "title": request.title,
         "due_date": request.due_date,
         "assigned_to": assignee_id,
-ww        "status": "pending",
+        "status": "pending",
     }).execute()
     if not response.data:
         raise HTTPException(status_code=500, detail="Failed to create deadline")
@@ -976,7 +976,7 @@ def get_deadlines(days: int = 7, user=Depends(get_current_user)):
     db = require_db_client()
     user_id = user.get("sub")
     max_date = datetime.now(timezone.utc) + timedelta(days=days)
-    response = db.table("workspace_deadlines").select("*, workspaces(name, project_id)").eq("assigned_to", user_id).
+    response = db.table("workspace_deadlines").select("*, workspaces(name, project_id)").eq("assigned_to", user_id).execute()
     data = response.data
     for item in data:
         if item.get("workspaces"):
