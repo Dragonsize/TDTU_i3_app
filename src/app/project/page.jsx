@@ -40,15 +40,15 @@ export default function ProjectPage() {
   useEffect(() => {
     const checkAuthAndFetch = async () => {
       try {
-        // Check authentication
-        const authRes = await fetch('/api/auth/me', { credentials: 'include' });
-        if (!authRes.ok) {
+        // Fetch profile for header and auth
+        const profileRes = await fetch('/api/profile', { credentials: 'include' });
+        const profileData = await profileRes.json();
+        if (!profileData.profile) {
           router.push('/login');
           return;
         }
-        const authData = await authRes.json();
-        setCurrentUser(authData.user);
-        setMembers([authData.user]);
+        setCurrentUser(profileData.profile);
+        setMembers([profileData.profile]);
         // Fetch projects
         const projRes = await fetch("/api/projects", { credentials: "include" });
         const projData = await projRes.json();

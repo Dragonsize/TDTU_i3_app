@@ -12,13 +12,13 @@ export default function ChatbotPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/me', { credentials: 'include' });
-        if (!response.ok) {
+        const response = await fetch('/api/profile', { credentials: 'include' });
+        const data = await response.json();
+        if (!data.profile) {
           router.push('/login');
           return;
         }
-        const data = await response.json();
-        setUser(data.user);
+        setUser(data.profile);
       } catch (err) {
         router.push('/login');
       } finally {
