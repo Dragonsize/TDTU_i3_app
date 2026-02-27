@@ -177,30 +177,22 @@ export default function ProjectDetailPage() {
             <Link href="/chatbot" className="font-['Arimo'] hover:text-black cursor-pointer">ChatBot</Link>
             <Link href="/chat" className="font-['Arimo'] hover:text-black cursor-pointer">Chat</Link>
             <Link href="/files" className="font-['Arimo'] hover:text-black cursor-pointer">Files</Link>
-                                  {/* Only one input for deadline, with correct regex */}
-                                  <input
-                                    type="text"
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black bg-white focus:outline-none"
-                                    style={{ color: 'black' }}
-                                    value={newFlowDeadline ? (() => {
-                                      const [y, m, d] = newFlowDeadline.split("-");
-                                      return d && m && y ? `${d}/${m}/${y}` : "";
-                                    })() : ""}
-                                    onChange={e => {
-                                      // Accept only dd/mm/yyyy or empty
-                                      const val = e.target.value;
-                                      if (!val) return setNewFlowDeadline("");
-                                      const match = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-                                      if (match) {
-                                        setNewFlowDeadline(`${match[3]}-${match[2]}-${match[1]}`);
-                                      }
-                                    }}
-                                    placeholder="dd/mm/yyyy"
-                                    required
-                                  />
-              </div>
+          </nav>
+        </div>
+        <Link href="/settings" className="flex items-center gap-2" title="Settings">
+          <div className="px-3.5 py-1.5 rounded-md flex justify-center items-center gap-1.5 hover:bg-gray-100 transition-colors">
+            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden">
+              {currentUser?.avatar_url ? (
+                <img src={currentUser.avatar_url} alt="User" className="w-full h-full object-cover" />
+              ) : (
+                currentUser && (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase())
+              )}
             </div>
-          </Link>
+            <div className="text-neutral-950 text-xs font-normal font-['Arimo'] leading-4 text-center">
+              {currentUser?.full_name || ""}
+            </div>
+          </div>
+        </Link>
       </header>
 
       <main className="max-w-[1440px] mx-auto p-8 lg:px-32 py-12">
@@ -368,19 +360,6 @@ export default function ProjectDetailPage() {
                                     placeholder="dd/mm/yyyy"
                                     required
                                   />
-                                  <input
-                                    type="text"
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black bg-white focus:outline-none"
-                                    style={{ color: 'black' }}
-                                    value={newFlowDeadline ? (() => {
-                                      const [y, m, d] = newFlowDeadline.split("-");
-                                      return d && m && y ? `${d}/${m}/${y}` : "";
-                                    })() : ""}
-                                    onChange={e => {
-                                      // Accept only dd/mm/yyyy or empty
-                                      const val = e.target.value;
-                                      if (!val) return setNewFlowDeadline("");
-                                      const match = val.match(/^)
                                 </div>
                                 <label className="text-black text-base font-normal font-['Arimo']">Assign Members</label>
                                 <div className="w-full flex flex-col gap-2">
