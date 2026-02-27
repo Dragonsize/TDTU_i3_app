@@ -278,6 +278,19 @@ class CreateDeadlineRequest(BaseModel):
             raise ValueError("Username contains invalid characters")
         return value
 
+    @validator("due_date")
+    def validate_due_date(cls, value: str) -> str:
+        try:
+            dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            if dt < datetime.now(timezone.utc) + timedelta(hours=1):
+                raise ValueError("Deadline must be at least 1 hour in the future")
+        except ValueError as e:
+            if "Deadline" in str(e):
+                raise
+        return value
+
 
 class AddBusyTimeRequest(BaseModel):
     start_time: str = Field(..., min_length=1)
@@ -793,8 +806,8 @@ def delete_project(project_id: str, user=Depends(get_current_user)):
         
         if workspace_ids:
             # Delete deadlines and workspace members
-            db.table("deadlines").delete().in_("workspace_id", workspace_ids).execute()
-            db.table("workspace_members").delete().in_("workspace_id", workspace_ids).execute()
+            db.table("workspace_deadlines").delete().in_("workspace_id", workspace_ids).execute()
+            db.table("workspace_assignments").delete().in_("workspace_id", workspace_ids).execute()
             # Delete workspaces
             db.table("workspaces").delete().in_("id", workspace_ids).execute()
 
@@ -924,7 +937,7 @@ def assign_workflow_member(workflow_id: str, request: AssignWorkflowMemberReques
         raise HTTPException(status_code=404, detail="User not found")
 
     member_id = profile_response.data[0]["id"]
-    insert_response = db.table("workspace_members").insert({
+    insert_response = db.table("workspace_assignments").insert({
         "workspace_id": workflow_id,
         "user_id": member_id,
         "role": request.role,
@@ -946,12 +959,12 @@ def create_deadline(workflow_id: str, request: CreateDeadlineRequest, user=Depen
         raise HTTPException(status_code=404, detail="Assignee not found")
 
     assignee_id = profile_response.data[0]["id"]
-    response = db.table("deadlines").insert({
+    response = db.table("workspace_deadlines").insert({
         "workspace_id": workflow_id,
         "title": request.title,
         "due_date": request.due_date,
         "assigned_to": assignee_id,
-        "status": "pending",
+ww        "status": "pending",
     }).execute()
     if not response.data:
         raise HTTPException(status_code=500, detail="Failed to create deadline")
@@ -963,8 +976,7 @@ def get_deadlines(days: int = 7, user=Depends(get_current_user)):
     db = require_db_client()
     user_id = user.get("sub")
     max_date = datetime.now(timezone.utc) + timedelta(days=days)
-    response = db.table("deadlines").select("*, workspaces(name, project_id)").eq("assigned_to", user_id).eq("status", "pending").lte("due_date", max_date.isoformat()).execute()
-    
+    response = db.table("workspace_deadlines").select("*, workspaces(name, project_id)").eq("assigned_to", user_id).
     data = response.data
     for item in data:
         if item.get("workspaces"):

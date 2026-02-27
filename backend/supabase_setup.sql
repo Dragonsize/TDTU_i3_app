@@ -1,29 +1,3 @@
--- Add description and members columns to workspaces
-ALTER TABLE public.workspaces
-  ADD COLUMN description text,
-  ADD COLUMN members uuid[];
-
--- Enforce that all members are valid users (profiles.id)
-CREATE OR REPLACE FUNCTION check_workspace_members_valid()
-RETURNS trigger AS $$
-DECLARE
-  member_id uuid;
-BEGIN
-  IF NEW.members IS NOT NULL THEN
-    FOREACH member_id IN ARRAY NEW.members LOOP
-      IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = member_id) THEN
-        RAISE EXCEPTION 'Workspace member % does not exist in profiles', member_id;
-      END IF;
-    END LOOP;
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS trg_check_workspace_members_valid ON public.workspaces;
-CREATE TRIGGER trg_check_workspace_members_valid
-  BEFORE INSERT OR UPDATE ON public.workspaces
-  FOR EACH ROW EXECUTE FUNCTION check_workspace_members_valid();
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
@@ -125,6 +99,7 @@ CREATE TABLE public.projects (
   creator_id uuid NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   deadline timestamp with time zone,
+  color text DEFAULT '#78716c'::text,
   CONSTRAINT projects_pkey PRIMARY KEY (id),
   CONSTRAINT projects_creator_id_fkey FOREIGN KEY (creator_id) REFERENCES public.profiles(id)
 );
@@ -140,6 +115,28 @@ CREATE TABLE public.refresh_tokens (
   CONSTRAINT refresh_tokens_pkey PRIMARY KEY (id),
   CONSTRAINT refresh_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.workspace_assignments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  workspace_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  role text DEFAULT 'member'::text,
+  assigned_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT workspace_assignments_pkey PRIMARY KEY (id),
+  CONSTRAINT workspace_assignments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
+  CONSTRAINT workspace_assignments_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id)
+);
+CREATE TABLE public.workspace_deadlines (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  workspace_id uuid NOT NULL,
+  title text NOT NULL,
+  due_date date NOT NULL,
+  assigned_to uuid,
+  status text NOT NULL DEFAULT 'pending'::text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT workspace_deadlines_pkey PRIMARY KEY (id),
+  CONSTRAINT workspace_deadlines_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
+  CONSTRAINT workspace_deadlines_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.workspaces (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   project_id uuid NOT NULL,
@@ -147,6 +144,10 @@ CREATE TABLE public.workspaces (
   status text NOT NULL DEFAULT 'in_process'::text,
   position integer DEFAULT 0,
   created_at timestamp with time zone DEFAULT now(),
+  description text,
+  members ARRAY,
+  creator_id uuid NOT NULL,
   CONSTRAINT workspaces_pkey PRIMARY KEY (id),
-  CONSTRAINT workspaces_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id)
+  CONSTRAINT workspaces_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT workspaces_creator_id_fkey FOREIGN KEY (creator_id) REFERENCES public.profiles(id)
 );
