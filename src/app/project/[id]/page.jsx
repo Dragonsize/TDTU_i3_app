@@ -14,6 +14,50 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [userLoading, setUserLoading] = useState(true);
+  const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
+  const [workspaces, setWorkspaces] = useState([]);
+  const [workspaceLoading, setWorkspaceLoading] = useState(false);
+  const [showDeadlineModal, setShowDeadlineModal] = useState(false);
+  const [deadlines, setDeadlines] = useState([]);
+  const [deadlineLoading, setDeadlineLoading] = useState(false);
+
+  // Fetch deadlines for all workflows in this project when modal opens
+  useEffect(() => {
+    if (!showDeadlineModal || !id) return;
+    setDeadlineLoading(true);
+    // Fetch all workflows for this project
+    fetch(`/api/projects/${id}/workflows`, { credentials: "include" })
+      .then(res => res.json())
+      .then(async (workflows) => {
+        if (!Array.isArray(workflows) || workflows.length === 0) {
+          setDeadlines([]);
+          return;
+        }
+        // For each workflow, fetch its deadlines
+        const allDeadlines = await Promise.all(
+          workflows.map(async (ws) => {
+            const res = await fetch(`/api/workflows/${ws.id}/deadlines`, { credentials: "include" });
+            if (!res.ok) return [];
+            const data = await res.json();
+            // Attach workflow info to each deadline
+            return Array.isArray(data) ? data.map(dl => ({ ...dl, workflow: ws })) : [];
+          })
+        );
+        setDeadlines(allDeadlines.flat());
+      })
+      .catch(() => setDeadlines([]))
+      .finally(() => setDeadlineLoading(false));
+  }, [showDeadlineModal, id]);
+  // Fetch workspaces when modal opens
+  useEffect(() => {
+    if (!showWorkspaceModal || !id) return;
+    setWorkspaceLoading(true);
+    fetch(`/api/projects/${id}/workflows`, { credentials: "include" })
+      .then(res => res.json())
+      .then(data => setWorkspaces(Array.isArray(data) ? data : []))
+      .catch(() => setWorkspaces([]))
+      .finally(() => setWorkspaceLoading(false));
+  }, [showWorkspaceModal, id]);
 
   useEffect(() => {
     if (!id) return;
@@ -119,9 +163,145 @@ export default function ProjectDetailPage() {
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-4 mb-8">
           <button className="px-6 py-3 bg-black rounded-md text-white text-base font-normal font-['Arimo'] hover:bg-gray-800 transition">Member list</button>
-          <button className="px-6 py-3 bg-black rounded-md text-white text-base font-normal font-['Arimo'] hover:bg-gray-800 transition">Manage workspace</button>
-          <button className="px-6 py-3 bg-black rounded-md text-white text-base font-normal font-['Arimo'] hover:bg-gray-800 transition">Manager Deadline</button>
+          <button
+            className="px-6 py-3 bg-black rounded-md text-white text-base font-normal font-['Arimo'] hover:bg-gray-800 transition"
+            onClick={() => setShowWorkspaceModal(true)}
+          >
+            Manage workspace
+          </button>
+          <button
+            className="px-6 py-3 bg-black rounded-md text-white text-base font-normal font-['Arimo'] hover:bg-gray-800 transition"
+            onClick={() => setShowDeadlineModal(true)}
+          >
+            Manager Deadline
+          </button>
+              {/* Deadlines Modal */}
+              {showDeadlineModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                  <div className="relative w-[90vw] max-w-[900px] h-[80vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                    {/* Header */}
+                    <div className="w-full h-16 px-12 pb-px bg-white/60 border-b border-black/10 flex flex-col justify-between items-center">
+                      <div className="w-full flex justify-between items-center">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-7 h-7 bg-gray-950 rounded-lg"></div>
+                          <span className="text-neutral-950 text-xl font-bold font-['Arimo']">A+ Flow</span>
+                        </div>
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden">
+                            {currentUser?.avatar_url ? (
+                              <img src={currentUser.avatar_url} alt="User" className="w-full h-full object-cover" />
+                            ) : (
+                              currentUser && (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase())
+                            )}
+                          </div>
+                          <div className="text-neutral-950 text-xs font-normal font-['Arimo'] hidden sm:block">{currentUser?.full_name || "User"}</div>
+                          <button className="ml-4 text-2xl text-gray-400 hover:text-gray-700" onClick={() => setShowDeadlineModal(false)}>&times;</button>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Modal Content */}
+                    <div className="flex-1 relative bg-white">
+                      <div className="absolute left-0 top-0 w-full h-full">
+                        <div className="w-full flex flex-col items-center pt-8">
+                          <div className="text-black text-4xl font-normal font-['IM_FELL_Great_Primer_SC'] mb-8">Deadlines</div>
+                          <div className="w-[700px] h-[420px] bg-zinc-300 rounded-[20px] mx-auto relative p-8 overflow-y-auto">
+                            {deadlineLoading ? (
+                              <div className="text-center text-gray-500 text-xl mt-20">Loading deadlines...</div>
+                            ) : deadlines.length === 0 ? (
+                              <div className="text-center text-gray-500 text-xl mt-20">No deadlines found.</div>
+                            ) : (
+                              deadlines.map((dl, idx) => (
+                                <div key={dl.id || idx} className="w-full h-20 mb-4 bg-stone-500 rounded-[20px] flex items-center px-8 relative">
+                                  <div className="flex-1 flex flex-row items-center gap-8">
+                                    <div className="w-8 h-8 bg-zinc-300 rounded-[20px] flex items-center justify-center text-black text-xl font-['Habibi']">{idx + 1}</div>
+                                    <div className="text-white text-xl font-normal font-['Habibi']">{dl.title}</div>
+                                    <div className="text-white text-xl font-normal font-['Habibi']">{dl.due_date ? new Date(dl.due_date).toLocaleDateString("en-GB") : "-"}</div>
+                                    <div className="text-white text-xl font-normal font-['Habibi']">{dl.status || "Pending"}</div>
+                                  </div>
+                                  <div className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-4">
+                                    <button className="w-7 h-7 bg-zinc-300 rounded-full flex items-center justify-center text-black text-2xl font-['Habibi']">...</button>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                            {/* Create Deadline Button */}
+                            <button className="mt-8 w-full h-16 bg-stone-400 rounded-[20px] flex items-center justify-center text-white text-xl font-normal font-['Habibi'] hover:bg-stone-500 transition">
+                              + Create Deadline
+                            </button>
+                          </div>
+                          <button className="mt-10 w-60 h-12 bg-gray-950 rounded-md flex items-center justify-center">
+                            <span className="text-white text-lg font-normal font-['Arimo']">Finish</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
         </div>
+      {/* Manage Workspace Modal */}
+      {showWorkspaceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="relative w-[90vw] max-w-[1300px] h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="w-full h-16 px-32 pb-px bg-white/60 border-b border-black/10 flex flex-col justify-between items-center">
+              <div className="w-full flex justify-between items-center">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-7 h-7 bg-gray-950 rounded-lg"></div>
+                  <span className="text-neutral-950 text-xl font-bold font-['Arimo']">A+ Flow</span>
+                </div>
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden">
+                    {currentUser?.avatar_url ? (
+                      <img src={currentUser.avatar_url} alt="User" className="w-full h-full object-cover" />
+                    ) : (
+                      currentUser && (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase())
+                    )}
+                  </div>
+                  <div className="text-neutral-950 text-xs font-normal font-['Arimo'] hidden sm:block">{currentUser?.full_name || "User"}</div>
+                  <button className="ml-4 text-2xl text-gray-400 hover:text-gray-700" onClick={() => setShowWorkspaceModal(false)}>&times;</button>
+                </div>
+              </div>
+            </div>
+            {/* Modal Content */}
+            <div className="flex-1 relative bg-white">
+              <div className="absolute left-0 top-0 w-full h-full">
+                <div className="w-full flex flex-col items-center pt-8">
+                  <div className="text-black text-5xl font-normal font-['IM_FELL_Great_Primer_SC'] mb-8">Workspace</div>
+                  <div className="w-[1215px] h-[565px] bg-zinc-300 rounded-[20px] mx-auto relative p-8 overflow-y-auto">
+                    {workspaceLoading ? (
+                      <div className="text-center text-gray-500 text-xl mt-20">Loading workspace flows...</div>
+                    ) : workspaces.length === 0 ? (
+                      <div className="text-center text-gray-500 text-xl mt-20">No workspace flows found.</div>
+                    ) : (
+                      workspaces.map((ws, idx) => (
+                        <div key={ws.id} className="w-full h-24 mb-6 bg-stone-500 rounded-[20px] flex items-center px-8 relative">
+                          <div className="flex-1 flex flex-row items-center gap-8">
+                            <div className="w-9 h-9 bg-zinc-300 rounded-[20px] flex items-center justify-center text-black text-2xl font-['Habibi']">{idx + 1}</div>
+                            <div className="text-white text-2xl font-normal font-['Habibi']">Flow: {ws.name}</div>
+                            <div className="text-white text-2xl font-normal font-['Habibi']">{ws.created_at ? new Date(ws.created_at).toLocaleDateString("en-GB") : "-"}</div>
+                            <div className="text-white text-2xl font-normal font-['Habibi']">{ws.status || "In process"}</div>
+                          </div>
+                          <div className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-4">
+                            <button className="w-7 h-7 bg-zinc-300 rounded-full flex items-center justify-center text-black text-2xl font-['Habibi']">...</button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                    {/* Create Flow Button */}
+                    <button className="mt-8 w-full h-24 bg-stone-400 rounded-[20px] flex items-center justify-center text-white text-2xl font-normal font-['Habibi'] hover:bg-stone-500 transition">
+                      + Create Flow
+                    </button>
+                  </div>
+                  <button className="mt-12 w-72 h-16 bg-gray-950 rounded-md flex items-center justify-center">
+                    <span className="text-white text-xl font-normal font-['Arimo']">Finish</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
         {/* Member List */}
         <div className="bg-zinc-300 rounded-[20px] p-6 min-h-[400px]">

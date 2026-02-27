@@ -1,3 +1,29 @@
+-- Add description and members columns to workspaces
+ALTER TABLE public.workspaces
+  ADD COLUMN description text,
+  ADD COLUMN members uuid[];
+
+-- Enforce that all members are valid users (profiles.id)
+CREATE OR REPLACE FUNCTION check_workspace_members_valid()
+RETURNS trigger AS $$
+DECLARE
+  member_id uuid;
+BEGIN
+  IF NEW.members IS NOT NULL THEN
+    FOREACH member_id IN ARRAY NEW.members LOOP
+      IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE id = member_id) THEN
+        RAISE EXCEPTION 'Workspace member % does not exist in profiles', member_id;
+      END IF;
+    END LOOP;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_check_workspace_members_valid ON public.workspaces;
+CREATE TRIGGER trg_check_workspace_members_valid
+  BEFORE INSERT OR UPDATE ON public.workspaces
+  FOR EACH ROW EXECUTE FUNCTION check_workspace_members_valid();
 -- WARNING: This schema is for context only and is not meant to be run.
 -- Table order and constraints may not be valid for execution.
 
