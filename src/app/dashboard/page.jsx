@@ -95,11 +95,11 @@ export default function Dashboard() {
                 {user?.avatar_url ? (
                   <img src={user.avatar_url} alt="User" className="w-full h-full object-cover" />
                 ) : (
-                  user && (user.fullname?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase())
+                  user && (user.full_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase())
                 )}
               </div>
               <div className="text-center justify-start text-neutral-950 text-xs font-normal font-['Arimo'] leading-4">
-                {user?.fullname || ""}
+                {user?.full_name || ""}
               </div>
             </div>
           </Link>
