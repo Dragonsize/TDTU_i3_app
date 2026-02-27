@@ -37,11 +37,23 @@ export default function ProjectDetailPage() {
   const handleCreateFlowSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Always send deadline in yyyy-mm-dd format
+      let isoDeadline = newFlowDeadline;
+      if (isoDeadline && isoDeadline.includes("/")) {
+        // Convert dd/mm/yyyy to yyyy-mm-dd
+        const [d, m, y] = isoDeadline.split("/");
+        isoDeadline = `${y}-${m}-${d}`;
+      }
       const workflowRes = await fetch(`/api/projects/${id}/workflows`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: newFlowName, description: newFlowDesc, deadline: newFlowDeadline }),
+        body: JSON.stringify({
+          title: newFlowName,
+          description: newFlowDesc,
+          deadline: isoDeadline,
+          creator_id: currentUser?.id
+        }),
       });
 
       if (!workflowRes.ok) throw new Error("Failed to create workflow");
@@ -340,14 +352,17 @@ export default function ProjectDetailPage() {
                                 <label className="text-black text-base font-normal font-['Arimo']">Description</label>
                                 <textarea className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black" value={newFlowDesc} onChange={e => setNewFlowDesc(e.target.value)} />
                                 <label className="text-black text-base font-normal font-['Arimo']">Deadline</label>
-                                <div className="relative w-full group">
+                                <div className="relative w-full">
                                   <input
                                     type="text"
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black bg-white focus:outline-none"
-                                    value={newFlowDeadline ? (() => {
+                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black bg-white focus:outline-none focus:border-blue-500 hover:border-blue-400 transition-colors pr-10"
+                                    style={{ color: 'black', backgroundColor: 'white' }}
+                                    value={(() => {
+                                      if (!newFlowDeadline) return "";
+                                      if (newFlowDeadline.includes("/")) return newFlowDeadline;
                                       const [y, m, d] = newFlowDeadline.split("-");
-                                      return d && m && y ? `${d}/${m}/${y}` : "";
-                                    })() : ""}
+                                      return d && m && y ? `${d}/${m}/${y}` : newFlowDeadline;
+                                    })()}
                                     onChange={e => {
                                       // Accept only dd/mm/yyyy or empty
                                       const val = e.target.value;
@@ -355,23 +370,37 @@ export default function ProjectDetailPage() {
                                       const match = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
                                       if (match) {
                                         setNewFlowDeadline(`${match[3]}-${match[2]}-${match[1]}`);
+                                      } else {
+                                        setNewFlowDeadline(val); // allow typing, but only save valid on submit
                                       }
                                     }}
-                                    placeholder="dd/mm/yyyy"
+                                    placeholder="dd/mm/yyyy (type or pick)"
                                     required
                                   />
-                                  <input
-                                    type="date"
-                                    className="absolute top-0 left-0 w-full h-full opacity-0 group-hover:opacity-70 cursor-pointer"
-                                    value={newFlowDeadline}
-                                    onChange={e => setNewFlowDeadline(e.target.value)}
-                                    tabIndex={-1}
-                                  />
-                                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none group-hover:text-blue-500 group-hover:cursor-pointer">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                  <button
+                                    type="button"
+                                    tabIndex={0}
+                                    aria-label="Pick date"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 bg-white hover:bg-gray-100 rounded focus:outline-none border border-transparent focus:border-blue-400"
+                                    onClick={() => {
+                                      // Open a hidden date input and sync value
+                                      const input = document.createElement('input');
+                                      input.type = 'date';
+                                      input.value = newFlowDeadline && newFlowDeadline.includes('-') ? newFlowDeadline : '';
+                                      input.style.position = 'absolute';
+                                      input.style.left = '-9999px';
+                                      document.body.appendChild(input);
+                                      input.onchange = (e) => {
+                                        if (input.value) setNewFlowDeadline(input.value);
+                                        document.body.removeChild(input);
+                                      };
+                                      input.click();
+                                    }}
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-600">
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3.75 7.5h16.5M4.5 21h15a.75.75 0 00.75-.75V7.5a.75.75 0 00-.75-.75h-15A.75.75 0 003.75 7.5v12.75c0 .414.336.75.75.75z" />
                                     </svg>
-                                  </span>
+                                  </button>
                                 </div>
                                 <label className="text-black text-base font-normal font-['Arimo']">Assign Members</label>
                                 <div className="w-full flex flex-col gap-2">
