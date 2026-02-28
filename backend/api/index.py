@@ -368,13 +368,16 @@ async def chat_ws(websocket: WebSocket):
     elif "token" in params:
         token = params["token"]
     if not token:
+        print("WebSocket: No token provided")
         await websocket.close(code=4401)
         return
     user = get_user_from_token(token)
     if not user or user.get("sub") != user_id:
+        print(f"WebSocket: Invalid token or user_id mismatch. user={user}, user_id={user_id}, token={token}")
         await websocket.close(code=4401)
         return
     if not channel_id:
+        print("WebSocket: No channel_id provided")
         await websocket.close(code=4400)
         return
     active_connections[channel_id].add(websocket)
