@@ -18,10 +18,19 @@ export default function ChatRoom({ user }) {
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
 
+  const [apiError, setApiError] = useState(null);
   useEffect(() => {
     fetch("/api/chat/channels", { credentials: "include" })
-      .then((res) => res.json())
-      .then(setChannels);
+      .then(async (res) => {
+        if (!res.ok) {
+          let msg = "";
+          try { msg = (await res.json()).detail || res.statusText; } catch { msg = res.statusText; }
+          throw new Error(msg || "API error");
+        }
+        return res.json();
+      })
+      .then(setChannels)
+      .catch((err) => setApiError(err.message || "Chat API unavailable"));
   }, []);
 
   useEffect(() => {
@@ -58,6 +67,17 @@ export default function ChatRoom({ user }) {
     setSending(false);
   };
 
+  if (apiError) {
+    return (
+      <div className="flex items-center justify-center h-[80vh]">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded shadow">
+          <div className="font-bold mb-2">Chat feature unavailable</div>
+          <div>{apiError}</div>
+          <div className="mt-2 text-xs text-gray-500">Please try again later or contact support.</div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex h-[80vh] border rounded-xl shadow-lg overflow-hidden bg-white">
       {/* Channel list */}
