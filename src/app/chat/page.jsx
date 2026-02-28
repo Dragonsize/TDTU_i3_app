@@ -1,8 +1,12 @@
 
 "use client";
+
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+
+const ChatRoom = dynamic(() => import("./ChatRoom"), { ssr: false });
 
 export default function ChatPage() {
   const router = useRouter();
@@ -55,24 +59,24 @@ export default function ChatPage() {
             <Link href="/files" className="font-['Arimo'] hover:text-black cursor-pointer">Files</Link>
           </nav>
         </div>
-          <Link href="/settings" className="flex items-center gap-2" title="Settings">
-            <div className="px-3.5 py-1.5 rounded-md flex justify-center items-center gap-1.5 hover:bg-gray-100 transition-colors">
-              <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden">
-                {user?.avatar_url ? (
-                  <img src={user.avatar_url} alt="User" className="w-full h-full object-cover" />
-                ) : (
-                  user && (user.full_name ? user.full_name.split(" ")[0][0].toUpperCase() : user.email?.[0]?.toUpperCase())
-                )}
-              </div>
+        <Link href="/settings" className="flex items-center gap-2" title="Settings">
+          <div className="px-3.5 py-1.5 rounded-md flex justify-center items-center gap-1.5 hover:bg-gray-100 transition-colors">
+            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden">
+              {user?.avatar_url ? (
+                <img src={user.avatar_url} alt="User" className="w-full h-full object-cover" />
+              ) : (
+                user && (user.full_name ? user.full_name.split(" ")[0][0].toUpperCase() : user.email?.[0]?.toUpperCase())
+              )}
+            </div>
             <div className="text-neutral-950 text-xs font-normal font-['Arimo'] leading-4 text-center">
               {user?.full_name || ""}
             </div>
           </div>
         </Link>
       </header>
-      <div className="flex items-center justify-center text-2xl font-bold min-h-[calc(100vh-4rem)]">
-        Chat placeholder page
-      </div>
+      <main className="max-w-6xl mx-auto py-8">
+        <ChatRoom user={user} />
+      </main>
     </div>
   );
 }
