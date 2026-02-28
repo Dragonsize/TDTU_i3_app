@@ -120,7 +120,6 @@ def list_chat_messages(channel_id: str = Query(...), limit: int = Query(30, ge=1
     messages = q.execute()
     return list(reversed(messages.data)) if messages.data else []
 
-# Send a message
 @app.post("/api/chat/messages")
 def send_chat_message(request: SendMessageRequest, user=Depends(get_current_user)):
     db = require_db_client()
@@ -143,6 +142,8 @@ def send_chat_message(request: SendMessageRequest, user=Depends(get_current_user
     # Update channel last_message_at
     db.table("chat_channels").update({"last_message_at": datetime.now(timezone.utc).isoformat()}).eq("id", request.channel_id).execute()
     return msg.data[0]
+
+print("[DEBUG] Chat endpoints registered. Current routes:", [route.path for route in app.routes])
 from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field, validator
