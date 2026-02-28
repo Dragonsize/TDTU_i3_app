@@ -173,21 +173,27 @@ export default function ChatRoom({ user }) {
 
   const handleCreateChannel = async (e) => {
     e.preventDefault();
-    if (!newChannelName.trim()) return;
+    if (!targetEmail.trim()) return;
+
+    // If the input matches an email in searchResults, use DM logic
+    const foundUser = searchResults.find(u => u.email === targetEmail.trim());
+    const payload = foundUser
+      ? { email: foundUser.email }
+      : { name: targetEmail.trim() };
 
     try {
       const res = await fetch("/api/chat/channels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newChannelName }),
+        body: JSON.stringify(payload),
       });
-      
       if (res.ok) {
         const newChannel = await res.json();
-        setChannels([...channels, newChannel]);
+        setChannels((prev) => [...prev, newChannel]);
         setActiveChannel(newChannel);
-        setNewChannelName("");
-        setShowNewChannelInput(false);
+        setTargetEmail("");
+        setShowNewChannelModal(false);
+        setSearchResults([]);
       }
     } catch (error) {
       console.error("Failed to create channel", error);
