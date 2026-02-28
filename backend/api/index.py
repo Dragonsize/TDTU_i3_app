@@ -20,6 +20,23 @@ def sanitize_chat_input(text: str) -> str:
     if len(text) > 2000:
         raise HTTPException(status_code=400, detail="Message too long")
     return text
+
+app = FastAPI()
+from fastapi.middleware.cors import CORSMiddleware
+
+# Configure CORS origins
+allowed_origins = ["http://localhost:3000", "http://localhost:3001"]
+if os.getenv("FRONTEND_ORIGIN", "").strip():
+    allowed_origins.append(os.getenv("FRONTEND_ORIGIN").strip())
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"]
+)
+
 # --- Chat API ---
 from pydantic import BaseModel, Field, validator, constr
 
