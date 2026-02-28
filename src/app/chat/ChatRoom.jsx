@@ -11,6 +11,7 @@ export default function ChatRoom({ user }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [targetEmail, setTargetEmail] = useState("");
   const [showNewChannelInput, setShowNewChannelInput] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
   const [typingUsers, setTypingUsers] = useState({}); // { userId: username }
   
   const messagesEndRef = useRef(null);
@@ -36,6 +37,20 @@ export default function ChatRoom({ user }) {
     };
     fetchChannels();
   }, []);
+
+  // Search users effect
+  useEffect(() => {
+    if (targetEmail.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      fetch(`/api/users/search?q=${encodeURIComponent(targetEmail)}`)
+        .then((res) => res.json())
+        .then((data) => setSearchResults(data || []));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [targetEmail]);
 
   // 2. Handle Active Channel Changes (Fetch History & Connect WS)
   useEffect(() => {
@@ -235,15 +250,32 @@ export default function ChatRoom({ user }) {
         </div>
 
         {showNewChannelInput && (
-          <form onSubmit={handleCreateChannel} className="p-3 border-b border-gray-200 bg-white">
+          <form onSubmit={handleCreateChannel} className="p-3 border-b border-gray-200 bg-white relative">
             <input
-              type="email"
+              type="text"
               value={targetEmail}
               onChange={(e) => setTargetEmail(e.target.value)}
-              placeholder="Enter user email..."
+              placeholder="Search user by name or email..."
               className="w-full px-4 py-2 text-sm border border-gray-300 rounded-full focus:outline-none focus:border-gray-950 bg-gray-100 focus:bg-white transition-all"
               autoFocus
             />
+            {searchResults.length > 0 && (
+              <div className="absolute top-full left-3 right-3 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto z-20">
+                {searchResults.map((u) => (
+                  <div
+                    key={u.id}
+                    className="p-3 hover:bg-gray-100 cursor-pointer flex flex-col border-b border-gray-50 last:border-0"
+                    onClick={() => {
+                      setTargetEmail(u.email);
+                      setSearchResults([]);
+                    }}
+                  >
+                    <span className="font-medium text-sm text-gray-900">{u.full_name || u.username}</span>
+                    <span className="text-xs text-gray-500">{u.email}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </form>
         )}
 
