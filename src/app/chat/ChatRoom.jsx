@@ -20,6 +20,8 @@ export default function ChatRoom({ user }) {
   const [showAssignProjectModal, setShowAssignProjectModal] = useState(false);
   const [assignProjectValue, setAssignProjectValue] = useState("");
   const [projects, setProjects] = useState([]);
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [channelMembers, setChannelMembers] = useState([]);
   
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
@@ -254,6 +256,19 @@ export default function ChatRoom({ user }) {
     }
   }, [showAssignProjectModal]);
 
+  // Fetch members when modal opens
+  useEffect(() => {
+    if (showMembersModal && activeChannel) {
+      fetch(`/api/chat/channels/${activeChannel.id}/members`)
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error("Failed to fetch members");
+        })
+        .then(setChannelMembers)
+        .catch(console.error);
+    }
+  }, [showMembersModal, activeChannel]);
+
   // --- Handlers for channel actions ---
   const handleRenameChannel = async (e) => {
     e.preventDefault();
@@ -438,11 +453,16 @@ export default function ChatRoom({ user }) {
               {activeChannel ? activeChannel.name : "Select a chat"}
             </h3>
             {/* Channel actions: only show if user is creator */}
-            {activeChannel && activeChannel.created_by === user?.id && (
-              <div className="flex gap-2 ml-4">
-                <button onClick={() => setShowRenameModal(true)} className="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200">Rename</button>
-                <button onClick={() => setShowAddMemberModal(true)} className="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200">Add Member</button>
-                <button onClick={() => setShowAssignProjectModal(true)} className="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200">Assign Project</button>
+            {activeChannel && (
+              <div className="flex gap-2 ml-4 items-center">
+                <button onClick={() => setShowMembersModal(true)} className="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 font-medium">Members</button>
+                {activeChannel.created_by === user?.id && (
+                  <>
+                    <button onClick={() => setShowRenameModal(true)} className="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700">Rename</button>
+                    <button onClick={() => setShowAddMemberModal(true)} className="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700">Add Member</button>
+                    <button onClick={() => setShowAssignProjectModal(true)} className="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700">Assign Project</button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -489,6 +509,33 @@ export default function ChatRoom({ user }) {
                 </select>
                 <button type="submit" className="w-full bg-gray-950 text-white py-2 rounded">Assign</button>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Members List Modal */}
+        {showMembersModal && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
+            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm relative max-h-[80vh] flex flex-col">
+              <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-900" onClick={() => setShowMembersModal(false)}>&times;</button>
+              <h4 className="font-bold mb-4 text-lg">Channel Members</h4>
+              <div className="overflow-y-auto flex-1 space-y-3">
+                {channelMembers.length === 0 ? (
+                  <p className="text-gray-500 text-sm">Loading members...</p>
+                ) : (
+                  channelMembers.map(m => (
+                    <div key={m.id} className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden">
+                        {m.avatar_url ? <img src={m.avatar_url} alt={m.username} className="w-full h-full object-cover" /> : (m.full_name || m.username)[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{m.full_name || m.username}</div>
+                        <div className="text-xs text-gray-500 capitalize">{m.role}</div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         )}

@@ -479,40 +479,23 @@ def list_chat_channels(project_id: Optional[str] = Query(None), user=Depends(get
         memberships = db.table("project_members").select("project_id").eq("user_id", user_id).execute()
         project_ids = [m["project_id"] for m in memberships.data]
         
-        # 2. Build query: Channels in my projects OR DMs containing my ID in the name
-        # We use a naming convention for DMs: dm_<id1>_<id2>
-        or_conditions = f"name.ilike.%{user_id}%"
+        # 2. Get direct/group channels user is explicitly a member of
+        direct_memberships = db.table("chat_channel_members").select("channel_id").eq("user_id", user_id).execute()
+        direct_channel_ids = [m["channel_id"] for m in direct_memberships.data]
+        
+        # 3. Build query: Channels in my projects OR Channels I am a member of
+        or_conditions = []
         if project_ids:
-            or_conditions += f",project_id.in.({','.join(project_ids)})"
+            or_conditions.append(f"project_id.in.({','.join(project_ids)})")
+        if direct_channel_ids:
+            or_conditions.append(f"id.in.({','.join(direct_channel_ids)})")
+        
+        if not or_conditions:
+            return []
             
-        channels_resp = db.table("chat_channels").select("*").or_(or_conditions).eq("is_archived", False).order("last_message_at", desc=True).execute()
+        query_str = ",".join(or_conditions)
+        channels_resp = db.table("chat_channels").select("*").or_(query_str).eq("is_archived", False).order("last_message_at", desc=True).execute()
         channels = channels_resp.data
-
-        # 3. Post-process DMs to show the OTHER person's name
-        dm_channels = [c for c in channels if c.get("name", "").startswith("dm_")]
-        if dm_channels:
-            # Extract all potential user IDs from DM names
-            other_user_ids = set()
-            for c in dm_channels:
-                parts = c["name"].replace("dm_", "").split("_")
-                for pid in parts:
-                    if pid != user_id:
-                        other_user_ids.add(pid)
-            
-            if other_user_ids:
-                # Fetch profiles for these users
-                profiles = db.table("profiles").select("id, full_name, username, email").in_("id", list(other_user_ids)).execute()
-                profile_map = {p["id"]: p for p in profiles.data}
-                
-                # Rename channels in the response
-                for c in channels:
-                    if c["name"].startswith("dm_"):
-                        parts = c["name"].replace("dm_", "").split("_")
-                        other_id = next((p for p in parts if p != user_id), None)
-                        if other_id and other_id in profile_map:
-                            target = profile_map[other_id]
-                            c["name"] = target.get("full_name") or target.get("username") or target.get("email")
-                            c["is_dm"] = True
 
     return channels
 
@@ -524,28 +507,39 @@ def create_chat_channel(request: CreateChannelRequest, user=Depends(get_current_
     
     # Handle Direct Message Creation (via Email)
     if request.email:
-        # 1. Find the target user
-        target = db.table("profiles").select("id").eq("email", request.email).execute()
+        # 1. Find the target user and current user details
+        target = db.table("profiles").select("id, full_name, username").eq("email", request.email).execute()
         if not target.data:
             raise HTTPException(status_code=404, detail="User with this email not found")
-        target_id = target.data[0]["id"]
+        target_user = target.data[0]
+        target_id = target_user["id"]
         
         if target_id == user_id:
             raise HTTPException(status_code=400, detail="You cannot chat with yourself")
             
-        # 2. Generate deterministic DM name: dm_<min_id>_<max_id>
-        ids = sorted([user_id, target_id])
-        dm_name = f"dm_{ids[0]}_{ids[1]}"
+        # 2. Check if DM already exists (reuse existing)
+        # Find channels where both users are members and type is 'dm'
+        my_channels = db.table("chat_channel_members").select("channel_id").eq("user_id", user_id).execute()
+        if my_channels.data:
+            my_channel_ids = [x['channel_id'] for x in my_channels.data]
+            common = db.table("chat_channel_members").select("channel_id").eq("user_id", target_id).in_("channel_id", my_channel_ids).execute()
+            if common.data:
+                common_ids = [x['channel_id'] for x in common.data]
+                existing_dm = db.table("chat_channels").select("*").in_("id", common_ids).eq("channel_type", "dm").limit(1).execute()
+                if existing_dm.data:
+                    return existing_dm.data[0]
+
+        # 3. Generate Name: Combination of full names
+        current_user_profile = db.table("profiles").select("full_name, username").eq("id", user_id).single().execute()
+        my_name = current_user_profile.data.get("full_name") or current_user_profile.data.get("username") or "User"
+        target_name = target_user.get("full_name") or target_user.get("username") or "User"
         
-        # 3. Check if exists
-        existing = db.table("chat_channels").select("*").eq("name", dm_name).execute()
-        if existing.data:
-            return existing.data[0]
-            
-        # 4. Create new DM channel
+        channel_name = f"{my_name}, {target_name}"
+
+        # 4. Create new DM channel and add members
         channel = db.table("chat_channels").insert({
             "project_id": None, # DMs don't belong to a project
-            "name": dm_name,
+            "name": channel_name,
             "channel_type": "dm",
             "created_by": user_id,
             "last_message_at": datetime.now(timezone.utc).isoformat()
@@ -553,6 +547,14 @@ def create_chat_channel(request: CreateChannelRequest, user=Depends(get_current_
         
         if not channel.data:
             raise HTTPException(status_code=500, detail="Failed to create chat")
+            
+        # Add both users to the members table
+        new_channel_id = channel.data[0]["id"]
+        db.table("chat_channel_members").insert([
+            {"channel_id": new_channel_id, "user_id": user_id},
+            {"channel_id": new_channel_id, "user_id": target_id}
+        ]).execute()
+        
         return channel.data[0]
 
     # Handle Standard Project Channel Creation
@@ -571,6 +573,14 @@ def create_chat_channel(request: CreateChannelRequest, user=Depends(get_current_
     }).execute()
     if not channel.data:
         raise HTTPException(status_code=500, detail="Failed to create channel")
+        
+    # If it's a custom group (no project), add creator as member
+    if not request.project_id:
+        db.table("chat_channel_members").insert({
+            "channel_id": channel.data[0]["id"],
+            "user_id": user_id
+        }).execute()
+        
     return channel.data[0]
 
 @app.delete("/api/chat/channels/{channel_id}")
@@ -589,6 +599,7 @@ def delete_chat_channel(channel_id: str, user=Depends(get_current_user)):
 
     # Delete messages first, then the channel
     db.table("chat_messages").delete().eq("channel_id", channel_id).execute()
+    db.table("chat_channel_members").delete().eq("channel_id", channel_id).execute()
     db.table("chat_channels").delete().eq("id", channel_id).execute()
     
     return {"status": "success"}
@@ -656,13 +667,66 @@ def add_chat_member(channel_id: str, request: AddChannelMemberRequest, user=Depe
             "role": "member"
         }).execute()
     else:
-        # DM/Group: Update name to include ID if not already there
+        # DM/Group: Add to members table
+        db.table("chat_channel_members").insert({
+            "channel_id": channel_id,
+            "user_id": new_member_id
+        }).execute()
+        
+        # Update channel name to include new member's name
         current_name = channel.data["name"]
-        if new_member_id not in current_name:
-            new_name = f"{current_name}_{new_member_id}"
-            db.table("chat_channels").update({"name": new_name}).eq("id", channel_id).execute()
+        new_name_part = target.data[0].get("full_name") or target.data[0].get("username")
+        new_name = f"{current_name}, {new_name_part}"
+        db.table("chat_channels").update({"name": new_name}).eq("id", channel_id).execute()
             
     return {"status": "success"}
+
+@app.get("/api/chat/channels/{channel_id}/members")
+def get_chat_channel_members(channel_id: str, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+    
+    # Get channel
+    channel = db.table("chat_channels").select("*").eq("id", channel_id).single().execute()
+    if not channel.data:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    
+    channel_data = channel.data
+    
+    # Check access (User must be in the channel to see members)
+    has_access = False
+    if channel_data.get("project_id"):
+        check = db.table("project_members").select("id").eq("project_id", channel_data["project_id"]).eq("user_id", user_id).execute()
+        if check.data:
+            has_access = True
+    else:
+        check = db.table("chat_channel_members").select("id").eq("channel_id", channel_id).eq("user_id", user_id).execute()
+        if check.data:
+            has_access = True
+            
+    if not has_access:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if channel_data.get("project_id"):
+        # Fetch project members
+        response = db.table("project_members").select("role, profiles:user_id(id, username, full_name, email, avatar_url)").eq("project_id", channel_data["project_id"]).execute()
+        members = []
+        for row in response.data:
+            if row.get("profiles"):
+                p = row["profiles"]
+                p["role"] = row.get("role")
+                members.append(p)
+        return members
+    else:
+        # Fetch from chat_channel_members
+        response = db.table("chat_channel_members").select("user_id, profiles:user_id(id, username, full_name, email, avatar_url)").eq("channel_id", channel_id).execute()
+        members = []
+        for row in response.data:
+            if row.get("profiles"):
+                p = row["profiles"]
+                p["role"] = "member"
+                members.append(p)
+        return members
 
 # List messages in a channel (paginated)
 @app.get("/api/chat/messages")

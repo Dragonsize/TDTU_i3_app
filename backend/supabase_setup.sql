@@ -35,6 +35,15 @@ CREATE TABLE public.calendar_events (
   CONSTRAINT calendar_events_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
   CONSTRAINT calendar_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.chat_channel_members (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  channel_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  joined_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT chat_channel_members_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_channel_members_channel_id_fkey FOREIGN KEY (channel_id) REFERENCES public.chat_channels(id),
+  CONSTRAINT chat_channel_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.chat_channels (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   project_id uuid,
@@ -131,8 +140,8 @@ CREATE TABLE public.workspace_deadlines (
   title text NOT NULL,
   due_date date NOT NULL,
   assigned_to uuid,
-  status text NOT NULL DEFAULT 'pending'::text,
   created_at timestamp with time zone DEFAULT now(),
+  status text NOT NULL DEFAULT 'pending'::text,
   CONSTRAINT workspace_deadlines_pkey PRIMARY KEY (id),
   CONSTRAINT workspace_deadlines_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id),
   CONSTRAINT workspace_deadlines_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES public.profiles(id)
@@ -145,7 +154,7 @@ CREATE TABLE public.workspaces (
   position integer DEFAULT 0,
   created_at timestamp with time zone DEFAULT now(),
   description text,
-  members text[],
+  members ARRAY,
   creator_id uuid NOT NULL,
   CONSTRAINT workspaces_pkey PRIMARY KEY (id),
   CONSTRAINT workspaces_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
