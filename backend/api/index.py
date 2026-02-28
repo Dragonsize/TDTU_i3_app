@@ -21,132 +21,9 @@ def sanitize_chat_input(text: str) -> str:
         raise HTTPException(status_code=400, detail="Message too long")
     return text
 
-
-def get_current_user(access_token: Optional[str] = Cookie(None)) -> Dict[str, Any]:
-    if not access_token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    payload = verify_token(access_token)
-    if not payload or payload.get("type") != "access":
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-    return payload
-
-app = FastAPI()
-from fastapi.middleware.cors import CORSMiddleware
-
-# Configure CORS origins
-allowed_origins = ["http://localhost:3000", "http://localhost:3001"]
-if os.getenv("FRONTEND_ORIGIN", "").strip():
-    allowed_origins.append(os.getenv("FRONTEND_ORIGIN").strip())
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"]
-)
-
-# --- Chat API ---
-from pydantic import BaseModel, Field, validator, constr
-
-class CreateChannelRequest(BaseModel):
-    name: constr(min_length=1, max_length=100)
-    project_id: Optional[str] = None
-    channel_type: Optional[str] = "team"
-
-    @validator("name")
-    def validate_name(cls, v):
-        return sanitize_chat_input(v)
-
-class SendMessageRequest(BaseModel):
-    channel_id: str
-    message: constr(min_length=1, max_length=2000)
-
-    @validator("message")
-    def validate_message(cls, v):
-        return sanitize_chat_input(v)
-
-# List channels for a project
-@app.get("/api/chat/channels")
-def list_chat_channels(project_id: Optional[str] = Query(None), user=Depends(get_current_user)):
-    db = require_db_client()
-    user_id = user.get("sub")
-    # Only channels user has access to (by project membership)
-    if project_id:
-        require_project_member(user_id, project_id)
-        channels = db.table("chat_channels").select("*").eq("project_id", project_id).eq("is_archived", False).order("created_at").execute()
-    else:
-        # All channels for user's projects
-        memberships = db.table("project_members").select("project_id").eq("user_id", user_id).execute()
-        project_ids = [m["project_id"] for m in memberships.data]
-        if not project_ids:
-            return []
-        channels = db.table("chat_channels").select("*").in_("project_id", project_ids).eq("is_archived", False).order("created_at").execute()
-    return channels.data
-
-# Create a new chat channel
-@app.post("/api/chat/channels")
-def create_chat_channel(request: CreateChannelRequest, user=Depends(get_current_user)):
-    db = require_db_client()
-    user_id = user.get("sub")
-    if request.project_id:
-        require_project_member(user_id, request.project_id)
-    channel = db.table("chat_channels").insert({
-        "project_id": request.project_id,
-        "name": request.name,
-        "channel_type": request.channel_type or "team",
-        "created_by": user_id,
-    }).execute()
-    if not channel.data:
-        raise HTTPException(status_code=500, detail="Failed to create channel")
-    return channel.data[0]
-
-# List messages in a channel (paginated)
-@app.get("/api/chat/messages")
-def list_chat_messages(channel_id: str = Query(...), limit: int = Query(30, ge=1, le=100), before: Optional[str] = Query(None), user=Depends(get_current_user)):
-    db = require_db_client()
-    user_id = user.get("sub")
-    # Check access
-    channel = db.table("chat_channels").select("*").eq("id", channel_id).limit(1).execute()
-    if not channel.data:
-        raise HTTPException(status_code=404, detail="Channel not found")
-    project_id = channel.data[0].get("project_id")
-    if project_id:
-        require_project_member(user_id, project_id)
-    q = db.table("chat_messages").select("*, profiles!sender_id(username,avatar_url)").eq("channel_id", channel_id)
-    if before:
-        q = q.lt("sent_at", before)
-    q = q.order("sent_at", desc=True).limit(limit)
-    messages = q.execute()
-    return list(reversed(messages.data)) if messages.data else []
-
-@app.post("/api/chat/messages")
-def send_chat_message(request: SendMessageRequest, user=Depends(get_current_user)):
-    db = require_db_client()
-    user_id = user.get("sub")
-    # Check access
-    channel = db.table("chat_channels").select("*").eq("id", request.channel_id).limit(1).execute()
-    if not channel.data:
-        raise HTTPException(status_code=404, detail="Channel not found")
-    project_id = channel.data[0].get("project_id")
-    if project_id:
-        require_project_member(user_id, project_id)
-    # Insert message
-    msg = db.table("chat_messages").insert({
-        "channel_id": request.channel_id,
-        "sender_id": user_id,
-        "message": request.message,
-    }).execute()
-    if not msg.data:
-        raise HTTPException(status_code=500, detail="Failed to send message")
-    # Update channel last_message_at
-    db.table("chat_channels").update({"last_message_at": datetime.now(timezone.utc).isoformat()}).eq("id", request.channel_id).execute()
-    return msg.data[0]
-
-print("[DEBUG] Chat endpoints registered. Current routes:", [route.path for route in app.routes])
 from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, constr
 try:
     from supabase import create_client, Client
     SUPABASE_IMPORT_ERROR: Optional[str] = None
@@ -566,6 +443,101 @@ def require_project_lead(user_id: str, project_id: str) -> None:
     if membership.get("role") != "lead":
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
+# --- Chat API ---
+
+class CreateChannelRequest(BaseModel):
+    name: constr(min_length=1, max_length=100)
+    project_id: Optional[str] = None
+    channel_type: Optional[str] = "team"
+
+    @validator("name")
+    def validate_name(cls, v):
+        return sanitize_chat_input(v)
+
+class SendMessageRequest(BaseModel):
+    channel_id: str
+    message: constr(min_length=1, max_length=2000)
+
+    @validator("message")
+    def validate_message(cls, v):
+        return sanitize_chat_input(v)
+
+# List channels for a project
+@app.get("/api/chat/channels")
+def list_chat_channels(project_id: Optional[str] = Query(None), user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+    # Only channels user has access to (by project membership)
+    if project_id:
+        require_project_member(user_id, project_id)
+        channels = db.table("chat_channels").select("*").eq("project_id", project_id).eq("is_archived", False).order("created_at").execute()
+    else:
+        # All channels for user's projects
+        memberships = db.table("project_members").select("project_id").eq("user_id", user_id).execute()
+        project_ids = [m["project_id"] for m in memberships.data]
+        if not project_ids:
+            return []
+        channels = db.table("chat_channels").select("*").in_("project_id", project_ids).eq("is_archived", False).order("created_at").execute()
+    return channels.data
+
+# Create a new chat channel
+@app.post("/api/chat/channels")
+def create_chat_channel(request: CreateChannelRequest, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+    if request.project_id:
+        require_project_member(user_id, request.project_id)
+    channel = db.table("chat_channels").insert({
+        "project_id": request.project_id,
+        "name": request.name,
+        "channel_type": request.channel_type or "team",
+        "created_by": user_id,
+    }).execute()
+    if not channel.data:
+        raise HTTPException(status_code=500, detail="Failed to create channel")
+    return channel.data[0]
+
+# List messages in a channel (paginated)
+@app.get("/api/chat/messages")
+def list_chat_messages(channel_id: str = Query(...), limit: int = Query(30, ge=1, le=100), before: Optional[str] = Query(None), user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+    # Check access
+    channel = db.table("chat_channels").select("*").eq("id", channel_id).limit(1).execute()
+    if not channel.data:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    project_id = channel.data[0].get("project_id")
+    if project_id:
+        require_project_member(user_id, project_id)
+    q = db.table("chat_messages").select("*, profiles!sender_id(username,avatar_url)").eq("channel_id", channel_id)
+    if before:
+        q = q.lt("sent_at", before)
+    q = q.order("sent_at", desc=True).limit(limit)
+    messages = q.execute()
+    return list(reversed(messages.data)) if messages.data else []
+
+@app.post("/api/chat/messages")
+def send_chat_message(request: SendMessageRequest, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+    # Check access
+    channel = db.table("chat_channels").select("*").eq("id", request.channel_id).limit(1).execute()
+    if not channel.data:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    project_id = channel.data[0].get("project_id")
+    if project_id:
+        require_project_member(user_id, project_id)
+    # Insert message
+    msg = db.table("chat_messages").insert({
+        "channel_id": request.channel_id,
+        "sender_id": user_id,
+        "message": request.message,
+    }).execute()
+    if not msg.data:
+        raise HTTPException(status_code=500, detail="Failed to send message")
+    # Update channel last_message_at
+    db.table("chat_channels").update({"last_message_at": datetime.now(timezone.utc).isoformat()}).eq("id", request.channel_id).execute()
+    return msg.data[0]
 
 @app.get("/api/health")
 def health():
