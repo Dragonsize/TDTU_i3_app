@@ -184,11 +184,13 @@ export default function ChatRoom({ user }) {
     e.preventDefault();
     if (!targetEmail.trim()) return;
 
-    // If the input matches an email in searchResults, use DM logic
+    // Only allow creating a DM channel if the input matches a valid user
     const foundUser = searchResults.find(u => u.email === targetEmail.trim());
-    const payload = foundUser
-      ? { email: foundUser.email }
-      : { name: targetEmail.trim() };
+    if (!foundUser) {
+      alert("Please select a valid user from the list to create a channel.");
+      return;
+    }
+    const payload = { email: foundUser.email };
 
     try {
       const res = await fetch("/api/chat/channels", {
@@ -475,7 +477,7 @@ export default function ChatRoom({ user }) {
               <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-900" onClick={() => setShowRenameModal(false)}>&times;</button>
               <h4 className="font-bold mb-2">Rename Channel</h4>
               <form onSubmit={handleRenameChannel}>
-                <input className="w-full border px-3 py-2 rounded mb-3" value={renameValue} onChange={e => setRenameValue(e.target.value)} autoFocus />
+                <input className="w-full border px-3 py-2 rounded mb-3 text-black" value={renameValue} onChange={e => setRenameValue(e.target.value)} autoFocus />
                 <button type="submit" className="w-full bg-gray-950 text-white py-2 rounded">Save</button>
               </form>
             </div>
@@ -489,7 +491,7 @@ export default function ChatRoom({ user }) {
               <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-900" onClick={() => setShowAddMemberModal(false)}>&times;</button>
               <h4 className="font-bold mb-2">Add Member</h4>
               <form onSubmit={handleAddMember}>
-                <input className="w-full border px-3 py-2 rounded mb-3" value={addMemberValue} onChange={e => setAddMemberValue(e.target.value)} placeholder="User email..." autoFocus />
+                <input className="w-full border px-3 py-2 rounded mb-3 text-black" value={addMemberValue} onChange={e => setAddMemberValue(e.target.value)} placeholder="User email..." autoFocus />
                 <button type="submit" className="w-full bg-gray-950 text-white py-2 rounded">Add</button>
               </form>
             </div>
