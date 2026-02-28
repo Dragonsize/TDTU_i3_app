@@ -172,6 +172,27 @@ export default function ChatRoom({ user }) {
     }
   };
 
+  const handleDeleteChannel = async (e, channelId) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this chat?")) return;
+
+    try {
+      const res = await fetch(`/api/chat/channels/${channelId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        setChannels((prev) => prev.filter((c) => c.id !== channelId));
+        if (activeChannel?.id === channelId) {
+          setActiveChannel(null);
+          setMessages([]);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to delete channel", error);
+    }
+  };
+
   // Helper to format time
   const formatTime = (isoString) => {
     try {
@@ -244,6 +265,20 @@ export default function ChatRoom({ user }) {
                 <div className="font-semibold text-gray-900 truncate">{channel.name}</div>
                 <div className="text-xs text-gray-500 truncate">Click to open chat</div>
               </div>
+              
+              {/* Delete Button (Visible on Hover) */}
+              {channel.created_by === user?.id && (
+                <div 
+                  onClick={(e) => handleDeleteChannel(e, channel.id)}
+                  className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-100 text-gray-400 hover:text-red-600 rounded-full transition-all"
+                  title="Delete Chat"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </div>
+              )}
             </button>
           ))}
           {channels.length === 0 && (

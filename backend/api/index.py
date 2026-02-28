@@ -573,6 +573,26 @@ def create_chat_channel(request: CreateChannelRequest, user=Depends(get_current_
         raise HTTPException(status_code=500, detail="Failed to create channel")
     return channel.data[0]
 
+@app.delete("/api/chat/channels/{channel_id}")
+def delete_chat_channel(channel_id: str, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+    
+    # Check channel existence
+    channel = db.table("chat_channels").select("*").eq("id", channel_id).single().execute()
+    if not channel.data:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    
+    # Only allow creator to delete (or you could add project lead logic here)
+    if channel.data["created_by"] != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this channel")
+
+    # Delete messages first, then the channel
+    db.table("chat_messages").delete().eq("channel_id", channel_id).execute()
+    db.table("chat_channels").delete().eq("id", channel_id).execute()
+    
+    return {"status": "success"}
+
 # List messages in a channel (paginated)
 @app.get("/api/chat/messages")
 def list_chat_messages(channel_id: str = Query(...), limit: int = Query(30, ge=1, le=100), before: Optional[str] = Query(None), user=Depends(get_current_user)):
