@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { format } from "date-fns";
 
 export default function ChatRoom({ user }) {
   const [channels, setChannels] = useState([]);
@@ -176,7 +175,7 @@ export default function ChatRoom({ user }) {
   // Helper to format time
   const formatTime = (isoString) => {
     try {
-      return format(new Date(isoString), "h:mm a");
+      return new Date(isoString).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     } catch (e) {
       return "";
     }
