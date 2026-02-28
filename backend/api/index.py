@@ -357,14 +357,12 @@ def get_user_from_token(token: str):
 
 @app.websocket("/api/chat/ws")
 async def chat_ws(websocket: WebSocket):
-    # Parse query params
     await websocket.accept()
     params = websocket.query_params
     channel_id = params.get("channel_id")
     user_id = params.get("user_id")
     username = params.get("username", "User")
     token = None
-    # Try to get JWT from cookies or query param
     if "access_token" in websocket.cookies:
         token = websocket.cookies["access_token"]
     elif "token" in params:
@@ -379,22 +377,28 @@ async def chat_ws(websocket: WebSocket):
     if not channel_id:
         await websocket.close(code=4400)
         return
-    # Register connection
     active_connections[channel_id].add(websocket)
     try:
         while True:
             data = await websocket.receive_json()
+            msg_text = data.get("message")
+            # Save message to DB
+            db = require_db_client()
+            msg = db.table("chat_messages").insert({
+                "channel_id": channel_id,
+                "sender_id": user_id,
+                "message": msg_text,
+            }).execute()
+            if not msg.data:
+                continue  # Optionally send error to client
+            msg_obj = msg.data[0]
+            msg_obj["username"] = username
             # Broadcast to all in channel
             for conn in list(active_connections[channel_id]):
                 if conn.client_state.value == 1:  # OPEN
                     await conn.send_json({
                         "type": "new_message",
-                        "data": {
-                            "user_id": user_id,
-                            "username": username,
-                            "message": data.get("message"),
-                            "sent_at": datetime.now(timezone.utc).isoformat()
-                        }
+                        "data": msg_obj
                     })
     except WebSocketDisconnect:
         pass
