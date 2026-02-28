@@ -10,7 +10,7 @@ export default function ChatRoom({ user }) {
   const [ws, setWs] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [targetEmail, setTargetEmail] = useState("");
-  const [showNewChannelInput, setShowNewChannelInput] = useState(false);
+  const [showNewChannelModal, setShowNewChannelModal] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [typingUsers, setTypingUsers] = useState({}); // { userId: username }
   
@@ -51,6 +51,13 @@ export default function ChatRoom({ user }) {
     }, 300);
     return () => clearTimeout(timer);
   }, [targetEmail]);
+
+  // Show modal automatically if no channels exist
+  useEffect(() => {
+    if (channels.length === 0) {
+      setShowNewChannelModal(true);
+    }
+  }, [channels]);
 
   // 2. Handle Active Channel Changes (Fetch History & Connect WS)
   useEffect(() => {
@@ -228,18 +235,18 @@ export default function ChatRoom({ user }) {
   };
 
   return (
-    <div className="flex h-full w-full bg-white font-['Inter']">
+    <div className="flex h-full w-full bg-white dark:bg-background-dark font-['Inter']">
       {/* Sidebar */}
       <div 
-        className={`${
+        className={`$
           isSidebarOpen ? "w-80" : "w-0"
-        } bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300 overflow-hidden`}
+        } bg-gray-50 dark:bg-[#18181b] border-r border-gray-200 dark:border-zinc-800 flex flex-col transition-all duration-300 overflow-hidden`}
       >
         <div className="p-5 flex justify-between items-center">
-          <h2 className="font-['Arimo'] font-bold text-2xl text-neutral-950">Chats</h2>
+          <h2 className="font-['Arimo'] font-bold text-2xl text-neutral-950 dark:text-white">Chats</h2>
           <button 
-            onClick={() => setShowNewChannelInput(!showNewChannelInput)}
-            className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors text-gray-700"
+            onClick={() => setShowNewChannelModal(true)}
+            className="w-8 h-8 rounded-full bg-gray-200 dark:bg-zinc-700 hover:bg-gray-300 dark:hover:bg-zinc-600 flex items-center justify-center transition-colors text-gray-700 dark:text-white"
             title="New Chat"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -249,34 +256,54 @@ export default function ChatRoom({ user }) {
           </button>
         </div>
 
-        {showNewChannelInput && (
-          <form onSubmit={handleCreateChannel} className="p-3 border-b border-gray-200 bg-white relative">
-            <input
-              type="text"
-              value={targetEmail}
-              onChange={(e) => setTargetEmail(e.target.value)}
-              placeholder="Search user by name or email..."
-              className="w-full px-4 py-2 text-sm border border-gray-300 rounded-full focus:outline-none focus:border-gray-950 bg-gray-100 focus:bg-white transition-all"
-              autoFocus
-            />
-            {searchResults.length > 0 && (
-              <div className="absolute top-full left-3 right-3 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto z-20">
-                {searchResults.map((u) => (
-                  <div
-                    key={u.id}
-                    className="p-3 hover:bg-gray-100 cursor-pointer flex flex-col border-b border-gray-50 last:border-0"
-                    onClick={() => {
-                      setTargetEmail(u.email);
-                      setSearchResults([]);
-                    }}
-                  >
-                    <span className="font-medium text-sm text-gray-900">{u.full_name || u.username}</span>
-                    <span className="text-xs text-gray-500">{u.email}</span>
+        {/* Messenger-style modal for new channel creation */}
+        {showNewChannelModal && (
+          <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/30">
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-8 w-full max-w-md relative animate-fadeIn">
+              <button
+                className="absolute top-3 right-3 text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                onClick={() => setShowNewChannelModal(false)}
+                title="Close"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+              <h3 className="font-bold text-lg mb-4 text-gray-900 dark:text-white">Start a new chat</h3>
+              <form onSubmit={handleCreateChannel}>
+                <input
+                  type="text"
+                  value={targetEmail}
+                  onChange={(e) => setTargetEmail(e.target.value)}
+                  placeholder="Search user by name or email..."
+                  className="w-full px-4 py-3 text-base border border-gray-300 dark:border-zinc-700 rounded-full focus:outline-none focus:border-gray-950 dark:focus:border-white bg-gray-100 dark:bg-zinc-800 focus:bg-white dark:focus:bg-zinc-900 text-gray-900 dark:text-white transition-all mb-2"
+                  autoFocus
+                />
+                {searchResults.length > 0 && (
+                  <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto z-20">
+                    {searchResults.map((u) => (
+                      <div
+                        key={u.id}
+                        className="p-3 hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer flex flex-col border-b border-gray-50 dark:border-zinc-800 last:border-0"
+                        onClick={() => {
+                          setTargetEmail(u.email);
+                          setSearchResults([]);
+                        }}
+                      >
+                        <span className="font-medium text-sm text-gray-900 dark:text-white">{u.full_name || u.username}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">{u.email}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-          </form>
+                )}
+                <button
+                  type="submit"
+                  className="mt-4 w-full bg-gray-950 dark:bg-white text-white dark:text-gray-950 font-semibold py-2 rounded-full hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors disabled:opacity-50"
+                  disabled={!targetEmail.trim()}
+                >
+                  Create Chat
+                </button>
+              </form>
+            </div>
+          </div>
         )}
 
         <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-1">
@@ -314,8 +341,8 @@ export default function ChatRoom({ user }) {
             </button>
           ))}
           {channels.length === 0 && (
-            <div className="text-center text-gray-400 text-sm py-4">
-              No channels yet
+            <div className="text-center text-gray-400 dark:text-gray-500 text-sm py-4">
+              No channels yet. <button className="underline text-gray-700 dark:text-white hover:text-gray-950 dark:hover:text-gray-300" onClick={() => setShowNewChannelModal(true)}>Start a new chat</button>
             </div>
           )}
         </div>
