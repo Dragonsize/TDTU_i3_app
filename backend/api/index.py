@@ -338,7 +338,68 @@ class CreateNotificationRequest(BaseModel):
     message: Optional[str] = None
     related_id: Optional[str] = None
 
+
+from fastapi import WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
+from collections import defaultdict
+import asyncio
+
 app = FastAPI()
+
+# In-memory channel: channel_id -> set of WebSocket
+active_connections = defaultdict(set)
+
+def get_user_from_token(token: str):
+    payload = verify_token(token)
+    if not payload or payload.get("type") != "access":
+        return None
+    return payload
+
+@app.websocket("/api/chat/ws")
+async def chat_ws(websocket: WebSocket):
+    # Parse query params
+    await websocket.accept()
+    params = websocket.query_params
+    channel_id = params.get("channel_id")
+    user_id = params.get("user_id")
+    username = params.get("username", "User")
+    token = None
+    # Try to get JWT from cookies or query param
+    if "access_token" in websocket.cookies:
+        token = websocket.cookies["access_token"]
+    elif "token" in params:
+        token = params["token"]
+    if not token:
+        await websocket.close(code=4401)
+        return
+    user = get_user_from_token(token)
+    if not user or user.get("sub") != user_id:
+        await websocket.close(code=4401)
+        return
+    if not channel_id:
+        await websocket.close(code=4400)
+        return
+    # Register connection
+    active_connections[channel_id].add(websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            # Broadcast to all in channel
+            for conn in list(active_connections[channel_id]):
+                if conn.client_state.value == 1:  # OPEN
+                    await conn.send_json({
+                        "type": "new_message",
+                        "data": {
+                            "user_id": user_id,
+                            "username": username,
+                            "message": data.get("message"),
+                            "sent_at": datetime.now(timezone.utc).isoformat()
+                        }
+                    })
+    except WebSocketDisconnect:
+        pass
+    finally:
+        active_connections[channel_id].discard(websocket)
 
 # Configure CORS origins
 allowed_origins = ["http://localhost:3000", "http://localhost:3001"]

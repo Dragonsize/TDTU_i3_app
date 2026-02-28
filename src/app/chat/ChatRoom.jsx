@@ -96,15 +96,17 @@ export default function ChatRoom({ user }) {
     // Use production WebSocket URL if available, otherwise fallback to localhost
     const usernameEncoded = encodeURIComponent(user.username || user.full_name || "User");
     // Use the deployed backend API base URL for production WebSocket
-    let WS_BASE_URL = "ws://localhost:3001";
-    if (typeof window !== 'undefined') {
-      // Try to infer from the current API base URL
-      const apiBase = window.location.origin.includes('vercel.app')
-        ? window.location.origin.replace(/^https/, 'wss') + "/api/chat/ws"
-        : process.env.NEXT_PUBLIC_CHAT_WS_URL || window.NEXT_PUBLIC_CHAT_WS_URL || "ws://localhost:3001";
-      WS_BASE_URL = apiBase;
+    let WS_BASE_URL = process.env.NEXT_PUBLIC_CHAT_WS_URL || (typeof window !== 'undefined' && window.NEXT_PUBLIC_CHAT_WS_URL) || "ws://localhost:3001";
+    // Get access_token from cookies
+    function getCookie(name) {
+      if (typeof document === 'undefined') return null;
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+      return null;
     }
-    const socketUrl = `${WS_BASE_URL}?channel_id=${activeChannel.id}&user_id=${user.id}&username=${usernameEncoded}`;
+    const accessToken = getCookie('access_token');
+    const socketUrl = `${WS_BASE_URL}?channel_id=${activeChannel.id}&user_id=${user.id}&username=${usernameEncoded}${accessToken ? `&token=${accessToken}` : ''}`;
     const socket = new WebSocket(socketUrl);
 
     socket.onopen = () => {
