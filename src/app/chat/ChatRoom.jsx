@@ -89,7 +89,15 @@ export default function ChatRoom({ user }) {
         </div>
         <div className="flex-1 overflow-y-auto">
           {channels.length === 0 ? (
-            <div className="text-gray-400 p-4">No channels</div>
+            <div className="flex flex-col items-center justify-center h-full p-4 gap-4">
+              <div className="text-gray-400 text-center">No channels yet.<br/>Create your first chat channel to start messaging.</div>
+              <button
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full font-semibold shadow"
+                onClick={() => alert('Channel creation UI coming soon!')}
+              >
+                + New Channel
+              </button>
+            </div>
           ) : (
             channels.map((ch) => (
               <button
