@@ -9,7 +9,7 @@ export default function ChatRoom({ user }) {
   const [inputText, setInputText] = useState("");
   const [ws, setWs] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [newChannelName, setNewChannelName] = useState("");
+  const [targetEmail, setTargetEmail] = useState("");
   const [showNewChannelInput, setShowNewChannelInput] = useState(false);
   const [typingUsers, setTypingUsers] = useState({}); // { userId: username }
   
@@ -216,10 +216,10 @@ export default function ChatRoom({ user }) {
         {showNewChannelInput && (
           <form onSubmit={handleCreateChannel} className="p-3 border-b border-gray-200 bg-white">
             <input
-              type="text"
-              value={newChannelName}
-              onChange={(e) => setNewChannelName(e.target.value)}
-              placeholder="Channel name..."
+              type="email"
+              value={targetEmail}
+              onChange={(e) => setTargetEmail(e.target.value)}
+              placeholder="Enter user email..."
               className="w-full px-4 py-2 text-sm border border-gray-300 rounded-full focus:outline-none focus:border-gray-950 bg-gray-100 focus:bg-white transition-all"
               autoFocus
             />

@@ -446,12 +446,15 @@ def require_project_lead(user_id: str, project_id: str) -> None:
 # --- Chat API ---
 
 class CreateChannelRequest(BaseModel):
-    name: constr(min_length=1, max_length=100)
+    name: Optional[str] = None
+    email: Optional[str] = None
     project_id: Optional[str] = None
     channel_type: Optional[str] = "team"
 
     @validator("name")
     def validate_name(cls, v):
+        if v is None:
+            return v
         return sanitize_chat_input(v)
 
 class SendMessageRequest(BaseModel):
@@ -472,26 +475,99 @@ def list_chat_channels(project_id: Optional[str] = Query(None), user=Depends(get
         require_project_member(user_id, project_id)
         channels = db.table("chat_channels").select("*").eq("project_id", project_id).eq("is_archived", False).order("created_at").execute()
     else:
-        # All channels for user's projects
+        # 1. Get project IDs user is part of
         memberships = db.table("project_members").select("project_id").eq("user_id", user_id).execute()
         project_ids = [m["project_id"] for m in memberships.data]
-        if not project_ids:
-            return []
-        channels = db.table("chat_channels").select("*").in_("project_id", project_ids).eq("is_archived", False).order("created_at").execute()
-    return channels.data
+        
+        # 2. Build query: Channels in my projects OR DMs containing my ID in the name
+        # We use a naming convention for DMs: dm_<id1>_<id2>
+        or_conditions = f"name.ilike.%{user_id}%"
+        if project_ids:
+            or_conditions += f",project_id.in.({','.join(project_ids)})"
+            
+        channels_resp = db.table("chat_channels").select("*").or_(or_conditions).eq("is_archived", False).order("last_message_at", desc=True).execute()
+        channels = channels_resp.data
+
+        # 3. Post-process DMs to show the OTHER person's name
+        dm_channels = [c for c in channels if c.get("name", "").startswith("dm_")]
+        if dm_channels:
+            # Extract all potential user IDs from DM names
+            other_user_ids = set()
+            for c in dm_channels:
+                parts = c["name"].replace("dm_", "").split("_")
+                for pid in parts:
+                    if pid != user_id:
+                        other_user_ids.add(pid)
+            
+            if other_user_ids:
+                # Fetch profiles for these users
+                profiles = db.table("profiles").select("id, full_name, username, email").in_("id", list(other_user_ids)).execute()
+                profile_map = {p["id"]: p for p in profiles.data}
+                
+                # Rename channels in the response
+                for c in channels:
+                    if c["name"].startswith("dm_"):
+                        parts = c["name"].replace("dm_", "").split("_")
+                        other_id = next((p for p in parts if p != user_id), None)
+                        if other_id and other_id in profile_map:
+                            target = profile_map[other_id]
+                            c["name"] = target.get("full_name") or target.get("username") or target.get("email")
+                            c["is_dm"] = True
+
+    return channels
 
 # Create a new chat channel
 @app.post("/api/chat/channels")
 def create_chat_channel(request: CreateChannelRequest, user=Depends(get_current_user)):
     db = require_db_client()
     user_id = user.get("sub")
+    
+    # Handle Direct Message Creation (via Email)
+    if request.email:
+        # 1. Find the target user
+        target = db.table("profiles").select("id").eq("email", request.email).execute()
+        if not target.data:
+            raise HTTPException(status_code=404, detail="User with this email not found")
+        target_id = target.data[0]["id"]
+        
+        if target_id == user_id:
+            raise HTTPException(status_code=400, detail="You cannot chat with yourself")
+            
+        # 2. Generate deterministic DM name: dm_<min_id>_<max_id>
+        ids = sorted([user_id, target_id])
+        dm_name = f"dm_{ids[0]}_{ids[1]}"
+        
+        # 3. Check if exists
+        existing = db.table("chat_channels").select("*").eq("name", dm_name).execute()
+        if existing.data:
+            return existing.data[0]
+            
+        # 4. Create new DM channel
+        channel = db.table("chat_channels").insert({
+            "project_id": None, # DMs don't belong to a project
+            "name": dm_name,
+            "channel_type": "dm",
+            "created_by": user_id,
+            "last_message_at": datetime.now(timezone.utc).isoformat()
+        }).execute()
+        
+        if not channel.data:
+            raise HTTPException(status_code=500, detail="Failed to create chat")
+        return channel.data[0]
+
+    # Handle Standard Project Channel Creation
     if request.project_id:
         require_project_member(user_id, request.project_id)
+        
+    if not request.name:
+        raise HTTPException(status_code=400, detail="Channel name is required")
+        
     channel = db.table("chat_channels").insert({
         "project_id": request.project_id,
         "name": request.name,
         "channel_type": request.channel_type or "team",
         "created_by": user_id,
+        "last_message_at": datetime.now(timezone.utc).isoformat()
     }).execute()
     if not channel.data:
         raise HTTPException(status_code=500, detail="Failed to create channel")
