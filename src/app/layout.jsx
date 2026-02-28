@@ -2,7 +2,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Hỗ Trợ Sinh Viên TDTU",
+  title: "A+ flow",
   description: "Dự án  IT-ZONE Team 3",
 };
 
