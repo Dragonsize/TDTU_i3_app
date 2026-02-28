@@ -21,6 +21,15 @@ def sanitize_chat_input(text: str) -> str:
         raise HTTPException(status_code=400, detail="Message too long")
     return text
 
+
+def get_current_user(access_token: Optional[str] = Cookie(None)) -> Dict[str, Any]:
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    payload = verify_token(access_token)
+    if not payload or payload.get("type") != "access":
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return payload
+
 app = FastAPI()
 from fastapi.middleware.cors import CORSMiddleware
 
