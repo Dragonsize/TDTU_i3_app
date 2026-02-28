@@ -499,7 +499,7 @@ def list_chat_channels(project_id: Optional[str] = Query(None), user=Depends(get
 
     return channels
 
-# Create a new chat channel
+# Create a new chat channela
 @app.post("/api/chat/channels")
 def create_chat_channel(request: CreateChannelRequest, user=Depends(get_current_user)):
     db = require_db_client()
