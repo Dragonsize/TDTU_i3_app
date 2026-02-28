@@ -78,64 +78,112 @@ export default function ChatRoom({ user }) {
       </div>
     );
   }
+
+  // Messenger-style layout
   return (
-    <div className="flex h-[80vh] border rounded-xl shadow-lg overflow-hidden bg-white">
-      {/* Channel list */}
-      <aside className="w-64 bg-neutral-100 border-r flex flex-col">
-        <div className="p-4 font-bold text-lg border-b">Channels</div>
+    <div className="flex h-[80vh] border rounded-2xl shadow-lg overflow-hidden bg-white">
+      {/* Sidebar: Channel list */}
+      <aside className="w-80 bg-neutral-100 border-r flex flex-col">
+        <div className="p-5 font-bold text-2xl border-b flex items-center gap-2 bg-white">
+          <span className="text-blue-600">Messenger</span>
+        </div>
         <div className="flex-1 overflow-y-auto">
-          {channels.map((ch) => (
-            <button
-              key={ch.id}
-              className={`w-full text-left px-4 py-2 hover:bg-neutral-200 ${selectedChannel?.id === ch.id ? "bg-neutral-300 font-bold" : ""}`}
-              onClick={() => setSelectedChannel(ch)}
-            >
-              {ch.name}
-            </button>
-          ))}
+          {channels.length === 0 ? (
+            <div className="text-gray-400 p-4">No channels</div>
+          ) : (
+            channels.map((ch) => (
+              <button
+                key={ch.id}
+                className={`w-full flex items-center gap-3 px-5 py-3 hover:bg-blue-100 transition-all ${selectedChannel?.id === ch.id ? "bg-blue-50 font-bold text-blue-700" : "text-gray-800"}`}
+                onClick={() => setSelectedChannel(ch)}
+              >
+                <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center">
+                  <img src={ch.avatar_url || "https://placehold.co/40x40"} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="truncate">{ch.name}</div>
+                  <div className="text-xs text-gray-500 truncate">{ch.last_message_at ? new Date(ch.last_message_at).toLocaleString() : ""}</div>
+                </div>
+              </button>
+            ))
+          )}
         </div>
       </aside>
-      {/* Chat area */}
-      <section className="flex-1 flex flex-col">
-        <div className="p-4 border-b font-semibold text-xl bg-white">
-          {selectedChannel ? selectedChannel.name : "Select a channel"}
+      {/* Main chat area */}
+      <section className="flex-1 flex flex-col bg-gradient-to-br from-blue-50 to-white">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-6 py-4 border-b bg-white/80 backdrop-blur sticky top-0 z-10">
+          {selectedChannel && (
+            <>
+              <img src={selectedChannel.avatar_url || "https://placehold.co/40x40"} alt="avatar" className="w-10 h-10 rounded-full object-cover" />
+              <div className="flex flex-col">
+                <span className="font-bold text-lg">{selectedChannel.name}</span>
+                <span className="text-xs text-gray-500">Channel</span>
+              </div>
+            </>
+          )}
+          {!selectedChannel && <span className="text-gray-400">Select a channel</span>}
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-zinc-50">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2 flex flex-col" style={{ minHeight: 0 }}>
           {loading ? (
             <div className="text-gray-400">Loading messages...</div>
           ) : (
-            messages.map((msg) => (
-              <div key={msg.id} className="flex items-start gap-2">
-                <img src={msg.profiles?.avatar_url || "https://placehold.co/40x40"} alt="avatar" className="w-8 h-8 rounded-full" />
-                <div>
-                  <div className="text-xs text-gray-500">{msg.profiles?.username || "User"} <span className="ml-2 text-[10px]">{new Date(msg.sent_at).toLocaleString()}</span></div>
-                  <div className="bg-white rounded px-3 py-2 shadow text-gray-900 max-w-xl break-words" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.message) }} />
-                </div>
-              </div>
-            ))
+            messages.length === 0 ? (
+              <div className="text-gray-400 text-center my-8">No messages yet.</div>
+            ) : (
+              messages.map((msg) => {
+                const isMe = user && msg.sender_id === user.id;
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"}`}
+                  >
+                    {!isMe && (
+                      <img src={msg.profiles?.avatar_url || "https://placehold.co/40x40"} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
+                    )}
+                    <div className={`max-w-[70%] flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                      <div
+                        className={`px-4 py-2 rounded-2xl shadow text-base break-words ${isMe ? "bg-blue-500 text-white" : "bg-white text-gray-900 border"}`}
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(msg.message) }}
+                      />
+                      <span className="text-xs text-gray-400 mt-1">
+                        {msg.profiles?.username || (isMe ? "You" : "User")} · {new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    {isMe && (
+                      <img src={user?.avatar_url || "https://placehold.co/40x40"} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
+                    )}
+                  </div>
+                );
+              })
+            )
           )}
           <div ref={messagesEndRef} />
         </div>
         {/* Input */}
-        <form className="p-4 border-t flex gap-2 bg-white" onSubmit={handleSend}>
-          <input
-            className="flex-1 border rounded px-3 py-2 focus:outline-none focus:ring"
-            type="text"
-            value={input}
-            onChange={(e) => setInput(sanitizeInput(e.target.value))}
-            placeholder="Type a message..."
-            maxLength={2000}
-            autoComplete="off"
-            required
-          />
-          <button
-            type="submit"
-            className="bg-neutral-800 text-white px-4 py-2 rounded disabled:opacity-50"
-            disabled={sending || !input.trim()}
-          >
-            Send
-          </button>
-        </form>
+        {selectedChannel && (
+          <form className="px-6 py-4 border-t bg-white flex gap-3 items-center" onSubmit={handleSend}>
+            <input
+              className="flex-1 border rounded-full px-4 py-2 focus:outline-none focus:ring text-base bg-gray-50"
+              type="text"
+              value={input}
+              onChange={(e) => setInput(sanitizeInput(e.target.value))}
+              placeholder="Type a message..."
+              maxLength={2000}
+              autoComplete="off"
+              required
+              disabled={sending}
+            />
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full font-semibold disabled:opacity-50"
+              disabled={sending || !input.trim()}
+            >
+              Send
+            </button>
+          </form>
+        )}
       </section>
     </div>
   );
