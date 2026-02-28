@@ -610,7 +610,8 @@ export default function ChatRoom({ user }) {
               onChange={handleInputChange}
               placeholder={activeChannel ? `Message #${activeChannel.name}` : "Select a channel to chat"}
               disabled={!activeChannel}
-              className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-950/10 focus:border-gray-950 transition-all text-sm"
+              className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-950/10 focus:border-gray-950 transition-all text-sm text-black font-medium placeholder-gray-400"
+              style={{ fontSize: '1.05rem', letterSpacing: '0.01em' }}
             />
             <button
               type="submit"
