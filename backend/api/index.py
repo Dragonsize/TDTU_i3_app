@@ -593,6 +593,77 @@ def delete_chat_channel(channel_id: str, user=Depends(get_current_user)):
     
     return {"status": "success"}
 
+class UpdateChannelRequest(BaseModel):
+    name: Optional[str] = None
+    project_id: Optional[str] = None
+
+@app.patch("/api/chat/channels/{channel_id}")
+def update_chat_channel(channel_id: str, request: UpdateChannelRequest, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+    
+    # Check channel existence and ownership
+    channel = db.table("chat_channels").select("*").eq("id", channel_id).single().execute()
+    if not channel.data:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    
+    if channel.data["created_by"] != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this channel")
+
+    updates = {}
+    if request.name is not None:
+        updates["name"] = sanitize_chat_input(request.name)
+    if request.project_id is not None:
+        # Verify project membership
+        require_project_member(user_id, request.project_id)
+        updates["project_id"] = request.project_id
+
+    if not updates:
+        return channel.data[0]
+
+    response = db.table("chat_channels").update(updates).eq("id", channel_id).execute()
+    if not response.data:
+        raise HTTPException(status_code=500, detail="Failed to update channel")
+        
+    return response.data[0]
+
+class AddChannelMemberRequest(BaseModel):
+    email: str
+
+@app.post("/api/chat/channels/{channel_id}/members")
+def add_chat_member(channel_id: str, request: AddChannelMemberRequest, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+    
+    channel = db.table("chat_channels").select("*").eq("id", channel_id).single().execute()
+    if not channel.data:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    
+    if channel.data["created_by"] != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    # Find user to add
+    target = db.table("profiles").select("id").eq("email", request.email).execute()
+    if not target.data:
+        raise HTTPException(status_code=404, detail="User not found")
+    new_member_id = target.data[0]["id"]
+    
+    # If project channel, add to project
+    if channel.data.get("project_id"):
+        db.table("project_members").insert({
+            "project_id": channel.data["project_id"],
+            "user_id": new_member_id,
+            "role": "member"
+        }).execute()
+    else:
+        # DM/Group: Update name to include ID if not already there
+        current_name = channel.data["name"]
+        if new_member_id not in current_name:
+            new_name = f"{current_name}_{new_member_id}"
+            db.table("chat_channels").update({"name": new_name}).eq("id", channel_id).execute()
+            
+    return {"status": "success"}
+
 # List messages in a channel (paginated)
 @app.get("/api/chat/messages")
 def list_chat_messages(channel_id: str = Query(...), limit: int = Query(30, ge=1, le=100), before: Optional[str] = Query(None), user=Depends(get_current_user)):

@@ -13,6 +13,13 @@ export default function ChatRoom({ user }) {
   const [showNewChannelModal, setShowNewChannelModal] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [typingUsers, setTypingUsers] = useState({}); // { userId: username }
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [addMemberValue, setAddMemberValue] = useState("");
+  const [showAssignProjectModal, setShowAssignProjectModal] = useState(false);
+  const [assignProjectValue, setAssignProjectValue] = useState("");
+  const [projects, setProjects] = useState([]);
   
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
@@ -240,6 +247,61 @@ export default function ChatRoom({ user }) {
     return colors[name.length % colors.length];
   };
 
+  // Fetch projects for assign dropdown
+  useEffect(() => {
+    if (showAssignProjectModal) {
+      fetch("/api/projects").then(res => res.json()).then(setProjects);
+    }
+  }, [showAssignProjectModal]);
+
+  // --- Handlers for channel actions ---
+  const handleRenameChannel = async (e) => {
+    e.preventDefault();
+    if (!renameValue.trim() || !activeChannel) return;
+    const res = await fetch(`/api/chat/channels/${activeChannel.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: renameValue.trim() })
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setChannels(channels.map(c => c.id === updated.id ? updated : c));
+      setActiveChannel(updated);
+      setShowRenameModal(false);
+    }
+  };
+
+  const handleAddMember = async (e) => {
+    e.preventDefault();
+    if (!addMemberValue.trim() || !activeChannel) return;
+    const res = await fetch(`/api/chat/channels/${activeChannel.id}/members`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: addMemberValue.trim() })
+    });
+    if (res.ok) {
+      setShowAddMemberModal(false);
+      setAddMemberValue("");
+      // Optionally refetch channel members
+    }
+  };
+
+  const handleAssignProject = async (e) => {
+    e.preventDefault();
+    if (!assignProjectValue || !activeChannel) return;
+    const res = await fetch(`/api/chat/channels/${activeChannel.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project_id: assignProjectValue })
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setChannels(channels.map(c => c.id === updated.id ? updated : c));
+      setActiveChannel(updated);
+      setShowAssignProjectModal(false);
+    }
+  };
+
   return (
     <div className="flex h-full w-full bg-white dark:bg-background-dark font-['Inter']">
       {/* Sidebar */}
@@ -430,69 +492,6 @@ export default function ChatRoom({ user }) {
             </div>
           </div>
         )}
-// --- State for modals and values ---
-const [showRenameModal, setShowRenameModal] = useState(false);
-const [renameValue, setRenameValue] = useState("");
-const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-const [addMemberValue, setAddMemberValue] = useState("");
-const [showAssignProjectModal, setShowAssignProjectModal] = useState(false);
-const [assignProjectValue, setAssignProjectValue] = useState("");
-const [projects, setProjects] = useState([]);
-
-// Fetch projects for assign dropdown
-useEffect(() => {
-  if (showAssignProjectModal) {
-    fetch("/api/projects").then(res => res.json()).then(setProjects);
-  }
-}, [showAssignProjectModal]);
-
-// --- Handlers for channel actions ---
-const handleRenameChannel = async (e) => {
-  e.preventDefault();
-  if (!renameValue.trim() || !activeChannel) return;
-  const res = await fetch(`/api/chat/channels/${activeChannel.id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: renameValue.trim() })
-  });
-  if (res.ok) {
-    const updated = await res.json();
-    setChannels(channels.map(c => c.id === updated.id ? updated : c));
-    setActiveChannel(updated);
-    setShowRenameModal(false);
-  }
-};
-
-const handleAddMember = async (e) => {
-  e.preventDefault();
-  if (!addMemberValue.trim() || !activeChannel) return;
-  const res = await fetch(`/api/chat/channels/${activeChannel.id}/members`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: addMemberValue.trim() })
-  });
-  if (res.ok) {
-    setShowAddMemberModal(false);
-    setAddMemberValue("");
-    // Optionally refetch channel members
-  }
-};
-
-const handleAssignProject = async (e) => {
-  e.preventDefault();
-  if (!assignProjectValue || !activeChannel) return;
-  const res = await fetch(`/api/chat/channels/${activeChannel.id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ project_id: assignProjectValue })
-  });
-  if (res.ok) {
-    const updated = await res.json();
-    setChannels(channels.map(c => c.id === updated.id ? updated : c));
-    setActiveChannel(updated);
-    setShowAssignProjectModal(false);
-  }
-};
 
         {/* Messages List */}
         <div 
