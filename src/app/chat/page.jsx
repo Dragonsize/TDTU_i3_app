@@ -44,7 +44,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="h-screen bg-white flex flex-col overflow-hidden">
       {/* Header */}
       <header className="w-full h-16 bg-white/60 border-b border-black/10 flex items-center justify-between px-8 lg:px-32 sticky top-0 z-10 backdrop-blur-sm">
         <div className="flex items-center gap-6">
@@ -74,7 +74,7 @@ export default function ChatPage() {
           </div>
         </Link>
       </header>
-      <main className="max-w-6xl mx-auto py-8">
+      <main className="flex-1 w-full overflow-hidden">
         <ChatRoom user={user} />
       </main>
     </div>
