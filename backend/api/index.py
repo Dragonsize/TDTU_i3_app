@@ -21,7 +21,7 @@ def sanitize_chat_input(text: str) -> str:
         raise HTTPException(status_code=400, detail="Message too long")
     return text
 # --- Chat API ---
-from pydantic import constr
+from pydantic import BaseModel, Field, validator, constr
 
 class CreateChannelRequest(BaseModel):
     name: constr(min_length=1, max_length=100)
