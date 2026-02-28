@@ -356,7 +356,7 @@ export default function ChatRoom({ user }) {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-full relative">
-        {/* Chat Header */}
+        {/* Chat Header with channel actions */}
         <div className="h-16 border-b border-gray-200 flex items-center px-6 justify-between bg-white shrink-0">
           <div className="flex items-center gap-3">
             <button 
@@ -375,8 +375,124 @@ export default function ChatRoom({ user }) {
               )}
               {activeChannel ? activeChannel.name : "Select a chat"}
             </h3>
+            {/* Channel actions: only show if user is creator */}
+            {activeChannel && activeChannel.created_by === user?.id && (
+              <div className="flex gap-2 ml-4">
+                <button onClick={() => setShowRenameModal(true)} className="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200">Rename</button>
+                <button onClick={() => setShowAddMemberModal(true)} className="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200">Add Member</button>
+                <button onClick={() => setShowAssignProjectModal(true)} className="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200">Assign Project</button>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Rename Channel Modal */}
+        {showRenameModal && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
+            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-xs relative">
+              <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-900" onClick={() => setShowRenameModal(false)}>&times;</button>
+              <h4 className="font-bold mb-2">Rename Channel</h4>
+              <form onSubmit={handleRenameChannel}>
+                <input className="w-full border px-3 py-2 rounded mb-3" value={renameValue} onChange={e => setRenameValue(e.target.value)} autoFocus />
+                <button type="submit" className="w-full bg-gray-950 text-white py-2 rounded">Save</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Add Member Modal */}
+        {showAddMemberModal && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
+            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-xs relative">
+              <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-900" onClick={() => setShowAddMemberModal(false)}>&times;</button>
+              <h4 className="font-bold mb-2">Add Member</h4>
+              <form onSubmit={handleAddMember}>
+                <input className="w-full border px-3 py-2 rounded mb-3" value={addMemberValue} onChange={e => setAddMemberValue(e.target.value)} placeholder="User email..." autoFocus />
+                <button type="submit" className="w-full bg-gray-950 text-white py-2 rounded">Add</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Assign Project Modal */}
+        {showAssignProjectModal && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
+            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-xs relative">
+              <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-900" onClick={() => setShowAssignProjectModal(false)}>&times;</button>
+              <h4 className="font-bold mb-2">Assign to Project</h4>
+              <form onSubmit={handleAssignProject}>
+                <select className="w-full border px-3 py-2 rounded mb-3" value={assignProjectValue} onChange={e => setAssignProjectValue(e.target.value)}>
+                  <option value="">Select project...</option>
+                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <button type="submit" className="w-full bg-gray-950 text-white py-2 rounded">Assign</button>
+              </form>
+            </div>
+          </div>
+        )}
+// --- State for modals and values ---
+const [showRenameModal, setShowRenameModal] = useState(false);
+const [renameValue, setRenameValue] = useState("");
+const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+const [addMemberValue, setAddMemberValue] = useState("");
+const [showAssignProjectModal, setShowAssignProjectModal] = useState(false);
+const [assignProjectValue, setAssignProjectValue] = useState("");
+const [projects, setProjects] = useState([]);
+
+// Fetch projects for assign dropdown
+useEffect(() => {
+  if (showAssignProjectModal) {
+    fetch("/api/projects").then(res => res.json()).then(setProjects);
+  }
+}, [showAssignProjectModal]);
+
+// --- Handlers for channel actions ---
+const handleRenameChannel = async (e) => {
+  e.preventDefault();
+  if (!renameValue.trim() || !activeChannel) return;
+  const res = await fetch(`/api/chat/channels/${activeChannel.id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: renameValue.trim() })
+  });
+  if (res.ok) {
+    const updated = await res.json();
+    setChannels(channels.map(c => c.id === updated.id ? updated : c));
+    setActiveChannel(updated);
+    setShowRenameModal(false);
+  }
+};
+
+const handleAddMember = async (e) => {
+  e.preventDefault();
+  if (!addMemberValue.trim() || !activeChannel) return;
+  const res = await fetch(`/api/chat/channels/${activeChannel.id}/members`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: addMemberValue.trim() })
+  });
+  if (res.ok) {
+    setShowAddMemberModal(false);
+    setAddMemberValue("");
+    // Optionally refetch channel members
+  }
+};
+
+const handleAssignProject = async (e) => {
+  e.preventDefault();
+  if (!assignProjectValue || !activeChannel) return;
+  const res = await fetch(`/api/chat/channels/${activeChannel.id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ project_id: assignProjectValue })
+  });
+  if (res.ok) {
+    const updated = await res.json();
+    setChannels(channels.map(c => c.id === updated.id ? updated : c));
+    setActiveChannel(updated);
+    setShowAssignProjectModal(false);
+  }
+};
 
         {/* Messages List */}
         <div 
