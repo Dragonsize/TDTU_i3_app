@@ -464,10 +464,21 @@ def find_best_match(question: str) -> str:
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
+    # HttpOnly cookie for backend auth
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
+        secure=IS_PRODUCTION,
+        samesite="lax",
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+    # Non-HttpOnly cookie for frontend WebSocket auth
+    response.set_cookie(
+        key="ws_access_token",
+        value=access_token,
+        httponly=False,
         secure=IS_PRODUCTION,
         samesite="lax",
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
