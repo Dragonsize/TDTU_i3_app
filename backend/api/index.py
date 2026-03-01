@@ -13,7 +13,7 @@ def sanitize_chat_input(text: str) -> str:
     if not isinstance(text, str):
         raise HTTPException(status_code=400, detail="Invalid input type")
     # Remove control chars, SQL meta, and limit length
-    text = re.sub(r"[<>\"'`;]|--|/\*|\*/", "", text)
+    text = re.sub(r"[<>\"`;]|--|/\*|\*/", "", text)
     text = text.strip()
     if contains_control_chars(text) or contains_emoji(text):
         raise HTTPException(status_code=400, detail="Message contains invalid characters")
@@ -418,15 +418,18 @@ async def chat_ws(websocket: WebSocket):
             }).execute()
             if not msg.data:
                 continue  # Optionally send error to client
-            msg_obj = msg.data[0]
-            msg_obj["username"] = username
-            # Broadcast to all in channel
-            for conn in list(active_connections[channel_id]):
-                if conn.client_state.value == 1:  # OPEN
-                    await conn.send_json({
-                        "type": "new_message",
-                        "data": msg_obj
-                    })
+            
+            # Fetch full message with profiles to match frontend expectation
+            msg_id = msg.data[0]['id']
+            full_msg = db.table("chat_messages").select("*, profiles!sender_id(username,avatar_url)").eq("id", msg_id).single().execute()
+            
+            if full_msg.data:
+                for conn in list(active_connections[channel_id]):
+                    if conn.client_state.value == 1:  # OPEN
+                        await conn.send_json({
+                            "type": "new_message",
+                            "data": full_msg.data
+                        })
     except WebSocketDisconnect:
         pass
     finally:

@@ -96,7 +96,7 @@ export default function ChatRoom({ user }) {
     // Use production WebSocket URL if available, otherwise fallback to localhost
     const usernameEncoded = encodeURIComponent(user.username || user.full_name || "User");
     // Use the deployed backend API base URL for production WebSocket
-    let WS_BASE_URL = process.env.NEXT_PUBLIC_CHAT_WS_URL || (typeof window !== 'undefined' && window.NEXT_PUBLIC_CHAT_WS_URL) || "ws://localhost:3001";
+    let WS_BASE_URL = process.env.NEXT_PUBLIC_CHAT_WS_URL || (typeof window !== 'undefined' && window.NEXT_PUBLIC_CHAT_WS_URL) || "ws://localhost:8000/api/chat/ws";
 
     // Get ws_access_token from cookies (non-httpOnly, set by backend for WebSocket auth)
     function getCookie(name) {
