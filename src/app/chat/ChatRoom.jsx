@@ -144,7 +144,15 @@ export default function ChatRoom({ user }) {
 
     setWs(socket);
 
+    // Keep-alive ping every 30 seconds
+    const pingInterval = setInterval(() => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "ping" }));
+      }
+    }, 30000);
+
     return () => {
+      clearInterval(pingInterval);
       socket.close();
     };
   }, [activeChannel, user]);
@@ -181,6 +189,7 @@ export default function ChatRoom({ user }) {
 
     const messagePayload = {
       message: inputText.trim(),
+      sender_id: user.id, // Sending UID as requested
     };
 
     ws.send(JSON.stringify(messagePayload));

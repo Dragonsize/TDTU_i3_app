@@ -387,23 +387,30 @@ async def chat_ws(websocket: WebSocket):
         while True:
             data = await websocket.receive_json()
             
+            # Handle ping (keep-alive)
+            if data.get("type") == "ping":
+                continue
+            
             # Handle typing events (broadcast only, no DB save)
             if data.get("type") == "typing":
                 for conn in list(active_connections[channel_id]):
                     if conn != websocket and conn.client_state.value == 1:
-                        await conn.send_json({
-                            "type": "typing",
-                            "user_id": user_id,
-                            "username": username,
-                            "isTyping": data.get("isTyping", False)
-                        })
+                        try:
+                            await conn.send_json({
+                                "type": "typing",
+                                "user_id": user_id,
+                                "username": username,
+                                "isTyping": data.get("isTyping", False)
+                            })
+                        except Exception:
+                            pass
                 continue
 
             msg_text = data.get("message")
             if not msg_text:
                 continue
 
-            # Sanitize input (catch exceptions from sanitize_chat_input)
+            # Sanitize input
             try:
                 msg_text = sanitize_chat_input(msg_text)
             except Exception:
@@ -411,25 +418,34 @@ async def chat_ws(websocket: WebSocket):
 
             # Save message to DB
             db = require_db_client()
-            msg = db.table("chat_messages").insert({
-                "channel_id": channel_id,
-                "sender_id": user_id,
-                "message": msg_text,
-            }).execute()
-            if not msg.data:
-                continue  # Optionally send error to client
-            
-            # Fetch full message with profiles to match frontend expectation
-            msg_id = msg.data[0]['id']
-            full_msg = db.table("chat_messages").select("*, profiles!sender_id(username,avatar_url)").eq("id", msg_id).single().execute()
-            
-            if full_msg.data:
-                for conn in list(active_connections[channel_id]):
-                    if conn.client_state.value == 1:  # OPEN
-                        await conn.send_json({
-                            "type": "new_message",
-                            "data": full_msg.data
-                        })
+            try:
+                # We use the authenticated user_id for security, ignoring payload sender_id
+                msg = db.table("chat_messages").insert({
+                    "channel_id": channel_id,
+                    "sender_id": user_id, 
+                    "message": msg_text,
+                }).execute()
+                
+                if not msg.data:
+                    continue
+                
+                # Fetch full message with profiles
+                msg_id = msg.data[0]['id']
+                full_msg = db.table("chat_messages").select("*, profiles!sender_id(username,avatar_url)").eq("id", msg_id).single().execute()
+                
+                if full_msg.data:
+                    for conn in list(active_connections[channel_id]):
+                        if conn.client_state.value == 1:  # OPEN
+                            try:
+                                await conn.send_json({
+                                    "type": "new_message",
+                                    "data": full_msg.data
+                                })
+                            except Exception:
+                                pass
+            except Exception as e:
+                print(f"Error processing message: {e}")
+                continue
     except WebSocketDisconnect:
         pass
     finally:
