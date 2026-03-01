@@ -363,7 +363,9 @@ async def chat_ws(websocket: WebSocket):
     user_id = params.get("user_id")
     username = params.get("username", "User")
     token = None
-    if "access_token" in websocket.cookies:
+    if "ws_access_token" in websocket.cookies:
+        token = websocket.cookies["ws_access_token"]
+    elif "access_token" in websocket.cookies:
         token = websocket.cookies["access_token"]
     elif "token" in params:
         token = params["token"]
@@ -384,7 +386,29 @@ async def chat_ws(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_json()
+            
+            # Handle typing events (broadcast only, no DB save)
+            if data.get("type") == "typing":
+                for conn in list(active_connections[channel_id]):
+                    if conn != websocket and conn.client_state.value == 1:
+                        await conn.send_json({
+                            "type": "typing",
+                            "user_id": user_id,
+                            "username": username,
+                            "isTyping": data.get("isTyping", False)
+                        })
+                continue
+
             msg_text = data.get("message")
+            if not msg_text:
+                continue
+
+            # Sanitize input (catch exceptions from sanitize_chat_input)
+            try:
+                msg_text = sanitize_chat_input(msg_text)
+            except Exception:
+                continue
+
             # Save message to DB
             db = require_db_client()
             msg = db.table("chat_messages").insert({

@@ -336,9 +336,7 @@ export default function ChatRoom({ user }) {
     <div className="flex h-full w-full bg-white dark:bg-background-dark font-['Inter']">
       {/* Sidebar */}
       <div 
-        className={`$
-          isSidebarOpen ? "w-80" : "w-0"
-        } bg-gray-50 dark:bg-[#18181b] border-r border-gray-200 dark:border-zinc-800 flex flex-col transition-all duration-300 overflow-hidden`}
+        className={`${isSidebarOpen ? "w-80" : "w-0"} bg-gray-50 dark:bg-[#18181b] border-r border-gray-200 dark:border-zinc-800 flex flex-col transition-all duration-300 overflow-hidden`}
       >
         <div className="p-5 flex justify-between items-center">
           <h2 className="font-['Arimo'] font-bold text-2xl text-neutral-950 dark:text-white">Chats</h2>
