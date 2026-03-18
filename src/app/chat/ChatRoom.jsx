@@ -490,7 +490,7 @@ export default function ChatRoom({ user }) {
 
         {/* Messages List */}
         <div 
-          className="flex-1 overflow-y-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 bg-white"
+          className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 bg-white"
           ref={chatContainerRef}
         >
           {messages.map((msg, index) => {
