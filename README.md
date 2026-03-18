@@ -1,4 +1,4 @@
-Current production website [https://aflow-tau.vercel.app/](https://aflow-tau.vercel.app/)
+Current production website [https://aflows.vercel.app/](https://aflows.vercel.app/)
 
 
 # Project Scheduling & Collaboration Platform
