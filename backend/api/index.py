@@ -967,12 +967,6 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
         access_token = create_access_token({"sub": user.id, "email": user.email})
         refresh_token = create_refresh_token({"sub": user.id, "email": user.email})
         set_auth_cookies(response, access_token, refresh_token)
-        store_refresh_token(
-            user.id,
-            refresh_token,
-            http_request.headers.get("user-agent"),
-            http_request.client.host if http_request.client else None,
-        )
 
         # Create/update profile in database using admin client (bypasses RLS)
         full_name = request.fullname or user.email
@@ -986,6 +980,13 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
 
         ensure_profile_upsert(profile_response, "Failed to create profile")
 
+        store_refresh_token(
+            user.id,
+            refresh_token,
+            http_request.headers.get("user-agent"),
+            http_request.client.host if http_request.client else None,
+        )
+
         return {"status": "success", "user": {"id": user.id, "email": user.email, "full_name": full_name}}
     except HTTPException:
         raise
@@ -994,7 +995,11 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
         # Check for common Supabase auth errors and provide friendly messages
         if "23505" in error_str or "duplicate key" in error_str or "already registered" in error_str:
             raise HTTPException(status_code=409, detail="Email is already registered, would you like to sign in?")
-        elif "invalid email" in error_str or "invalid format" in error_str:
+        elif (
+            "invalid email" in error_str
+            or "invalid format" in error_str
+            or ("email" in error_str and "invalid" in error_str)
+        ):
             raise HTTPException(status_code=400, detail="Please enter a valid email address")
         elif "password" in error_str and ("weak" in error_str or "short" in error_str or "at least" in error_str):
             raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
@@ -1032,12 +1037,6 @@ def register(request: RegisterRequest, response: Response, http_request: Request
         access_token = create_access_token({"sub": user.id, "email": user.email})
         refresh_token = create_refresh_token({"sub": user.id, "email": user.email})
         set_auth_cookies(response, access_token, refresh_token)
-        store_refresh_token(
-            user.id,
-            refresh_token,
-            http_request.headers.get("user-agent"),
-            http_request.client.host if http_request.client else None,
-        )
 
         # Create/update profile in database using admin client (bypasses RLS)
         full_name = request.fullname or (user.user_metadata or {}).get("full_name") or user.email
@@ -1050,6 +1049,13 @@ def register(request: RegisterRequest, response: Response, http_request: Request
         }).execute()
 
         ensure_profile_upsert(profile_response, "Failed to create profile")
+
+        store_refresh_token(
+            user.id,
+            refresh_token,
+            http_request.headers.get("user-agent"),
+            http_request.client.host if http_request.client else None,
+        )
 
         return {"status": "success", "user": {"id": user.id, "email": user.email, "full_name": full_name}}
     except HTTPException:
@@ -1071,12 +1077,6 @@ def create_session(request: AuthSessionRequest, response: Response, http_request
         access_token = create_access_token({"sub": user.id, "email": user.email})
         refresh_token = create_refresh_token({"sub": user.id, "email": user.email})
         set_auth_cookies(response, access_token, refresh_token)
-        store_refresh_token(
-            user.id,
-            refresh_token,
-            http_request.headers.get("user-agent"),
-            http_request.client.host if http_request.client else None,
-        )
 
         fullname = (user.user_metadata or {}).get("full_name") or user.email
         db_client = supabase_admin if supabase_admin else db
@@ -1088,6 +1088,13 @@ def create_session(request: AuthSessionRequest, response: Response, http_request
         }).execute()
 
         ensure_profile_upsert(profile_response, "Failed to create profile")
+
+        store_refresh_token(
+            user.id,
+            refresh_token,
+            http_request.headers.get("user-agent"),
+            http_request.client.host if http_request.client else None,
+        )
 
         return {"status": "success", "user": {"id": user.id, "email": user.email, "full_name": fullname}}
     except HTTPException:

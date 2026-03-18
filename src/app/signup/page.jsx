@@ -20,7 +20,9 @@ export default function SignUp() {
       const { data, error: authError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          // Use the callback page so we can exchange Supabase session
+          // for backend session cookies (access_token/refresh_token).
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
