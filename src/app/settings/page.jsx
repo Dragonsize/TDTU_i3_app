@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import AppShell from "@/components/AppShell";
 
 
 
@@ -56,7 +57,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto py-10">
+    <AppShell user={profile} activePath="/settings" contentClassName="flex-1">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
       <div className="flex flex-col items-center gap-4">
         <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center text-4xl font-bold text-gray-600 cursor-pointer border-4 border-white shadow-lg hover:shadow-xl transition" title="Change avatar">
           {/* Avatar: fallback to first letter if no avatar */}
@@ -112,5 +114,6 @@ export default function SettingsPage() {
         >Logout</button>
       </div>
     </div>
+    </AppShell>
   );
 }

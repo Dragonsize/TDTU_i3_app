@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import AppShell from "@/components/AppShell";
 
 const PROJECT_COLORS = [
   "#78716c", // Stone (Default)
@@ -209,50 +210,21 @@ export default function ProjectPage() {
   }, [projects, projectSearchQuery]);
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="w-full h-16 bg-white/60 border-b border-black/10 flex items-center justify-between px-8 lg:px-32 sticky top-0 z-10 backdrop-blur-sm">
-        <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="flex items-center gap-1.5">
-            <div className="w-7 h-7 bg-gray-950 rounded-lg"></div>
-            <span className="text-neutral-950 text-xl font-bold font-['Arimo']">A+ Flow</span>
-          </Link>
-          <nav className="hidden md:flex items-center gap-5 text-base text-gray-500">
-            <Link href="/project" className="font-['Inter'] text-black font-medium">Project</Link>
-            <Link href="/chatbot" className="font-['Arimo'] hover:text-black cursor-pointer">ChatBot</Link>
-            <Link href="/chat" className="font-['Arimo'] hover:text-black cursor-pointer">Chat</Link>
-            <Link href="/files" className="font-['Arimo'] hover:text-black cursor-pointer">Files</Link>
-          </nav>
-        </div>
-          <Link href="/settings" className="flex items-center gap-2" title="Settings">
-            <div className="px-3.5 py-1.5 rounded-md flex justify-center items-center gap-1.5 hover:bg-gray-100 transition-colors">
-              <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden">
-                {currentUser?.avatar_url ? (
-                  <img src={currentUser.avatar_url} alt="User" className="w-full h-full object-cover" />
-                ) : (
-                  currentUser && (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase())
-                )}
-              </div>
-              <div className="text-center justify-start text-neutral-950 text-xs font-normal font-['Arimo'] leading-4">
-                {currentUser?.full_name || ""}
-              </div>
-            </div>
-          </Link>
-      </header>
+    <AppShell user={currentUser} activePath="/project" contentClassName="flex-1">
 
-      <main className="max-w-[1440px] mx-auto p-8 lg:px-32 py-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 xl:px-16 py-8 sm:py-10 lg:py-12">
         {/* Search and Action Bar */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
           <div className="relative w-full md:w-2/3">
             <input
-              className="w-full h-16 bg-zinc-300 rounded-[20px] px-6 text-xl font-normal font-['Arimo'] placeholder-black/40 text-black focus:outline-none focus:ring-2 focus:ring-gray-400"
+              className="w-full h-12 sm:h-14 md:h-16 bg-zinc-300 rounded-2xl px-4 sm:px-6 text-base sm:text-lg md:text-xl font-normal font-['Arimo'] placeholder-black/40 text-black focus:outline-none focus:ring-2 focus:ring-gray-400"
               placeholder="Search Your project"
               value={projectSearchQuery}
               onChange={(e) => setProjectSearchQuery(e.target.value)}
             />
           </div>
           <button
-            className="w-full md:w-48 h-16 flex items-center justify-center text-black text-xl font-normal font-['IM_FELL_Great_Primer_SC'] bg-zinc-300 rounded-[20px] border border-gray-300 cursor-pointer hover:bg-zinc-400 transition shadow-sm"
+            className="w-full md:w-48 h-12 sm:h-14 md:h-16 flex items-center justify-center text-black text-base sm:text-lg md:text-xl font-normal font-['IM_FELL_Great_Primer_SC'] bg-zinc-300 rounded-2xl border border-gray-300 cursor-pointer hover:bg-zinc-400 transition shadow-sm"
             type="button"
             onClick={() => setShowModal(true)}
           >
@@ -261,7 +233,7 @@ export default function ProjectPage() {
         </div>
 
         {/* Project Table */}
-        <div className="bg-zinc-300 rounded-[20px] p-6 min-h-[580px]">
+        <div className="bg-zinc-300 rounded-2xl p-4 sm:p-6 min-h-[480px]">
           {/* Header Row */}
           <div className="grid grid-cols-12 gap-4 mb-4 px-4 hidden md:grid">
             <div className="col-span-4 text-black text-2xl font-normal font-['Habibi']">Name Project</div>
@@ -285,20 +257,20 @@ export default function ProjectPage() {
               filteredProjects.map((project) => (
                 <div 
                   key={project.id} 
-                  className="rounded-[20px] p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center text-white transition-colors duration-300"
+                  className="rounded-2xl p-3 sm:p-4 grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-center text-white transition-colors duration-300"
                   style={{ backgroundColor: project.color || "#78716c" }}
                 >
-                  <Link href={`/project/${project.id}`} className="col-span-4 text-xl md:text-2xl font-normal font-['Habibi'] truncate hover:underline cursor-pointer">
+                  <Link href={`/project/${project.id}`} className="col-span-4 text-lg sm:text-xl md:text-2xl font-normal font-['Habibi'] truncate hover:underline cursor-pointer">
                     {project.title}
                   </Link>
-                  <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi']">
+                  <div className="col-span-2 text-left md:text-center text-base sm:text-lg md:text-2xl font-normal font-['Habibi']">
                     {new Date(project.created_at || Date.now()).toLocaleDateString("en-GB")}
                   </div>
-                  <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi']">
+                  <div className="col-span-2 text-left md:text-center text-base sm:text-lg md:text-2xl font-normal font-['Habibi']">
                     {project.status === "active" ? "In process" : project.status}
                   </div>
-                  <div className="col-span-2 text-center text-xl md:text-2xl font-normal font-['Habibi']">{project.deadline_count || 0}</div>
-                  <div className="col-span-2 flex justify-end items-center gap-4">
+                  <div className="col-span-2 text-left md:text-center text-base sm:text-lg md:text-2xl font-normal font-['Habibi']">{project.deadline_count || 0}</div>
+                  <div className="col-span-2 flex justify-start md:justify-end items-center gap-3 sm:gap-4">
                     <button className="px-3.5 py-1.5 bg-black rounded-md text-white text-xs font-normal font-['Arimo'] hover:bg-gray-800">
                       Manager Deadline
                     </button>
@@ -559,6 +531,6 @@ export default function ProjectPage() {
           </div>
         </div>
       )}
-    </div>
+    </AppShell>
   );
 }

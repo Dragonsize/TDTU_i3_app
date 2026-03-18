@@ -3,8 +3,8 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import dynamic from "next/dynamic";
+import AppShell from "@/components/AppShell";
 
 const ChatRoom = dynamic(() => import("./ChatRoom"), { ssr: false });
 
@@ -34,7 +34,7 @@ export default function ChatPage() {
 
   if (loading) {
     return (
-      <div className="w-full min-h-screen bg-white flex items-center justify-center">
+      <div className="w-full min-h-[100dvh] bg-white flex items-center justify-center px-4">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-950 rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600 font-['Arimo']">Loading...</p>
@@ -44,39 +44,10 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="h-screen bg-white flex flex-col overflow-hidden">
-      {/* Header */}
-      <header className="w-full h-16 bg-white/60 border-b border-black/10 flex items-center justify-between px-8 lg:px-32 sticky top-0 z-10 backdrop-blur-sm">
-        <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="flex items-center gap-1.5">
-            <div className="w-7 h-7 bg-gray-950 rounded-lg"></div>
-            <span className="text-neutral-950 text-xl font-bold font-['Arimo']">A+ Flow</span>
-          </Link>
-          <nav className="hidden md:flex items-center gap-5 text-base text-gray-500">
-            <Link href="/project" className="font-['Inter'] text-black font-medium">Project</Link>
-            <Link href="/chatbot" className="font-['Arimo'] hover:text-black cursor-pointer">ChatBot</Link>
-            <Link href="/chat" className="font-['Arimo'] hover:text-black cursor-pointer">Chat</Link>
-            <Link href="/files" className="font-['Arimo'] hover:text-black cursor-pointer">Files</Link>
-          </nav>
-        </div>
-        <Link href="/settings" className="flex items-center gap-2" title="Settings">
-          <div className="px-3.5 py-1.5 rounded-md flex justify-center items-center gap-1.5 hover:bg-gray-100 transition-colors">
-            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden">
-              {user?.avatar_url ? (
-                <img src={user.avatar_url} alt="User" className="w-full h-full object-cover" />
-              ) : (
-                user && (user.full_name ? user.full_name.split(" ")[0][0].toUpperCase() : user.email?.[0]?.toUpperCase())
-              )}
-            </div>
-            <div className="text-neutral-950 text-xs font-normal font-['Arimo'] leading-4 text-center">
-              {user?.full_name || ""}
-            </div>
-          </div>
-        </Link>
-      </header>
+    <AppShell user={user} activePath="/chat" contentClassName="flex-1 min-h-0 overflow-hidden">
       <main className="flex-1 w-full overflow-hidden">
         <ChatRoom user={user} />
       </main>
-    </div>
+    </AppShell>
   );
 }

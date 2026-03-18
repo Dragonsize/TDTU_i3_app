@@ -3,6 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import AppShell from "@/components/AppShell";
 
 
 export default function ProjectDetailPage() {
@@ -177,47 +178,18 @@ export default function ProjectDetailPage() {
     fetchData();
   }, [id]);
 
-  if (loading || userLoading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  if (!project) return <div className="min-h-screen flex items-center justify-center">Project not found.</div>;
+  if (loading || userLoading) return <div className="min-h-[100dvh] flex items-center justify-center px-4 text-center">Loading...</div>;
+  if (!project) return <div className="min-h-[100dvh] flex items-center justify-center px-4 text-center">Project not found.</div>;
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="w-full h-16 bg-white/60 border-b border-black/10 flex items-center justify-between px-8 lg:px-32 sticky top-0 z-10 backdrop-blur-sm">
-        <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="flex items-center gap-1.5">
-            <div className="w-7 h-7 bg-gray-950 rounded-lg"></div>
-            <span className="text-neutral-950 text-xl font-bold font-['Arimo']">A+ Flow</span>
-          </Link>
-          <nav className="hidden md:flex items-center gap-5 text-base text-gray-500">
-            <Link href="/project" className="font-['Inter'] text-black font-medium">Project</Link>
-            <Link href="/chatbot" className="font-['Arimo'] hover:text-black cursor-pointer">ChatBot</Link>
-            <Link href="/chat" className="font-['Arimo'] hover:text-black cursor-pointer">Chat</Link>
-            <Link href="/files" className="font-['Arimo'] hover:text-black cursor-pointer">Files</Link>
-          </nav>
-        </div>
-        <Link href="/settings" className="flex items-center gap-2" title="Settings">
-          <div className="px-3.5 py-1.5 rounded-md flex justify-center items-center gap-1.5 hover:bg-gray-100 transition-colors">
-            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden">
-              {currentUser?.avatar_url ? (
-                <img src={currentUser.avatar_url} alt="User" className="w-full h-full object-cover" />
-              ) : (
-                currentUser && (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase())
-              )}
-            </div>
-            <div className="text-neutral-950 text-xs font-normal font-['Arimo'] leading-4 text-center">
-              {currentUser?.full_name || ""}
-            </div>
-          </div>
-        </Link>
-      </header>
+    <AppShell user={currentUser} activePath="/project" contentClassName="flex-1">
 
-      <main className="max-w-[1440px] mx-auto p-8 lg:px-32 py-12">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 xl:px-16 py-8 sm:py-10 lg:py-12">
         {/* Project Info */}
         <div className="mb-10">
-          <h1 className="text-4xl md:text-5xl font-normal font-['Habibi'] text-neutral-950 mb-8">{project.title}</h1>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-normal font-['Habibi'] text-neutral-950 mb-6 sm:mb-8 break-words">{project.title}</h1>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-8">
             <div className="flex flex-col gap-2">
               <span className="text-black text-2xl font-normal font-['Habibi']">Day Create</span>
               <span className="text-black text-xl font-normal font-['Habibi'] text-gray-600">
@@ -257,8 +229,8 @@ export default function ProjectDetailPage() {
           </button>
               {/* Deadlines Modal */}
               {showDeadlineModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                  <div className="relative w-[95vw] max-w-[540px] h-[70vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-3 sm:p-4">
+                  <div className="relative w-full max-w-[540px] h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
                     {/* Header */}
                     <div className="w-full h-14 px-6 bg-white/60 border-b border-black/10 flex items-center justify-between">
                       <span className="text-neutral-950 text-lg font-bold font-['Arimo']">Deadlines</span>
@@ -267,7 +239,7 @@ export default function ProjectDetailPage() {
                     {/* Modal Content */}
                     <div className="flex-1 bg-white flex flex-col items-center pt-6">
                       <div className="w-full flex flex-col items-center">
-                        <div className="w-full max-w-[420px] h-[340px] bg-zinc-300 rounded-[16px] mx-auto relative p-4 overflow-y-auto">
+                        <div className="w-full max-w-[420px] min-h-[240px] max-h-[56dvh] bg-zinc-300 rounded-[16px] mx-auto relative p-4 overflow-y-auto">
                           {deadlineLoading ? (
                             <div className="text-center text-gray-500 text-base mt-16">Loading deadlines...</div>
                           ) : deadlines.length === 0 ? (
@@ -303,8 +275,8 @@ export default function ProjectDetailPage() {
         </div>
       {/* Manage Workspace Modal */}
       {showWorkspaceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="relative w-[95vw] max-w-[540px] h-[70vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-3 sm:p-4">
+          <div className="relative w-full max-w-[540px] h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
             {/* Header */}
             <div className="w-full h-14 px-6 bg-white/60 border-b border-black/10 flex items-center justify-between">
               <span className="text-neutral-950 text-lg font-bold font-['Arimo']">Workspace</span>
@@ -313,7 +285,7 @@ export default function ProjectDetailPage() {
             {/* Modal Content */}
             <div className="flex-1 bg-white flex flex-col items-center pt-6">
               <div className="w-full flex flex-col items-center">
-                <div className="w-full max-w-[420px] h-[340px] bg-zinc-300 rounded-[16px] mx-auto relative p-4 overflow-y-auto">
+                <div className="w-full max-w-[420px] min-h-[240px] max-h-[56dvh] bg-zinc-300 rounded-[16px] mx-auto relative p-4 overflow-y-auto">
                   {workspaceLoading ? (
                     <div className="text-center text-gray-500 text-base mt-16">Loading workspace flows...</div>
                   ) : workspaces.length === 0 ? (
@@ -342,8 +314,8 @@ export default function ProjectDetailPage() {
                   </button>
                       {/* Create Flow Modal */}
                       {showCreateFlowModal && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                          <div className="relative w-[95vw] max-w-[480px] h-[70vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-3 sm:p-4">
+                          <div className="relative w-full max-w-[480px] h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
                             {/* Header */}
                             <div className="w-full h-14 px-6 bg-white/60 border-b border-black/10 flex items-center justify-between">
                               <span className="text-neutral-950 text-lg font-bold font-['Arimo']">Create Workspace Flow</span>
@@ -436,15 +408,15 @@ export default function ProjectDetailPage() {
       )}
 
         {/* Member List */}
-        <div className="bg-zinc-300 rounded-[20px] p-6 min-h-[400px]">
+        <div className="bg-zinc-300 rounded-2xl p-4 sm:p-6 min-h-[320px]">
           <div className="text-white text-2xl font-bold mb-6 px-2">Members</div>
           <div className="flex flex-col gap-4">
             {members.length === 0 ? (
               <div className="text-center text-gray-500 mt-10">No members found</div>
             ) : (
               members.map((member) => (
-                <div key={member.id} className="w-full bg-stone-500 rounded-[20px] flex items-center px-8 py-4 relative">
-                  <div className="text-black text-xl md:text-2xl font-normal font-['ABeeZee']">
+                <div key={member.id} className="w-full bg-stone-500 rounded-2xl flex items-center px-4 sm:px-8 py-3 sm:py-4 relative">
+                  <div className="text-black text-base sm:text-xl md:text-2xl font-normal font-['ABeeZee'] break-words">
                     {member.full_name || member.username} 
                     <span className="text-lg opacity-70 ml-2">({member.username})</span>
                     {member.role && <span className="text-sm ml-2 opacity-60 uppercase">- {member.role}</span>}
@@ -455,6 +427,6 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       </main>
-    </div>
+    </AppShell>
   );
 }

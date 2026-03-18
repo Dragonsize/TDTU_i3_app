@@ -1,7 +1,7 @@
 
 "use client";
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
+import AppShell from "@/components/AppShell";
 // FileImagePreview component for image/* files
 function FileImagePreview({ file }) {
   const [imgUrl, setImgUrl] = useState(null);
@@ -287,47 +287,16 @@ export default function FilesPage() {
     };
 
     return (
-      <div className="min-h-screen bg-white">
-        {/* Header */}
-        <header className="w-full h-16 bg-white/60 border-b border-black/10 flex items-center justify-between px-8 lg:px-32 sticky top-0 z-10 backdrop-blur-sm">
-          <div className="flex items-center justify-between w-full max-w-7xl mx-auto">
-            <div className="flex items-center gap-12">
-              <Link href="/dashboard" className="flex items-center gap-1.5">
-                <div className="w-7 h-7 bg-gray-950 rounded-lg"></div>
-                <span className="text-neutral-950 text-xl font-bold font-['Arimo']">A+ Flow</span>
-              </Link>
-              <nav className="hidden md:flex items-center gap-8 text-base text-gray-500">
-                <Link href="/project" className="font-['Inter'] hover:text-black font-normal">Project</Link>
-                <Link href="/chatbot" className="font-['Arimo'] hover:text-black cursor-pointer font-normal">ChatBot</Link>
-                <Link href="/chat" className="font-['Arimo'] hover:text-black cursor-pointer font-normal">Chat</Link>
-                <Link href="/files" className="font-['Arimo'] hover:text-black cursor-pointer font-normal">Files</Link>
-              </nav>
-            </div>
-            <Link href="/settings" className="flex items-center gap-2" title="Settings">
-              <div className="px-3.5 py-1.5 rounded-md flex justify-center items-center gap-1.5 hover:bg-gray-100 transition-colors">
-                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden">
-                  {currentUser?.avatar_url ? (
-                    <img src={currentUser.avatar_url} alt="User" className="w-full h-full object-cover" />
-                  ) : (
-                    currentUser && (currentUser.full_name?.[0]?.toUpperCase() || currentUser.email?.[0]?.toUpperCase())
-                  )}
-                </div>
-                <div className="text-center justify-start text-neutral-950 text-xs font-normal font-['Arimo'] leading-4">
-                  {currentUser?.full_name || ""}
-                </div>
-              </div>
-            </Link>
-          </div>
-        </header>
-        <main className="w-full flex flex-col items-center pt-12 pb-12 px-4">
-          <h1 className="text-center text-black text-5xl font-normal font-['Instrument_Sans'] mb-12">Files</h1>
+      <AppShell user={currentUser} activePath="/files" contentClassName="flex-1">
+        <main className="w-full flex flex-col items-center pt-8 sm:pt-12 pb-10 sm:pb-12 px-4 sm:px-6">
+          <h1 className="text-center text-black text-3xl sm:text-4xl md:text-5xl font-normal font-['Instrument_Sans'] mb-8 sm:mb-12">Files</h1>
           
           <div 
-            className="w-full max-w-[1215px] min-h-[669px] bg-zinc-300 rounded-[20px] p-12 relative"
+            className="w-full max-w-[1215px] min-h-[420px] sm:min-h-[560px] bg-zinc-300 rounded-2xl p-4 sm:p-8 lg:p-12 relative"
             onDrop={handleDrop} 
             onDragOver={handleDragOver}
           >
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-8 gap-y-12 items-start">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 sm:gap-x-6 lg:gap-x-8 gap-y-6 sm:gap-y-10 lg:gap-y-12 items-start">
                   {/* File cards */}
                   {files.map((file) => (
                     <div
@@ -335,7 +304,7 @@ export default function FilesPage() {
                       className="flex flex-col items-center group cursor-pointer"
                       onClick={() => setSelectedFile(file)}
                     >
-                      <div className="w-32 h-32 mb-4 relative flex items-center justify-center bg-white rounded-xl shadow-sm overflow-hidden transition-transform group-hover:scale-105">
+                      <div className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 mb-3 sm:mb-4 relative flex items-center justify-center bg-white rounded-xl shadow-sm overflow-hidden transition-transform group-hover:scale-105">
                         {/* Document icon for file */}
                         <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" className="text-gray-500">
                           <rect x="6" y="4" width="12" height="16" rx="2" strokeWidth="2.5"/>
@@ -346,7 +315,7 @@ export default function FilesPage() {
                       </div>
                       <div className="relative flex items-center justify-center">
                         <div className="absolute inset-0 bg-neutral-400 opacity-60 rounded-lg"></div>
-                        <span className="relative z-10 px-3 py-1 text-black text-base font-normal font-['Instrument_Sans'] truncate max-w-[140px]">
+                        <span className="relative z-10 px-2 sm:px-3 py-1 text-black text-xs sm:text-sm lg:text-base font-normal font-['Instrument_Sans'] truncate max-w-[120px] sm:max-w-[140px]">
                           {file.filename || 'Untitled'}
                         </span>
                       </div>
@@ -354,10 +323,10 @@ export default function FilesPage() {
                   ))}
                   {/* Upload button as a grid item */}
                   <label className="flex flex-col items-center cursor-pointer group">
-                    <div className="w-28 h-24 bg-stone-300 rounded-[29px] flex items-center justify-center mb-4 transition-colors group-hover:bg-stone-400">
-                      <span className="text-black text-8xl font-normal font-['Instrument_Sans'] opacity-50 leading-none pb-3">+</span>
+                    <div className="w-20 h-16 sm:w-24 sm:h-20 lg:w-28 lg:h-24 bg-stone-300 rounded-[29px] flex items-center justify-center mb-3 sm:mb-4 transition-colors group-hover:bg-stone-400">
+                      <span className="text-black text-5xl sm:text-6xl lg:text-8xl font-normal font-['Instrument_Sans'] opacity-50 leading-none pb-1 sm:pb-2 lg:pb-3">+</span>
                     </div>
-                    <span className="text-black text-2xl font-normal font-['Instrument_Sans'] text-center">Upload Files</span>
+                    <span className="text-black text-base sm:text-xl lg:text-2xl font-normal font-['Instrument_Sans'] text-center">Upload Files</span>
                     <input
                       type="file"
                       className="hidden"
@@ -372,10 +341,10 @@ export default function FilesPage() {
                 {/* Overlay preview for selected file */}
                 {selectedFile && (
                   <div
-                    className="absolute inset-0 z-50 flex flex-row bg-white/95 border-2 border-blue-400 rounded-[20px] overflow-hidden"
+                    className="absolute inset-0 z-50 flex bg-white/95 border-2 border-blue-400 rounded-[20px] overflow-hidden p-2 sm:p-4"
                     style={{ minHeight: "320px" }}
                   >
-                    <div className="bg-white rounded-2xl shadow-xl flex flex-row max-w-3xl w-full mx-4" style={{ minHeight: "320px" }}>
+                    <div className="bg-white rounded-2xl shadow-xl flex flex-col md:flex-row max-w-4xl w-full mx-auto" style={{ minHeight: "320px" }}>
                       {/* Left: Content preview */}
                       <div className="flex-1 flex items-center justify-center p-8">
                         {selectedFile.file_type && selectedFile.file_type.startsWith("image") ? (
@@ -390,7 +359,7 @@ export default function FilesPage() {
                       </div>
 
                       {/* Right: File info and actions a*/}
-                      <div className="w-[340px] flex flex-col justify-center p-8 border-l border-gray-200 bg-white">
+                      <div className="w-full md:w-[340px] flex flex-col justify-center p-4 sm:p-6 md:p-8 border-t md:border-t-0 md:border-l border-gray-200 bg-white">
                         <div className="text-xl text-black font-bold font-['Instrument_Sans'] mb-2 text-center rounded bg-gray-100 px-4 py-1 mb-4">{selectedFile.filename || "Untitled"}</div>
                         <div className="flex flex-row gap-3 mb-6 justify-center">
                           {/* Download button (>>) */}
@@ -438,6 +407,6 @@ export default function FilesPage() {
                 )}
           </div>
         </main>
-      </div>
+      </AppShell>
   );
 }

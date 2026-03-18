@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import AppShell from '@/components/AppShell';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -70,41 +71,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="w-full min-h-screen bg-white">
-      {/* Header */}
-      <header className="w-full h-14 md:h-16 bg-white/60 backdrop-blur-sm border-b border-black/10 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto h-full px-4 md:px-6 lg:px-8 flex items-center justify-between gap-4">
-          {/* Logo + Nav */}
-          <div className="flex items-center gap-6 md:gap-10">
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="w-6 md:w-7 h-6 md:h-7 bg-gray-950 rounded-lg"></div>
-              <span className="text-lg md:text-xl font-bold text-neutral-950 font-['Arimo']">A+ Flow</span>
-            </Link>
-            <nav className="hidden md:flex items-center gap-6 text-sm text-gray-500 font-['Arimo']">
-              <Link href="/project" className="hover:text-gray-900 transition-colors">Project</Link>
-              <Link href="/chatbot" className="hover:text-gray-900 transition-colors">ChatBot</Link>
-              <Link href="/chat" className="hover:text-gray-900 transition-colors">Chat</Link>
-              <Link href="/files" className="hover:text-gray-900 transition-colors">Files</Link>
-            </nav>
-          </div>
-
-          {/* Settings Icon (User Initials) */}
-          <Link href="/settings" className="flex items-center gap-2" title="Settings">
-            <div className="px-3.5 py-1.5 rounded-md flex justify-center items-center gap-1.5 hover:bg-gray-100 transition-colors">
-              <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden">
-                {user?.avatar_url ? (
-                  <img src={user.avatar_url} alt="User" className="w-full h-full object-cover" />
-                ) : (
-                  user && (user.full_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase())
-                )}
-              </div>
-              <div className="text-center justify-start text-neutral-950 text-xs font-normal font-['Arimo'] leading-4">
-                {user?.full_name || ""}
-              </div>
-            </div>
-          </Link>
-        </div>
-      </header>
+    <AppShell user={user} activePath="/dashboard" contentClassName="flex-1">
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-12 md:py-16 lg:py-20">
@@ -178,6 +145,6 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
-    </div>
+    </AppShell>
   );
 }
