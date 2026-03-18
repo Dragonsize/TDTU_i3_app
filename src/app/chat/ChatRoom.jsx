@@ -271,13 +271,13 @@ export default function ChatRoom({ user }) {
     <div className="flex h-full w-full bg-white dark:bg-background-dark font-['Inter']">
       {/* Sidebar */}
       <div 
-        className={`${isSidebarOpen ? "w-80" : "w-0"} bg-gray-50 dark:bg-[#18181b] border-r border-gray-200 dark:border-zinc-800 flex flex-col transition-all duration-300 overflow-hidden`}
+        className={`${isSidebarOpen ? "w-60 sm:w-72 md:w-80" : "w-0"} bg-gray-50 dark:bg-[#18181b] border-r border-gray-200 dark:border-zinc-800 flex flex-col transition-all duration-300 overflow-hidden`}
       >
-        <div className="p-5 flex justify-between items-center">
-          <h2 className="font-['Arimo'] font-bold text-2xl text-neutral-950 dark:text-white">Chats</h2>
+        <div className="p-3 sm:p-4 md:p-5 flex justify-between items-center border-b border-gray-200 dark:border-zinc-800">
+          <h2 className="font-['Arimo'] font-bold text-xl sm:text-2xl text-neutral-950 dark:text-white">Chats</h2>
           <button 
             onClick={() => setShowNewChannelModal(true)}
-            className="w-8 h-8 rounded-full bg-gray-200 dark:bg-zinc-700 hover:bg-gray-300 dark:hover:bg-zinc-600 flex items-center justify-center transition-colors text-gray-700 dark:text-white"
+            className="w-8 h-8 rounded-full bg-gray-200 dark:bg-zinc-700 hover:bg-gray-300 dark:hover:bg-zinc-600 flex items-center justify-center transition-colors text-gray-700 dark:text-white flex-shrink-0"
             title="New Chat"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -337,23 +337,23 @@ export default function ChatRoom({ user }) {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-1">
+        <div className="flex-1 overflow-y-auto px-2 sm:px-3 pb-3 space-y-1">
           {channels.map((channel) => (
             <button
               key={channel.id}
               onClick={() => setActiveChannel(channel)}
-              className={`w-full text-left p-3 rounded-xl transition-all flex items-center gap-3 group ${
+              className={`w-full text-left p-2 sm:p-3 rounded-xl transition-all flex items-center gap-2 sm:gap-3 group ${
                 activeChannel?.id === channel.id
                   ? "bg-white shadow-sm ring-1 ring-black/5"
                   : "hover:bg-gray-200/50"
               }`}
             >
-              <div className={`w-10 h-10 rounded-full ${getChannelColor(channel.name)} flex items-center justify-center text-white font-bold text-sm shrink-0`}>
+              <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full ${getChannelColor(channel.name)} flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0`}>
                 {channel.name.substring(0, 2).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-gray-900 truncate">{channel.name}</div>
-                <div className="text-xs text-gray-500 truncate">Click to open chat</div>
+                <div className="font-semibold text-xs sm:text-sm text-gray-900 truncate">{channel.name}</div>
+                <div className="text-[10px] sm:text-xs text-gray-500 truncate">Click to open chat</div>
               </div>
               
               {/* Delete Button (Visible on Hover) */}
@@ -380,13 +380,13 @@ export default function ChatRoom({ user }) {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col h-full relative">
+      <div className="flex-1 flex flex-col h-full relative min-w-0">
         {/* Chat Header with channel actions */}
-        <div className="h-16 border-b border-gray-200 flex items-center px-6 justify-between bg-white shrink-0">
-          <div className="flex items-center gap-3">
+        <div className="h-14 sm:h-16 border-b border-gray-200 flex items-center px-3 sm:px-4 md:px-6 justify-between bg-white shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="text-gray-500 hover:text-gray-950 lg:hidden"
+              className="text-gray-500 hover:text-gray-950 flex-shrink-0 md:hidden"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -394,21 +394,21 @@ export default function ChatRoom({ user }) {
                 <line x1="3" y1="18" x2="21" y2="18"></line>
               </svg>
             </button>
-            <h3 className="font-['Arimo'] font-bold text-lg text-neutral-950 flex items-center gap-3">
+            <h3 className="font-['Arimo'] font-bold text-base sm:text-lg text-neutral-950 flex items-center gap-2 sm:gap-3 min-w-0">
               {activeChannel && (
-                <div className={`w-8 h-8 rounded-full ${getChannelColor(activeChannel.name)} flex items-center justify-center text-white text-xs`}>#</div>
+                <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full ${getChannelColor(activeChannel.name)} flex items-center justify-center text-white text-xs flex-shrink-0`}>#</div>
               )}
-              {activeChannel ? activeChannel.name : "Select a chat"}
+              <span className="truncate">{activeChannel ? activeChannel.name : "Select a chat"}</span>
             </h3>
             {/* Channel actions: only show if user is creator */}
             {activeChannel && (
-              <div className="flex gap-2 ml-4 items-center">
-                <button onClick={() => setShowMembersModal(true)} className="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 font-medium">Members</button>
+              <div className="hidden sm:flex gap-1 sm:gap-2 ml-2 sm:ml-4 items-center flex-wrap">
+                <button onClick={() => setShowMembersModal(true)} className="text-xs px-2 sm:px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 font-medium whitespace-nowrap">Members</button>
                 {activeChannel.created_by === user?.id && (
                   <>
-                    <button onClick={() => setShowRenameModal(true)} className="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700">Rename</button>
-                    <button onClick={() => setShowAddMemberModal(true)} className="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700">Add Member</button>
-                    <button onClick={() => setShowAssignProjectModal(true)} className="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700">Assign Project</button>
+                    <button onClick={() => setShowRenameModal(true)} className="text-xs px-2 sm:px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 whitespace-nowrap">Rename</button>
+                    <button onClick={() => setShowAddMemberModal(true)} className="text-xs px-2 sm:px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 whitespace-nowrap">Add</button>
+                    <button onClick={() => setShowAssignProjectModal(true)} className="text-xs px-2 sm:px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 whitespace-nowrap">Project</button>
                   </>
                 )}
               </div>
@@ -490,7 +490,7 @@ export default function ChatRoom({ user }) {
 
         {/* Messages List */}
         <div 
-          className="flex-1 overflow-y-auto p-6 space-y-6 bg-white"
+          className="flex-1 overflow-y-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6 bg-white"
           ref={chatContainerRef}
         >
           {messages.map((msg, index) => {
@@ -516,14 +516,14 @@ export default function ChatRoom({ user }) {
                 </div>
 
                 {/* Message Bubble */}
-                <div className={`flex flex-col max-w-[70%] ${isSelf ? "items-end" : "items-start"}`}>
+                <div className={`flex flex-col max-w-xs sm:max-w-sm md:max-w-md ${isSelf ? "items-end" : "items-start"}`}>
                   {showAvatar && !isSelf && (
                     <span className="text-xs text-gray-500 mb-1 ml-1">
                       {msg.profiles?.username || "Unknown"}
                     </span>
                   )}
                   <div 
-                    className={`px-4 py-2 rounded-2xl text-sm leading-relaxed ${
+                    className={`px-3 sm:px-4 py-2 rounded-2xl text-xs sm:text-sm leading-relaxed ${
                       isSelf 
                         ? "bg-gray-950 text-white rounded-tr-none" 
                         : "bg-gray-100 text-gray-900 rounded-tl-none"
@@ -543,7 +543,7 @@ export default function ChatRoom({ user }) {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 border-t border-gray-200 bg-white shrink-0">
+        <div className="px-2 sm:px-3 md:px-6 py-2 sm:py-3 md:py-4 border-t border-gray-200 bg-white shrink-0">
           <form onSubmit={handleSendMessage} className="relative max-w-4xl mx-auto">
             <input
               type="text"
@@ -551,15 +551,14 @@ export default function ChatRoom({ user }) {
               onChange={(e) => setInputText(e.target.value)}
               placeholder={activeChannel ? `Message #${activeChannel.name}` : "Select a channel to chat"}
               disabled={!activeChannel}
-              className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-950/10 focus:border-gray-950 transition-all text-sm text-black font-medium placeholder-gray-400"
-              style={{ fontSize: '1.05rem', letterSpacing: '0.01em' }}
+              className="w-full pl-3 sm:pl-4 pr-10 sm:pr-12 py-2 sm:py-3 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-gray-950/20 focus:border-gray-950 focus:bg-white transition-all text-xs sm:text-sm text-black placeholder-gray-400"
             />
             <button
               type="submit"
               disabled={!inputText.trim() || !activeChannel}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-gray-950 disabled:opacity-50 disabled:hover:text-gray-400 transition-colors"
+              className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 p-1.5 sm:p-2 text-gray-400 hover:text-gray-950 disabled:opacity-50 disabled:hover:text-gray-400 transition-colors flex-shrink-0"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="sm:w-5 sm:h-5">
                 <line x1="22" y1="2" x2="11" y2="13"></line>
                 <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
               </svg>
