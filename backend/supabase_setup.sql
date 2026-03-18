@@ -159,4 +159,4 @@ CREATE TABLE public.workspaces (
   CONSTRAINT workspaces_pkey PRIMARY KEY (id),
   CONSTRAINT workspaces_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
   CONSTRAINT workspaces_creator_id_fkey FOREIGN KEY (creator_id) REFERENCES public.profiles(id)
-);
+);a
