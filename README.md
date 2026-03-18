@@ -1,4 +1,4 @@
-Current production website https://tdtu-i3-app.vercel.app/
+Current production website [https://aflow-tau.vercel.app/](https://aflow-tau.vercel.app/)
 
 
 # Project Scheduling & Collaboration Platform
