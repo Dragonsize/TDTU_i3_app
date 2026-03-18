@@ -7,12 +7,10 @@ export default function ChatRoom({ user }) {
   const [activeChannel, setActiveChannel] = useState(null);
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState("");
-  const [ws, setWs] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [targetEmail, setTargetEmail] = useState("");
   const [showNewChannelModal, setShowNewChannelModal] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
-  const [typingUsers, setTypingUsers] = useState({}); // { userId: username }
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
@@ -25,8 +23,7 @@ export default function ChatRoom({ user }) {
   
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
-  const typingTimeoutRef = useRef(null);
-  const isTypingRef = useRef(false);
+  const lastMessageSignatureRef = useRef("");
 
   // 1. Fetch Channels on Mount
   useEffect(() => {
@@ -68,92 +65,42 @@ export default function ChatRoom({ user }) {
     }
   }, [channels]);
 
-  // 2. Handle Active Channel Changes (Fetch History & Connect WS)
+  // 2. Poll messages from DB for the active channel
   useEffect(() => {
     if (!activeChannel || !user) return;
 
-    // Reset messages
     setMessages([]);
-    setTypingUsers({});
+    lastMessageSignatureRef.current = "";
 
-    // Fetch Message History
     const fetchMessages = async () => {
       try {
         const res = await fetch(`/api/chat/messages?channel_id=${activeChannel.id}&limit=50`);
         if (res.ok) {
           const data = await res.json();
-          setMessages(data);
-          scrollToBottom();
+          const lastMessage = data[data.length - 1];
+          const signature = `${data.length}:${lastMessage?.id || ""}:${lastMessage?.sent_at || ""}`;
+
+          if (signature !== lastMessageSignatureRef.current) {
+            setMessages((prev) => {
+              const hadMessages = prev.length;
+              const hasNewMessage = data.length > hadMessages;
+              if (hasNewMessage || !hadMessages) {
+                scrollToBottom();
+              }
+              return data;
+            });
+            lastMessageSignatureRef.current = signature;
+          }
         }
       } catch (error) {
         console.error("Failed to fetch messages", error);
       }
     };
     fetchMessages();
-
-    // Connect WebSocket
-
-    // Use production WebSocket URL if available, otherwise fallback to localhost
-    const usernameEncoded = encodeURIComponent(user.username || user.full_name || "User");
-    // Use the deployed backend API base URL for production WebSocket
-    let WS_BASE_URL = process.env.NEXT_PUBLIC_CHAT_WS_URL || (typeof window !== 'undefined' && window.NEXT_PUBLIC_CHAT_WS_URL) || "ws://localhost:8000/api/chat/ws";
-
-    // Get ws_access_token from cookies (non-httpOnly, set by backend for WebSocket auth)
-    function getCookie(name) {
-      if (typeof document === 'undefined') return null;
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; ${name}=`);
-      if (parts.length === 2) return parts.pop().split(';').shift();
-      return null;
-    }
-    const wsAccessToken = getCookie('ws_access_token');
-    const socketUrl = `${WS_BASE_URL}?channel_id=${activeChannel.id}&user_id=${user.id}&username=${usernameEncoded}${wsAccessToken ? `&token=${wsAccessToken}` : ''}`;
-    const socket = new WebSocket(socketUrl);
-
-    socket.onopen = () => {
-      console.log("Connected to chat server");
-    };
-
-    socket.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.type === "new_message") {
-          setMessages((prev) => [...prev, payload.data]);
-          scrollToBottom();
-        } else if (payload.type === "typing") {
-          setTypingUsers((prev) => {
-            const next = { ...prev };
-            if (payload.isTyping) {
-              next[payload.user_id] = payload.username || "Someone";
-            } else {
-              delete next[payload.user_id];
-            }
-            return next;
-          });
-        } else if (payload.error) {
-          console.error("WS Error:", payload.error);
-        }
-      } catch (e) {
-        console.error("Failed to parse WS message", e);
-      }
-    };
-
-    socket.onclose = () => {
-      console.log("Disconnected from chat server");
-    };
-
-    setWs(socket);
-
-    // Keep-alive ping every 30 seconds
-    const pingInterval = setInterval(() => {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: "ping" }));
-      }
-    }, 30000);
+    const pollInterval = setInterval(fetchMessages, 2500);
 
     return () => {
-      clearInterval(pingInterval);
-      socket.close();
+      clearInterval(pollInterval);
     };
   }, [activeChannel, user]);
 
@@ -163,43 +110,26 @@ export default function ChatRoom({ user }) {
     }, 100);
   };
 
-  const handleInputChange = (e) => {
-    setInputText(e.target.value);
-
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-
-    // Send start typing event if not already typing
-    if (!isTypingRef.current) {
-      isTypingRef.current = true;
-      ws.send(JSON.stringify({ type: "typing", isTyping: true }));
-    }
-
-    // Debounce stop typing event
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    
-    typingTimeoutRef.current = setTimeout(() => {
-      isTypingRef.current = false;
-      ws.send(JSON.stringify({ type: "typing", isTyping: false }));
-    }, 2000);
-  };
-
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!inputText.trim() || !ws || ws.readyState !== WebSocket.OPEN) return;
+    if (!inputText.trim() || !activeChannel) return;
 
-    const messagePayload = {
-      message: inputText.trim(),
-      sender_id: user.id, // Sending UID as requested
-    };
+    try {
+      const res = await fetch("/api/chat/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channel_id: activeChannel.id,
+          message: inputText.trim(),
+        }),
+      });
 
-    ws.send(JSON.stringify(messagePayload));
-    setInputText("");
-    
-    // Clear typing status immediately on send
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    isTypingRef.current = false;
-    ws.send(JSON.stringify({ type: "typing", isTyping: false }));
-    
+      if (res.ok) {
+        setInputText("");
+      }
+    } catch (error) {
+      console.error("Failed to send message", error);
+    }
   };
 
   const handleCreateChannel = async (e) => {
@@ -262,10 +192,6 @@ export default function ChatRoom({ user }) {
       return "";
     }
   };
-
-  // Get list of people typing (excluding self, though backend handles that too)
-  const typingText = Object.values(typingUsers).join(", ");
-  const isAnyoneTyping = Object.keys(typingUsers).length > 0;
 
   // Generate a random-ish color for channel avatars based on name
   const getChannelColor = (name) => {
@@ -613,13 +539,6 @@ export default function ChatRoom({ user }) {
             );
           })}
           
-          {/* Typing Indicator */}
-          {isAnyoneTyping && (
-            <div className="text-xs text-gray-400 italic ml-12 animate-pulse">
-              {typingText} {Object.keys(typingUsers).length === 1 ? "is" : "are"} typing...
-            </div>
-          )}
-          
           <div ref={messagesEndRef} />
         </div>
 
@@ -629,7 +548,7 @@ export default function ChatRoom({ user }) {
             <input
               type="text"
               value={inputText}
-              onChange={handleInputChange}
+              onChange={(e) => setInputText(e.target.value)}
               placeholder={activeChannel ? `Message #${activeChannel.name}` : "Select a channel to chat"}
               disabled={!activeChannel}
               className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-950/10 focus:border-gray-950 transition-all text-sm text-black font-medium placeholder-gray-400"

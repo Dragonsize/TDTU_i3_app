@@ -446,7 +446,7 @@ Alternative flow via Supabase SDK:
 ### Phase 1: Core UI/UX Improvements
 - [ ] Advanced calendar view with week/month/year modes
 - [ ] Calendar event cards with time slots and status badges
-- [ ] Real-time team chat with WebSocket integration
+- [ ] Team chat updates with database polling
 - [ ] File drag-and-drop upload interface
 - [ ] File preview with download, share, and delete actions
 - [ ] Enhanced member search by ID or email

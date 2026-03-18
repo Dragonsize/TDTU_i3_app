@@ -338,116 +338,7 @@ class CreateNotificationRequest(BaseModel):
     related_id: Optional[str] = None
 
 
-from fastapi import WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
-from collections import defaultdict
-import asyncio
-
 app = FastAPI()
-
-# In-memory channel: channel_id -> set of WebSocket
-active_connections = defaultdict(set)
-
-def get_user_from_token(token: str):
-    payload = verify_token(token)
-    if not payload or payload.get("type") != "access":
-        return None
-    return payload
-
-@app.websocket("/api/chat/ws")
-async def chat_ws(websocket: WebSocket):
-    await websocket.accept()
-    params = websocket.query_params
-    channel_id = params.get("channel_id")
-    user_id = params.get("user_id")
-    username = params.get("username", "User")
-    token = None
-    if "ws_access_token" in websocket.cookies:
-        token = websocket.cookies["ws_access_token"]
-    elif "access_token" in websocket.cookies:
-        token = websocket.cookies["access_token"]
-    elif "token" in params:
-        token = params["token"]
-    if not token:
-        print("WebSocket: No token provided")
-        await websocket.close(code=4401)
-        return
-    user = get_user_from_token(token)
-    if not user or user.get("sub") != user_id:
-        print(f"WebSocket: Invalid token or user_id mismatch. user={user}, user_id={user_id}, token={token}")
-        await websocket.close(code=4401)
-        return
-    if not channel_id:
-        print("WebSocket: No channel_id provided")
-        await websocket.close(code=4400)
-        return
-    active_connections[channel_id].add(websocket)
-    try:
-        while True:
-            data = await websocket.receive_json()
-            
-            # Handle ping (keep-alive)
-            if data.get("type") == "ping":
-                continue
-            
-            # Handle typing events (broadcast only, no DB save)
-            if data.get("type") == "typing":
-                for conn in list(active_connections[channel_id]):
-                    if conn != websocket and conn.client_state.value == 1:
-                        try:
-                            await conn.send_json({
-                                "type": "typing",
-                                "user_id": user_id,
-                                "username": username,
-                                "isTyping": data.get("isTyping", False)
-                            })
-                        except Exception:
-                            pass
-                continue
-            msg_text = data.get("message")
-            if not msg_text:
-                continue
-
-            # Sanitize input
-            try:
-                msg_text = sanitize_chat_input(msg_text)
-            except Exception:
-                continue
-
-            # Save message to DB
-            db = require_db_client()
-            try:
-                # We use the authenticated user_id for security, ignoring payload sender_id
-                msg = db.table("chat_messages").insert({
-                    "channel_id": channel_id,
-                    "sender_id": user_id, 
-                    "message": msg_text,
-                }).execute()
-                
-                if not msg.data:
-                    continue
-                
-                # Fetch full message with profiles
-                msg_id = msg.data[0]['id']
-                full_msg = db.table("chat_messages").select("*, profiles!sender_id(username,avatar_url)").eq("id", msg_id).single().execute()
-                
-                if full_msg.data:
-                    for conn in list(active_connections[channel_id]):
-                        if conn.client_state.value == 1:  # OPEN
-                            try:
-                                await conn.send_json({
-                                    "type": "new_message",
-                                    "data": full_msg.data
-                                })
-                            except Exception:
-                                pass
-            except Exception as e:
-                print(f"Error processing message: {e}")
-                continue
-    except WebSocketDisconnect:
-        pass
-    finally:
-        active_connections[channel_id].discard(websocket)
 
 # Configure CORS origins
 allowed_origins = ["http://localhost:3000", "http://localhost:3001"]
@@ -510,16 +401,6 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str) 
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=IS_PRODUCTION,
-        samesite="lax",
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        path="/",
-    )
-    # Non-HttpOnly cookie for frontend WebSocket auth
-    response.set_cookie(
-        key="ws_access_token",
-        value=access_token,
-        httponly=False,
         secure=IS_PRODUCTION,
         samesite="lax",
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
