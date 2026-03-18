@@ -1,9 +1,16 @@
 .env
 .env.local
+.env.*
+!.env.example
+!.env.development.example
+!.env.test.example
+!.env.production.example
 .next/
 node_modules/
 __pycache__/
 *.pyc
 venv/
+.venv/
+backend/.venv/
 .github
 sample/

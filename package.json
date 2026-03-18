@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "npm run lint && npm run build",
+    "test:backend": "bash backend/scripts/test.sh"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.43.1",

@@ -540,7 +540,7 @@ export default function ProjectPage() {
             </div>
             <h2 className="text-2xl font-bold mb-2 text-gray-900">Delete Project?</h2>
             <p className="text-gray-500 mb-8">
-              Are you sure you want to delete <span className="font-bold text-gray-800">"{projectToDelete?.title}"</span>? This action cannot be undone and will remove all workflows and files.
+              Are you sure you want to delete <span className="font-bold text-gray-800">&quot;{projectToDelete?.title}&quot;</span>? This action cannot be undone and will remove all workflows and files.
             </p>
             <div className="flex justify-center gap-3">
               <button

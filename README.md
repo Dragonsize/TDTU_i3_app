@@ -195,24 +195,34 @@ npm install
 
 ### 3. Install Backend Dependencies
 ```bash
-pip install -r api/requirements.txt
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cd ..
 ```
 
 ### 4. Configure Environment Variables
 
-Create `.env.local` in root directory:
+Use the provided environment templates:
+
+- `.env.development.example`
+- `.env.test.example`
+- `.env.production.example`
+
+Create your active local env file as `.env.local` in the project root and copy values from the right template.
+
+Minimum required values:
+
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
-
-Create `.env` in `api/` directory:
-```env
 SUPABASE_URL=your_supabase_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 JWT_SECRET_KEY=your_jwt_secret_key
 FRONTEND_ORIGIN=http://localhost:3000
+ENVIRONMENT=development
 ```
 
 ### 5. Setup Supabase Database
@@ -229,7 +239,30 @@ npm run dev
 
 Visit `http://localhost:3000`
 
-### 7. Deploy to Vercel
+### 7. Run Testing Checks
+
+Run frontend + backend test checks:
+
+```bash
+npm run test
+```
+
+Backend-only test:
+
+```bash
+npm run test:backend
+```
+
+### 8. Production Build
+
+Build and run production locally:
+
+```bash
+npm run build
+npm run start
+```
+
+### 9. Deploy to Vercel
 
 Install Vercel CLI:
 ```bash

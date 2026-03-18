@@ -23,7 +23,7 @@ def sanitize_chat_input(text: str) -> str:
 
 from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt
-from pydantic import BaseModel, Field, validator, constr
+from pydantic import BaseModel, Field, field_validator, constr
 try:
     from supabase import create_client, Client
     SUPABASE_IMPORT_ERROR: Optional[str] = None
@@ -194,7 +194,7 @@ class RegisterRequest(BaseModel):
     access_token: str = Field(..., min_length=10)
     fullname: Optional[str] = None
 
-    @validator("fullname")
+    @field_validator("fullname")
     def validate_fullname_safe(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
             return value
@@ -210,7 +210,7 @@ class ProfileUpdateRequest(BaseModel):
     email: Optional[str] = None
     username: Optional[str] = None
 
-    @validator("fullname")
+    @field_validator("fullname")
     def validate_fullname_safe(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
             return value
@@ -220,7 +220,7 @@ class ProfileUpdateRequest(BaseModel):
             raise ValueError("Full name contains invalid characters")
         return value
 
-    @validator("email")
+    @field_validator("email")
     def validate_email_safe(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
             return value
@@ -230,7 +230,7 @@ class ProfileUpdateRequest(BaseModel):
             raise ValueError("Email contains invalid characters")
         return value
 
-    @validator("username")
+    @field_validator("username")
     def validate_username_safe(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
             return value
@@ -251,7 +251,7 @@ class AddMemberRequest(BaseModel):
     member_username: str = Field(..., min_length=1)
     role: str = "member"
 
-    @validator("member_username")
+    @field_validator("member_username")
     def validate_member_username_safe(cls, value: str) -> str:
         if contains_control_chars(value) or contains_emoji(value):
             raise ValueError("Username contains invalid characters")
@@ -269,7 +269,7 @@ class AssignWorkflowMemberRequest(BaseModel):
     username: str = Field(..., min_length=1)
     role: str = "member"
 
-    @validator("username")
+    @field_validator("username")
     def validate_username_safe(cls, value: str) -> str:
         if contains_control_chars(value) or contains_emoji(value):
             raise ValueError("Username contains invalid characters")
@@ -283,7 +283,7 @@ class CreateDeadlineRequest(BaseModel):
     due_date: str = Field(..., min_length=1)
     assigned_to: str = Field(..., min_length=1)
 
-    @validator("assigned_to")
+    @field_validator("assigned_to")
     def validate_assigned_to_safe(cls, value: str) -> str:
         if contains_control_chars(value) or contains_emoji(value):
             raise ValueError("Username contains invalid characters")
@@ -291,7 +291,7 @@ class CreateDeadlineRequest(BaseModel):
             raise ValueError("Username contains invalid characters")
         return value
 
-    @validator("due_date")
+    @field_validator("due_date")
     def validate_due_date(cls, value: str) -> str:
         try:
             dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -299,9 +299,8 @@ class CreateDeadlineRequest(BaseModel):
                 dt = dt.replace(tzinfo=timezone.utc)
             if dt < datetime.now(timezone.utc) + timedelta(hours=1):
                 raise ValueError("Deadline must be at least 1 hour in the future")
-        except ValueError as e:
-            if "Deadline" in str(e):
-                raise
+        except ValueError:
+            raise ValueError("Invalid due_date; must be ISO-8601 and at least 1 hour in the future")
         return value
 
 
@@ -405,7 +404,6 @@ async def chat_ws(websocket: WebSocket):
                         except Exception:
                             pass
                 continue
-
             msg_text = data.get("message")
             if not msg_text:
                 continue
@@ -573,7 +571,7 @@ class CreateChannelRequest(BaseModel):
     project_id: Optional[str] = None
     channel_type: Optional[str] = "team"
 
-    @validator("name")
+    @field_validator("name")
     def validate_name(cls, v):
         if v is None:
             return v
@@ -583,7 +581,7 @@ class SendMessageRequest(BaseModel):
     channel_id: str
     message: constr(min_length=1, max_length=2000)
 
-    @validator("message")
+    @field_validator("message")
     def validate_message(cls, v):
         return sanitize_chat_input(v)
 
@@ -917,7 +915,7 @@ class RegisterDirectRequest(BaseModel):
     password: str = Field(..., min_length=6)
     fullname: Optional[str] = None
 
-    @validator("email")
+    @field_validator("email")
     def validate_email_safe(cls, value: str) -> str:
         if contains_control_chars(value) or contains_emoji(value):
             raise ValueError("Email contains invalid characters")
@@ -925,7 +923,7 @@ class RegisterDirectRequest(BaseModel):
             raise ValueError("Email contains invalid characters")
         return value
 
-    @validator("password")
+    @field_validator("password")
     def validate_password_safe(cls, value: str) -> str:
         if contains_control_chars(value) or contains_emoji(value):
             raise ValueError("Password contains invalid characters")
@@ -933,7 +931,7 @@ class RegisterDirectRequest(BaseModel):
             raise ValueError("Password contains invalid characters")
         return value
 
-    @validator("fullname")
+    @field_validator("fullname")
     def validate_fullname_safe(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
             return value

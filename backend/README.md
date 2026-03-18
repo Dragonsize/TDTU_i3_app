@@ -45,8 +45,18 @@ Required environment variables:
 
 - `SUPABASE_URL` - Your Supabase project URL
 - `SUPABASE_ANON_KEY` - Your Supabase anon key  
+- `SUPABASE_SERVICE_ROLE_KEY` - Service role key for admin actions
 - `JWT_SECRET_KEY` - Secret key for JWT signing
-- `ALLOWED_ORIGINS` - Comma-separated list of allowed CORS origins
+- `FRONTEND_ORIGIN` - Allowed frontend origin for CORS (for example `http://localhost:3000`)
+- `ENVIRONMENT` - `development`, `test`, or `production`
+
+## Testing
+
+Run backend smoke tests:
+
+```bash
+bash scripts/test.sh
+```
 
 ## API Documentation
 

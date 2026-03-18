@@ -128,7 +128,7 @@ export default function Home() {
                 Kanban Board
               </h3>
               <p className="text-sm md:text-base text-gray-600 font-['Arimo'] leading-relaxed">
-                Visualize your entire workflow with intuitive drag-and-drop task management. Move items seamlessly from "To Do" through "In Progress" to "Done".
+                Visualize your entire workflow with intuitive drag-and-drop task management. Move items seamlessly from &quot;To Do&quot; through &quot;In Progress&quot; to &quot;Done&quot;.
               </p>
             </div>
 
