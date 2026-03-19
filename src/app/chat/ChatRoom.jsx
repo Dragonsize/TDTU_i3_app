@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 
 export default function ChatRoom({ user }) {
   const [channels, setChannels] = useState([]);
@@ -302,13 +303,22 @@ export default function ChatRoom({ user }) {
   };
 
   return (
-    <div className="flex h-full w-full bg-white dark:bg-background-dark font-['Inter']">
+    <div className="flex h-[100dvh] w-full overflow-hidden bg-white dark:bg-background-dark font-['Inter']">
       {/* Sidebar */}
       <div 
-        className={`${isSidebarOpen ? "w-60 sm:w-72 md:w-80" : "w-0"} bg-gray-50 dark:bg-[#18181b] border-r border-gray-200 dark:border-zinc-800 flex flex-col transition-all duration-300 overflow-hidden`}
+        className={`${isSidebarOpen ? "w-60 sm:w-72 md:w-80" : "w-0"} bg-gray-50 dark:bg-[#18181b] border-r border-gray-200 dark:border-zinc-800 flex flex-col transition-all duration-300 overflow-hidden shrink-0`}
       >
-        <div className="p-3 sm:p-4 md:p-5 flex justify-between items-center border-b border-gray-200 dark:border-zinc-800">
-          <h2 className="font-['Arimo'] font-bold text-xl sm:text-2xl text-neutral-950 dark:text-white">Chats</h2>
+        <div className="p-3 sm:p-4 md:p-5 flex justify-between items-center border-b border-gray-200 dark:border-zinc-800 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link 
+              href="/dashboard"
+              className="w-8 h-8 rounded-full bg-gray-200 dark:bg-zinc-700 hover:bg-gray-300 dark:hover:bg-zinc-600 flex items-center justify-center transition-colors text-gray-700 dark:text-white flex-shrink-0"
+              title="Back to Dashboard"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </Link>
+            <h2 className="font-['Arimo'] font-bold text-xl sm:text-2xl text-neutral-950 dark:text-white">Chats</h2>
+          </div>
           <button 
             onClick={() => setShowNewChannelModal(true)}
             className="w-8 h-8 rounded-full bg-gray-200 dark:bg-zinc-700 hover:bg-gray-300 dark:hover:bg-zinc-600 flex items-center justify-center transition-colors text-gray-700 dark:text-white flex-shrink-0"
