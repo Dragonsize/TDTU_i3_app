@@ -1606,24 +1606,65 @@ def get_workflows(project_id: str, user=Depends(get_current_user)):
 def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depends(get_current_user)):
     db = require_db_client()
     require_project_lead(user.get("sub"), project_id)
-    workflow_data = {
-        "project_id": project_id,
-        "name": request.title,
-        "description": request.description or "",
-        "creator_id": user.get("sub"),
-    }
-    response = db.table("workspaces").insert(workflow_data).execute()
-    if getattr(response, "error", None):
-        error_text = str(response.error).lower()
-        if "permission denied" in error_text or "row-level security" in error_text:
-            raise HTTPException(status_code=403, detail="Not authorized to create workflows")
-        raise HTTPException(status_code=500, detail=f"Failed to create workflow: {response.error}")
-    if not response.data:
-        raise HTTPException(status_code=500, detail="Failed to create workflow")
+    payload_variants = [
+        {
+            "project_id": project_id,
+            "name": request.title,
+            "description": request.description or "",
+            "creator_id": user.get("sub"),
+        },
+        {
+            "project_id": project_id,
+            "name": request.title,
+            "description": request.description or "",
+            "creator_id": user.get("sub"),
+            "status": "in_process",
+        },
+        {
+            "project_id": project_id,
+            "name": request.title,
+            "description": request.description or "",
+            "status": "active",
+        },
+        {
+            "project_id": project_id,
+            "name": request.title,
+            "description": request.description or "",
+        },
+    ]
 
-    workflow = response.data[0]
-    workflow["title"] = workflow.get("name", workflow.get("title"))
-    return workflow
+    last_error = None
+    for workflow_data in payload_variants:
+        response = db.table("workspaces").insert(workflow_data).execute()
+        error = getattr(response, "error", None)
+        if not error and response.data:
+            workflow = response.data[0]
+            workflow["title"] = workflow.get("name", workflow.get("title"))
+            return workflow
+
+        if error:
+            last_error = error
+            error_code = str(getattr(error, "code", "") or "")
+            error_text = str(error).lower()
+
+            if error_code == "42501" or "permission denied" in error_text or "row-level security" in error_text:
+                raise HTTPException(status_code=403, detail="Not authorized to create workflows")
+
+            # Try next variant for likely schema mismatch issues.
+            if (
+                error_code in {"42703", "23502", "23514", "PGRST204"}
+                or "column" in error_text
+                or "not-null" in error_text
+                or "violates check constraint" in error_text
+                or "schema cache" in error_text
+            ):
+                continue
+
+            raise HTTPException(status_code=500, detail=f"Failed to create workflow: {error}")
+
+    if last_error:
+        raise HTTPException(status_code=500, detail=f"Failed to create workflow: {last_error}")
+    raise HTTPException(status_code=500, detail="Failed to create workflow")
 
 
 def normalize_deadline_due_date(due_date: str) -> str:
