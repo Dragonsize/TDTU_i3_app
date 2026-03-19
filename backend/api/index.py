@@ -479,12 +479,13 @@ async def async_broadcast(channel_id: str, message: dict):
     await manager.broadcast(channel_id, message)
 
 @app.websocket("/api/chat/ws")
-async def websocket_chat(websocket: WebSocket, channel_id: str = Query(...), access_token: str = Cookie(None)):
+async def websocket_chat(websocket: WebSocket, channel_id: str = Query(...), access_token_query: str = Query(None, alias="access_token"), access_token_cookie: str = Cookie(None, alias="access_token")):
     try:
-        if not access_token:
+        token = access_token_query or access_token_cookie
+        if not token:
             await websocket.close(code=1008)
             return
-        payload = verify_token(access_token)
+        payload = verify_token(token)
         if not payload or payload.get("type") != "access":
             await websocket.close(code=1008)
             return
@@ -1111,8 +1112,8 @@ def refresh_session(response: Response, http_request: Request, refresh_token: Op
 
 
 @app.get("/api/auth/me")
-def auth_me(user=Depends(get_current_user)):
-    return {"authenticated": True, "user": {"id": user.get("sub"), "email": user.get("email")}}
+def auth_me(access_token: Optional[str] = Cookie(None), user=Depends(get_current_user)):
+    return {"authenticated": True, "user": {"id": user.get("sub"), "email": user.get("email")}, "ws_token": access_token}
 
 
 @app.post("/api/auth/logout")

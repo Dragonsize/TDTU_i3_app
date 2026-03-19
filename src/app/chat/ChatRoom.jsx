@@ -88,33 +88,53 @@ export default function ChatRoom({ user }) {
     
     fetchInitialMessages();
 
-    // Connect to WebSocket using same domain (proxy handles it)
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/api/chat/ws?channel_id=${activeChannel.id}`;
-    const ws = new WebSocket(wsUrl);
+    let ws = null;
 
-    ws.onmessage = (event) => {
+    const connectWs = async () => {
+      let token = "";
       try {
-        const newMsg = JSON.parse(event.data);
-        setMessages((prev) => {
-          // Avoid duplicates if we already have it
-          if (prev.some((m) => m.id === newMsg.id)) {
-            return prev;
-          }
-          scrollToBottom();
-          return [...prev, newMsg];
-        });
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const authData = await res.json();
+          token = authData.ws_token || "";
+        }
       } catch (e) {
-        console.error("Error parsing websocket message", e);
+        console.error("Failed to fetch ws token", e);
       }
+
+      // If running on Vercel, bypass the Next.js API proxy and connect directly to Render
+      const isVercel = window.location.hostname.includes("vercel.app");
+      const backendHost = isVercel ? "backend-for-tdtu-i3.onrender.com" : window.location.host;
+      const protocol = isVercel ? "wss:" : (window.location.protocol === "https:" ? "wss:" : "ws:");
+      const wsUrl = `${protocol}//${backendHost}/api/chat/ws?channel_id=${activeChannel.id}&access_token=${token}`;
+
+      ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (event) => {
+        try {
+          const newMsg = JSON.parse(event.data);
+          setMessages((prev) => {
+            // Avoid duplicates if we already have it
+            if (prev.some((m) => m.id === newMsg.id)) {
+              return prev;
+            }
+            scrollToBottom();
+            return [...prev, newMsg];
+          });
+        } catch (e) {
+          console.error("Error parsing websocket message", e);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+      };
     };
 
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
+    connectWs();
 
     return () => {
-      ws.close();
+      if (ws) ws.close();
     };
   }, [activeChannel, user]);
 
