@@ -506,6 +506,7 @@ async def websocket_chat(websocket: WebSocket, channel_id: str = Query(...), acc
 class CreateChannelRequest(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
+    emails: Optional[list[str]] = None
     project_id: Optional[str] = None
     channel_type: Optional[str] = "team"
 
@@ -563,42 +564,58 @@ def create_chat_channel(request: CreateChannelRequest, user=Depends(get_current_
     db = require_db_client()
     user_id = user.get("sub")
     
-    # Handle Direct Message Creation (via Email)
-    if request.email:
-        # 1. Find the target user and current user details
-        target = db.table("profiles").select("id, full_name, username").eq("email", request.email).execute()
-        if not target.data:
-            raise HTTPException(status_code=404, detail="User with this email not found")
-        target_user = target.data[0]
-        target_id = target_user["id"]
+    # Handle Direct Message or Group Creation (via Email/Emails)
+    target_emails = []
+    if request.emails:
+        target_emails = request.emails
+    elif request.email:
+        target_emails = [request.email]
         
-        if target_id == user_id:
-            raise HTTPException(status_code=400, detail="You cannot chat with yourself")
+    if target_emails:
+        # 1. Find the target users and current user details
+        targets_resp = db.table("profiles").select("id, full_name, username").in_("email", target_emails).execute()
+        if not targets_resp.data:
+            raise HTTPException(status_code=404, detail="Users with these emails not found")
             
-        # 2. Check if DM already exists (reuse existing)
-        # Find channels where both users are members and type is 'dm'
-        my_channels = db.table("chat_channel_members").select("channel_id").eq("user_id", user_id).execute()
-        if my_channels.data:
-            my_channel_ids = [x['channel_id'] for x in my_channels.data]
-            common = db.table("chat_channel_members").select("channel_id").eq("user_id", target_id).in_("channel_id", my_channel_ids).execute()
-            if common.data:
-                common_ids = [x['channel_id'] for x in common.data]
-                existing_dm = db.table("chat_channels").select("*").in_("id", common_ids).eq("channel_type", "dm").limit(1).execute()
-                if existing_dm.data:
-                    return existing_dm.data[0]
+        target_users = targets_resp.data
+        target_ids = [u["id"] for u in target_users]
+        
+        if user_id in target_ids:
+            target_ids = [tid for tid in target_ids if tid != user_id]
+            target_users = [u for u in target_users if u["id"] != user_id]
+            
+        if not target_ids:
+            raise HTTPException(status_code=400, detail="You cannot create a chat with only yourself")
+            
+        # 2. Check if DM already exists (reuse existing) ONLY for 1-on-1
+        if len(target_ids) == 1:
+            target_id = target_ids[0]
+            my_channels = db.table("chat_channel_members").select("channel_id").eq("user_id", user_id).execute()
+            if my_channels.data:
+                my_channel_ids = [x['channel_id'] for x in my_channels.data]
+                common = db.table("chat_channel_members").select("channel_id").eq("user_id", target_id).in_("channel_id", my_channel_ids).execute()
+                if common.data:
+                    common_ids = [x['channel_id'] for x in common.data]
+                    existing_dm = db.table("chat_channels").select("*").in_("id", common_ids).eq("channel_type", "dm").limit(1).execute()
+                    if existing_dm.data:
+                        return existing_dm.data[0]
 
         # 3. Generate Name: Combination of full names
         current_user_profile = db.table("profiles").select("full_name, username").eq("id", user_id).single().execute()
         my_name = current_user_profile.data.get("full_name") or current_user_profile.data.get("username") or "User"
-        target_name = target_user.get("full_name") or target_user.get("username") or "User"
         
-        channel_name = f"{my_name}, {target_name}"
+        target_names = [u.get("full_name") or u.get("username") or "User" for u in target_users]
+        channel_name = f"{my_name}, {', '.join(target_names)}"
+        
+        if len(channel_name) > 97:
+            channel_name = channel_name[:94] + "..."
 
-        # 4. Create new DM channel and add members
+        # 4. Create new channel
+        c_type = "dm" if len(target_ids) == 1 else "team"
         channel = db.table("chat_channels").insert({
-            "project_id": None, # DMs don't belong to a project
+            "project_id": None,
             "name": channel_name,
-            "channel_type": "dm",
+            "channel_type": c_type,
             "created_by": user_id,
             "last_message_at": datetime.now(timezone.utc).isoformat()
         }).execute()
@@ -606,12 +623,13 @@ def create_chat_channel(request: CreateChannelRequest, user=Depends(get_current_
         if not channel.data:
             raise HTTPException(status_code=500, detail="Failed to create chat")
             
-        # Add both users to the members table
+        # Add all users to the members table
         new_channel_id = channel.data[0]["id"]
-        db.table("chat_channel_members").insert([
-            {"channel_id": new_channel_id, "user_id": user_id},
-            {"channel_id": new_channel_id, "user_id": target_id}
-        ]).execute()
+        members_to_insert = [{"channel_id": new_channel_id, "user_id": user_id}]
+        for tid in target_ids:
+            members_to_insert.append({"channel_id": new_channel_id, "user_id": tid})
+            
+        db.table("chat_channel_members").insert(members_to_insert).execute()
         
         return channel.data[0]
 

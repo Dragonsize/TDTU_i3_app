@@ -12,6 +12,7 @@ export default function ChatRoom({ user }) {
   const [targetEmail, setTargetEmail] = useState("");
   const [showNewChannelModal, setShowNewChannelModal] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState([]);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
@@ -26,7 +27,7 @@ export default function ChatRoom({ user }) {
   const chatContainerRef = useRef(null);
   const lastMessageSignatureRef = useRef("");
 
-  // 1. Fetch Channels on Mount
+  // 1. Fetch Channels on Mount (and poll gently so users notice new chats)
   useEffect(() => {
     const fetchChannels = async () => {
       try {
@@ -34,15 +35,15 @@ export default function ChatRoom({ user }) {
         if (res.ok) {
           const data = await res.json();
           setChannels(data);
-          if (data.length > 0) {
-            setActiveChannel(data[0]);
-          }
+          setActiveChannel(prev => prev || (data.length > 0 ? data[0] : null));
         }
       } catch (error) {
         console.error("Failed to fetch channels", error);
       }
     };
     fetchChannels();
+    const interval = setInterval(fetchChannels, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   // Search users effect
@@ -163,15 +164,9 @@ export default function ChatRoom({ user }) {
 
   const handleCreateChannel = async (e) => {
     e.preventDefault();
-    if (!targetEmail.trim()) return;
+    if (selectedUsers.length === 0) return;
 
-    // Only allow creating a DM channel if the input matches a valid user
-    const foundUser = searchResults.find(u => u.email === targetEmail.trim());
-    if (!foundUser) {
-      alert("Please select a valid user from the list to create a channel.");
-      return;
-    }
-    const payload = { email: foundUser.email };
+    const payload = { emails: selectedUsers.map(u => u.email) };
 
     try {
       const res = await fetch("/api/chat/channels", {
@@ -181,8 +176,13 @@ export default function ChatRoom({ user }) {
       });
       if (res.ok) {
         const newChannel = await res.json();
-        setChannels((prev) => [...prev, newChannel]);
+        setChannels((prev) => {
+          // Prevent duplicates if interval just fetched
+          if (prev.find(c => c.id === newChannel.id)) return prev;
+          return [...prev, newChannel];
+        });
         setActiveChannel(newChannel);
+        setSelectedUsers([]);
         setTargetEmail("");
         setShowNewChannelModal(false);
         setSearchResults([]);
@@ -338,6 +338,16 @@ export default function ChatRoom({ user }) {
               </button>
               <h3 className="font-bold text-lg mb-4 text-gray-900 dark:text-white">Start a new chat</h3>
               <form onSubmit={handleCreateChannel}>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {selectedUsers.map(u => (
+                    <div key={u.id} className="flex items-center gap-1 bg-gray-200 dark:bg-zinc-700 px-3 py-1.5 rounded-full text-sm">
+                      <span className="text-gray-900 dark:text-white font-medium">{u.full_name || u.username}</span>
+                      <button type="button" onClick={() => setSelectedUsers(prev => prev.filter(x => x.id !== u.id))} className="text-gray-500 hover:text-gray-900 dark:hover:text-white ml-1">
+                        &times;
+                      </button>
+                    </div>
+                  ))}
+                </div>
                 <input
                   type="text"
                   value={targetEmail}
@@ -353,7 +363,10 @@ export default function ChatRoom({ user }) {
                         key={u.id}
                         className="p-3 hover:bg-gray-100 dark:hover:bg-zinc-800 cursor-pointer flex flex-col border-b border-gray-50 dark:border-zinc-800 last:border-0"
                         onClick={() => {
-                          setTargetEmail(u.email);
+                          if (!selectedUsers.find(x => x.id === u.id)) {
+                            setSelectedUsers(prev => [...prev, u]);
+                          }
+                          setTargetEmail("");
                           setSearchResults([]);
                         }}
                       >
@@ -366,7 +379,7 @@ export default function ChatRoom({ user }) {
                 <button
                   type="submit"
                   className="mt-4 w-full bg-gray-950 dark:bg-white text-white dark:text-gray-950 font-semibold py-2 rounded-full hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors disabled:opacity-50"
-                  disabled={!targetEmail.trim()}
+                  disabled={selectedUsers.length === 0}
                 >
                   Create Chat
                 </button>
