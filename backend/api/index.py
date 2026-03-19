@@ -134,6 +134,20 @@ def parse_timestamp(value: Optional[str]) -> Optional[datetime]:
         return None
 
 
+def parse_iso_datetime_or_400(value: str, field_name: str) -> datetime:
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid {field_name}")
+
+
+def intervals_overlap(start_a: datetime, end_a: datetime, start_b: datetime, end_b: datetime) -> bool:
+    return start_a < end_b and end_a > start_b
+
+
 def store_refresh_token(user_id: str, token: str, user_agent: Optional[str], ip_address: Optional[str]) -> None:
     db = require_db_client()
     token_hash = hash_token(token)
@@ -309,6 +323,45 @@ class AddBusyTimeRequest(BaseModel):
     start_time: str = Field(..., min_length=1)
     end_time: str = Field(..., min_length=1)
     description: Optional[str] = ""
+
+
+class CreateCalendarEventRequest(BaseModel):
+    title: str = Field(..., min_length=1)
+    start_time: str = Field(..., min_length=1)
+    end_time: str = Field(..., min_length=1)
+    project_id: Optional[str] = None
+    description: Optional[str] = None
+    event_type: Optional[str] = "meeting"
+    color: Optional[str] = None
+
+
+class UpdateCalendarEventRequest(BaseModel):
+    title: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    description: Optional[str] = None
+    event_type: Optional[str] = None
+    color: Optional[str] = None
+
+
+class FindMeetingSlotsRequest(BaseModel):
+    start_time: str = Field(..., min_length=1)
+    end_time: str = Field(..., min_length=1)
+    duration_minutes: int = Field(30, ge=15, le=480)
+    member_ids: Optional[List[str]] = None
+    working_hours_start: Optional[str] = "08:00"
+    working_hours_end: Optional[str] = "18:00"
+    step_minutes: Optional[int] = Field(30, ge=15, le=120)
+
+
+class ScheduleMeetingRequest(BaseModel):
+    title: str = Field(..., min_length=1)
+    start_time: str = Field(..., min_length=1)
+    end_time: str = Field(..., min_length=1)
+    member_ids: Optional[List[str]] = None
+    description: Optional[str] = None
+    color: Optional[str] = None
+    event_type: Optional[str] = "meeting"
 
 
 class CheckConflictsRequest(BaseModel):
@@ -1622,6 +1675,345 @@ def get_deadlines(days: int = 7, user=Depends(get_current_user)):
             item["workflows"] = item["workspaces"]
             item["workflows"]["title"] = item["workspaces"].get("name")
     return data
+
+
+@app.get("/api/calendar/events")
+def get_calendar_events(
+    start: Optional[str] = Query(None),
+    end: Optional[str] = Query(None),
+    project_id: Optional[str] = Query(None),
+    user=Depends(get_current_user)
+):
+    db = require_db_client()
+    user_id = user.get("sub")
+
+    if project_id:
+        require_project_member(user_id, project_id)
+        query = db.table("calendar_events").select("*").eq("project_id", project_id)
+    else:
+        memberships = db.table("project_members").select("project_id").eq("user_id", user_id).execute()
+        project_ids = [item["project_id"] for item in memberships.data]
+        if project_ids:
+            query = db.table("calendar_events").select("*").or_(
+                f"user_id.eq.{user_id},project_id.in.({','.join(project_ids)})"
+            )
+        else:
+            query = db.table("calendar_events").select("*").eq("user_id", user_id)
+
+    if start:
+        query = query.gte("start_time", start)
+    if end:
+        query = query.lt("start_time", end)
+
+    response = query.order("start_time", desc=False).execute()
+    return response.data or []
+
+
+@app.post("/api/calendar/events")
+def create_calendar_event(request: CreateCalendarEventRequest, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+
+    start_dt = parse_iso_datetime_or_400(request.start_time, "start_time")
+    end_dt = parse_iso_datetime_or_400(request.end_time, "end_time")
+
+    if end_dt <= start_dt:
+        raise HTTPException(status_code=400, detail="end_time must be after start_time")
+
+    if request.project_id:
+        require_project_member(user_id, request.project_id)
+
+    response = db.table("calendar_events").insert({
+        "project_id": request.project_id,
+        "user_id": user_id,
+        "title": sanitize_chat_input(request.title),
+        "description": sanitize_chat_input(request.description) if request.description else None,
+        "start_time": request.start_time,
+        "end_time": request.end_time,
+        "event_type": request.event_type or "meeting",
+        "color": request.color,
+    }).execute()
+    if not response.data:
+        raise HTTPException(status_code=500, detail="Failed to create calendar event")
+    return response.data[0]
+
+
+@app.patch("/api/calendar/events/{event_id}")
+def update_calendar_event(event_id: str, request: UpdateCalendarEventRequest, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+
+    event_resp = db.table("calendar_events").select("*").eq("id", event_id).limit(1).execute()
+    if not event_resp.data:
+        raise HTTPException(status_code=404, detail="Calendar event not found")
+
+    event = event_resp.data[0]
+    can_edit = event.get("user_id") == user_id
+    project_id = event.get("project_id")
+    if not can_edit and project_id:
+        membership = require_project_member(user_id, project_id)
+        can_edit = membership.get("role") == "lead"
+    if not can_edit:
+        raise HTTPException(status_code=403, detail="Not authorized to update this event")
+
+    updates: Dict[str, Any] = {}
+    if request.title is not None:
+        updates["title"] = sanitize_chat_input(request.title)
+    if request.description is not None:
+        updates["description"] = sanitize_chat_input(request.description) if request.description else None
+    if request.event_type is not None:
+        updates["event_type"] = request.event_type
+    if request.color is not None:
+        updates["color"] = request.color
+
+    start_value = request.start_time if request.start_time is not None else event.get("start_time")
+    end_value = request.end_time if request.end_time is not None else event.get("end_time")
+    if request.start_time is not None:
+        updates["start_time"] = request.start_time
+    if request.end_time is not None:
+        updates["end_time"] = request.end_time
+
+    if request.start_time is not None or request.end_time is not None:
+        start_dt = parse_iso_datetime_or_400(start_value, "start_time")
+        end_dt = parse_iso_datetime_or_400(end_value, "end_time")
+        if end_dt <= start_dt:
+            raise HTTPException(status_code=400, detail="end_time must be after start_time")
+
+    if not updates:
+        return event
+
+    response = db.table("calendar_events").update(updates).eq("id", event_id).execute()
+    if not response.data:
+        raise HTTPException(status_code=500, detail="Failed to update calendar event")
+    return response.data[0]
+
+
+@app.delete("/api/calendar/events/{event_id}")
+def delete_calendar_event(event_id: str, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+
+    event_resp = db.table("calendar_events").select("*").eq("id", event_id).limit(1).execute()
+    if not event_resp.data:
+        raise HTTPException(status_code=404, detail="Calendar event not found")
+
+    event = event_resp.data[0]
+    can_delete = event.get("user_id") == user_id
+    project_id = event.get("project_id")
+    if not can_delete and project_id:
+        membership = require_project_member(user_id, project_id)
+        can_delete = membership.get("role") == "lead"
+
+    if not can_delete:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this event")
+
+    db.table("calendar_events").delete().eq("id", event_id).execute()
+    return {"status": "success"}
+
+
+@app.get("/api/projects/{project_id}/calendar/team")
+def get_project_team_calendar(
+    project_id: str,
+    start: str = Query(...),
+    end: str = Query(...),
+    user=Depends(get_current_user)
+):
+    db = require_db_client()
+    user_id = user.get("sub")
+    require_project_member(user_id, project_id)
+
+    start_dt = parse_iso_datetime_or_400(start, "start")
+    end_dt = parse_iso_datetime_or_400(end, "end")
+    if end_dt <= start_dt:
+        raise HTTPException(status_code=400, detail="end must be after start")
+
+    members_resp = (
+        db.table("project_members")
+        .select("role, profiles:user_id(id, username, full_name, email, avatar_url)")
+        .eq("project_id", project_id)
+        .execute()
+    )
+
+    members: List[Dict[str, Any]] = []
+    member_ids: List[str] = []
+    for row in members_resp.data or []:
+        profile = row.get("profiles")
+        if profile:
+            profile["role"] = row.get("role", "member")
+            members.append(profile)
+            member_ids.append(profile["id"])
+
+    if not member_ids:
+        return {"members": [], "events": [], "busy_times": []}
+
+    events_resp = (
+        db.table("calendar_events")
+        .select("*")
+        .in_("user_id", member_ids)
+        .gte("start_time", start_dt.isoformat())
+        .lt("start_time", end_dt.isoformat())
+        .order("start_time", desc=False)
+        .execute()
+    )
+
+    busy_resp = (
+        db.table("busy_times")
+        .select("*")
+        .in_("user_id", member_ids)
+        .gte("start_time", start_dt.isoformat())
+        .lt("start_time", end_dt.isoformat())
+        .order("start_time", desc=False)
+        .execute()
+    )
+
+    return {
+        "members": members,
+        "events": events_resp.data or [],
+        "busy_times": busy_resp.data or [],
+    }
+
+
+@app.post("/api/projects/{project_id}/calendar/meeting-slots")
+def find_project_meeting_slots(project_id: str, request: FindMeetingSlotsRequest, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+    require_project_member(user_id, project_id)
+
+    window_start = parse_iso_datetime_or_400(request.start_time, "start_time")
+    window_end = parse_iso_datetime_or_400(request.end_time, "end_time")
+    if window_end <= window_start:
+        raise HTTPException(status_code=400, detail="end_time must be after start_time")
+
+    members_resp = (
+        db.table("project_members")
+        .select("user_id, profiles:user_id(id, username, full_name)")
+        .eq("project_id", project_id)
+        .execute()
+    )
+    all_member_ids = [m["user_id"] for m in members_resp.data or []]
+    target_member_ids = request.member_ids if request.member_ids else all_member_ids
+    target_member_ids = [member_id for member_id in target_member_ids if member_id in all_member_ids]
+    if not target_member_ids:
+        raise HTTPException(status_code=400, detail="No valid members selected")
+
+    events_resp = (
+        db.table("calendar_events")
+        .select("user_id, start_time, end_time")
+        .in_("user_id", target_member_ids)
+        .gte("start_time", window_start.isoformat())
+        .lt("start_time", window_end.isoformat())
+        .execute()
+    )
+    busy_resp = (
+        db.table("busy_times")
+        .select("user_id, start_time, end_time")
+        .in_("user_id", target_member_ids)
+        .gte("start_time", window_start.isoformat())
+        .lt("start_time", window_end.isoformat())
+        .execute()
+    )
+
+    busy_by_user: Dict[str, List[Dict[str, datetime]]] = {member_id: [] for member_id in target_member_ids}
+
+    for row in events_resp.data or []:
+        start_dt = parse_timestamp(row.get("start_time"))
+        end_dt = parse_timestamp(row.get("end_time"))
+        if start_dt and end_dt and row.get("user_id") in busy_by_user:
+            busy_by_user[row["user_id"]].append({"start": start_dt, "end": end_dt})
+
+    for row in busy_resp.data or []:
+        start_dt = parse_timestamp(row.get("start_time"))
+        end_dt = parse_timestamp(row.get("end_time"))
+        if start_dt and end_dt and row.get("user_id") in busy_by_user:
+            busy_by_user[row["user_id"]].append({"start": start_dt, "end": end_dt})
+
+    for member_id in busy_by_user:
+        busy_by_user[member_id].sort(key=lambda x: x["start"])
+
+    try:
+        wh_start_hour, wh_start_min = map(int, (request.working_hours_start or "08:00").split(":"))
+        wh_end_hour, wh_end_min = map(int, (request.working_hours_end or "18:00").split(":"))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid working hours format")
+
+    duration = timedelta(minutes=request.duration_minutes)
+    step = timedelta(minutes=request.step_minutes or 30)
+    candidate_slots: List[Dict[str, str]] = []
+
+    cursor_day = datetime(window_start.year, window_start.month, window_start.day, tzinfo=window_start.tzinfo)
+    while cursor_day < window_end:
+        day_start = cursor_day.replace(hour=wh_start_hour, minute=wh_start_min, second=0, microsecond=0)
+        day_end = cursor_day.replace(hour=wh_end_hour, minute=wh_end_min, second=0, microsecond=0)
+
+        slot_start = max(day_start, window_start)
+        while slot_start + duration <= min(day_end, window_end):
+            slot_end = slot_start + duration
+            overlaps = False
+            for member_id in target_member_ids:
+                for block in busy_by_user.get(member_id, []):
+                    if intervals_overlap(slot_start, slot_end, block["start"], block["end"]):
+                        overlaps = True
+                        break
+                if overlaps:
+                    break
+
+            if not overlaps:
+                candidate_slots.append({
+                    "start_time": slot_start.isoformat(),
+                    "end_time": slot_end.isoformat(),
+                })
+                if len(candidate_slots) >= 20:
+                    return {
+                        "member_ids": target_member_ids,
+                        "duration_minutes": request.duration_minutes,
+                        "slots": candidate_slots,
+                    }
+            slot_start += step
+
+        cursor_day += timedelta(days=1)
+
+    return {
+        "member_ids": target_member_ids,
+        "duration_minutes": request.duration_minutes,
+        "slots": candidate_slots,
+    }
+
+
+@app.post("/api/projects/{project_id}/calendar/meetings")
+def schedule_project_meeting(project_id: str, request: ScheduleMeetingRequest, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+    require_project_member(user_id, project_id)
+
+    start_dt = parse_iso_datetime_or_400(request.start_time, "start_time")
+    end_dt = parse_iso_datetime_or_400(request.end_time, "end_time")
+    if end_dt <= start_dt:
+        raise HTTPException(status_code=400, detail="end_time must be after start_time")
+
+    members_resp = db.table("project_members").select("user_id").eq("project_id", project_id).execute()
+    project_member_ids = [row["user_id"] for row in members_resp.data or []]
+    selected_member_ids = request.member_ids if request.member_ids else project_member_ids
+    selected_member_ids = [member_id for member_id in selected_member_ids if member_id in project_member_ids]
+    if not selected_member_ids:
+        raise HTTPException(status_code=400, detail="No valid members selected")
+
+    payload = []
+    for member_id in selected_member_ids:
+        payload.append({
+            "project_id": project_id,
+            "user_id": member_id,
+            "title": sanitize_chat_input(request.title),
+            "description": sanitize_chat_input(request.description) if request.description else None,
+            "start_time": request.start_time,
+            "end_time": request.end_time,
+            "event_type": request.event_type or "meeting",
+            "color": request.color,
+        })
+
+    response = db.table("calendar_events").insert(payload).execute()
+    if not response.data:
+        raise HTTPException(status_code=500, detail="Failed to schedule meeting")
+    return {"status": "success", "created": len(response.data), "events": response.data}
 
 
 @app.post("/api/busy-times")

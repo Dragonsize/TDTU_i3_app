@@ -5,6 +5,7 @@ import React from "react";
 
 const NAV_ITEMS = [
   { href: "/project", label: "Project" },
+  { href: "/calendar", label: "Calendar" },
   { href: "/chatbot", label: "ChatBot" },
   { href: "/chat", label: "Chat" },
   { href: "/files", label: "Files" },

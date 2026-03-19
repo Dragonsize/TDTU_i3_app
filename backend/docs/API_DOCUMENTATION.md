@@ -850,6 +850,171 @@ All authenticated endpoints require an `access_token` cookie (httpOnly). Tokens 
 
 ---
 
+## Calendar Endpoints
+
+### GET `/api/calendar/events`
+**Purpose:** List calendar events for current user and their project memberships.
+
+**Auth Required:** Yes
+
+**Query Params (optional):**
+- `start` ISO datetime (inclusive)
+- `end` ISO datetime (exclusive)
+- `project_id` UUID (restrict to one project)
+
+**Response:**
+```json
+[
+  {
+    "id": "uuid",
+    "project_id": "uuid|null",
+    "user_id": "uuid",
+    "title": "Sprint Planning",
+    "description": "Kickoff",
+    "start_time": "2026-03-20T08:00:00Z",
+    "end_time": "2026-03-20T09:00:00Z",
+    "event_type": "meeting",
+    "color": "#3b82f6"
+  }
+]
+```
+
+---
+
+### POST `/api/calendar/events`
+**Purpose:** Create a calendar event.
+
+**Auth Required:** Yes
+
+**Request Body:**
+```json
+{
+  "title": "string (required)",
+  "start_time": "ISO datetime (required)",
+  "end_time": "ISO datetime (required)",
+  "project_id": "uuid (optional)",
+  "description": "string (optional)",
+  "event_type": "meeting|deadline|task (optional)",
+  "color": "#RRGGBB (optional)"
+}
+```
+
+**Validation:**
+- `end_time` must be later than `start_time`
+- If `project_id` is provided, user must be a member of that project
+
+---
+
+### DELETE `/api/calendar/events/{event_id}`
+**Purpose:** Delete a calendar event.
+
+**Auth Required:** Yes
+
+**Authorization:**
+- Event creator can delete
+- Project lead can delete project-linked events
+
+**Response:**
+```json
+{
+  "status": "success"
+}
+```
+
+---
+
+### PATCH `/api/calendar/events/{event_id}`
+**Purpose:** Update an existing calendar event.
+
+**Auth Required:** Yes
+
+**Request Body:** any subset of event fields
+```json
+{
+  "title": "string (optional)",
+  "description": "string (optional)",
+  "start_time": "ISO datetime (optional)",
+  "end_time": "ISO datetime (optional)",
+  "event_type": "string (optional)",
+  "color": "#RRGGBB (optional)"
+}
+```
+
+**Authorization:** event owner or project lead (for project-linked events).
+
+---
+
+### GET `/api/projects/{project_id}/calendar/team`
+**Purpose:** View team calendar and busy blocks for project members in a date window.
+
+**Auth Required:** Yes (project member)
+
+**Query Params:**
+- `start` ISO datetime (required)
+- `end` ISO datetime (required)
+
+**Response:**
+```json
+{
+  "members": [],
+  "events": [],
+  "busy_times": []
+}
+```
+
+---
+
+### POST `/api/projects/{project_id}/calendar/meeting-slots`
+**Purpose:** Find mutually free meeting slots across selected project members.
+
+**Auth Required:** Yes (project member)
+
+**Request Body:**
+```json
+{
+  "start_time": "ISO datetime",
+  "end_time": "ISO datetime",
+  "duration_minutes": 60,
+  "member_ids": ["uuid"],
+  "working_hours_start": "08:00",
+  "working_hours_end": "18:00",
+  "step_minutes": 30
+}
+```
+
+**Response:**
+```json
+{
+  "member_ids": ["uuid"],
+  "duration_minutes": 60,
+  "slots": [
+    { "start_time": "ISO", "end_time": "ISO" }
+  ]
+}
+```
+
+---
+
+### POST `/api/projects/{project_id}/calendar/meetings`
+**Purpose:** Schedule a meeting for selected project members (creates member events).
+
+**Auth Required:** Yes (project member)
+
+**Request Body:**
+```json
+{
+  "title": "Sprint Sync",
+  "start_time": "ISO datetime",
+  "end_time": "ISO datetime",
+  "member_ids": ["uuid"],
+  "description": "optional",
+  "color": "#0ea5e9",
+  "event_type": "meeting"
+}
+```
+
+---
+
 ## Health Check
 
 ### GET `/api/health`

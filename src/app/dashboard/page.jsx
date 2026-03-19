@@ -137,7 +137,7 @@ export default function Dashboard() {
               View upcoming deadlines and events
             </p>
             <Link
-              href="#"
+              href="/calendar"
               className="inline-block px-4 py-2 bg-green-100 text-green-700 rounded-lg font-semibold font-['Arimo'] hover:bg-green-200 transition-colors"
             >
               View Calendar →
