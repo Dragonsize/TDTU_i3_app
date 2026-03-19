@@ -59,12 +59,6 @@ export default function ChatRoom({ user }) {
     return () => clearTimeout(timer);
   }, [targetEmail]);
 
-  // Show modal automatically if no channels exist
-  useEffect(() => {
-    if (channels.length === 0) {
-      setShowNewChannelModal(true);
-    }
-  }, [channels]);
 
   // 2. Setup WebSocket for real-time messages for the active channel
   useEffect(() => {
@@ -447,12 +441,12 @@ export default function ChatRoom({ user }) {
             {/* Channel actions: only show if user is creator */}
             {activeChannel && (
               <div className="hidden sm:flex gap-1 sm:gap-2 ml-2 sm:ml-4 items-center flex-wrap">
-                <button onClick={() => setShowMembersModal(true)} className="text-xs px-2 sm:px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 font-medium whitespace-nowrap">Members</button>
+                <button onClick={() => setShowMembersModal(true)} className="text-xs px-2 sm:px-3 py-1 rounded bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-200 font-medium whitespace-nowrap">Members</button>
                 {activeChannel.created_by === user?.id && (
                   <>
-                    <button onClick={() => setShowRenameModal(true)} className="text-xs px-2 sm:px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 whitespace-nowrap">Rename</button>
-                    <button onClick={() => setShowAddMemberModal(true)} className="text-xs px-2 sm:px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 whitespace-nowrap">Add</button>
-                    <button onClick={() => setShowAssignProjectModal(true)} className="text-xs px-2 sm:px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-700 whitespace-nowrap">Project</button>
+                    <button onClick={() => setShowRenameModal(true)} className="text-xs px-2 sm:px-3 py-1 rounded bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-200 whitespace-nowrap">Rename</button>
+                    <button onClick={() => setShowAddMemberModal(true)} className="text-xs px-2 sm:px-3 py-1 rounded bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-200 whitespace-nowrap">Add</button>
+                    <button onClick={() => setShowAssignProjectModal(true)} className="text-xs px-2 sm:px-3 py-1 rounded bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-gray-200 whitespace-nowrap">Project</button>
                   </>
                 )}
               </div>
@@ -462,13 +456,13 @@ export default function ChatRoom({ user }) {
 
         {/* Rename Channel Modal */}
         {showRenameModal && (
-          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
-            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-xs relative">
-              <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-900" onClick={() => setShowRenameModal(false)}>&times;</button>
-              <h4 className="font-bold mb-2">Rename Channel</h4>
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl p-6 w-full max-w-xs relative">
+              <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-900 dark:hover:text-white" onClick={() => setShowRenameModal(false)}>&times;</button>
+              <h4 className="font-bold mb-3 text-gray-900 dark:text-white">Rename Channel</h4>
               <form onSubmit={handleRenameChannel}>
-                <input className="w-full border px-3 py-2 rounded mb-3 text-black" value={renameValue} onChange={e => setRenameValue(e.target.value)} autoFocus />
-                <button type="submit" className="w-full bg-gray-950 text-white py-2 rounded">Save</button>
+                <input className="w-full border dark:border-zinc-700 px-3 py-2 rounded mb-4 text-black dark:text-white bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-zinc-600" value={renameValue} onChange={e => setRenameValue(e.target.value)} autoFocus />
+                <button type="submit" className="w-full bg-gray-950 dark:bg-white text-white dark:text-gray-900 font-bold py-2 rounded transition-colors">Save</button>
               </form>
             </div>
           </div>
@@ -476,13 +470,13 @@ export default function ChatRoom({ user }) {
 
         {/* Add Member Modal */}
         {showAddMemberModal && (
-          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
-            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-xs relative">
-              <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-900" onClick={() => setShowAddMemberModal(false)}>&times;</button>
-              <h4 className="font-bold mb-2">Add Member</h4>
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl p-6 w-full max-w-xs relative">
+              <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-900 dark:hover:text-white" onClick={() => setShowAddMemberModal(false)}>&times;</button>
+              <h4 className="font-bold mb-3 text-gray-900 dark:text-white">Add Member</h4>
               <form onSubmit={handleAddMember}>
-                <input className="w-full border px-3 py-2 rounded mb-3 text-black" value={addMemberValue} onChange={e => setAddMemberValue(e.target.value)} placeholder="User email..." autoFocus />
-                <button type="submit" className="w-full bg-gray-950 text-white py-2 rounded">Add</button>
+                <input className="w-full border dark:border-zinc-700 px-3 py-2 rounded mb-4 text-black dark:text-white bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-zinc-600" value={addMemberValue} onChange={e => setAddMemberValue(e.target.value)} placeholder="User email..." autoFocus />
+                <button type="submit" className="w-full bg-gray-950 dark:bg-white text-white dark:text-gray-900 font-bold py-2 rounded transition-colors">Add</button>
               </form>
             </div>
           </div>
@@ -490,16 +484,16 @@ export default function ChatRoom({ user }) {
 
         {/* Assign Project Modal */}
         {showAssignProjectModal && (
-          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
-            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-xs relative">
-              <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-900" onClick={() => setShowAssignProjectModal(false)}>&times;</button>
-              <h4 className="font-bold mb-2">Assign to Project</h4>
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl p-6 w-full max-w-xs relative">
+              <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-900 dark:hover:text-white" onClick={() => setShowAssignProjectModal(false)}>&times;</button>
+              <h4 className="font-bold mb-3 text-gray-900 dark:text-white">Assign to Project</h4>
               <form onSubmit={handleAssignProject}>
-                <select className="w-full border px-3 py-2 rounded mb-3" value={assignProjectValue} onChange={e => setAssignProjectValue(e.target.value)}>
+                <select className="w-full border dark:border-zinc-700 px-3 py-2 rounded mb-4 text-black dark:text-white bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-zinc-600" value={assignProjectValue} onChange={e => setAssignProjectValue(e.target.value)}>
                   <option value="">Select project...</option>
                   {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
-                <button type="submit" className="w-full bg-gray-950 text-white py-2 rounded">Assign</button>
+                <button type="submit" className="w-full bg-gray-950 dark:bg-white text-white dark:text-gray-900 font-bold py-2 rounded transition-colors">Assign</button>
               </form>
             </div>
           </div>
@@ -507,22 +501,22 @@ export default function ChatRoom({ user }) {
 
         {/* Members List Modal */}
         {showMembersModal && (
-          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
-            <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm relative max-h-[80vh] flex flex-col">
-              <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-900" onClick={() => setShowMembersModal(false)}>&times;</button>
-              <h4 className="font-bold mb-4 text-lg">Channel Members</h4>
-              <div className="overflow-y-auto flex-1 space-y-3">
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl p-6 w-full max-w-sm relative max-h-[80vh] flex flex-col">
+              <button className="absolute top-2 right-2 text-gray-400 hover:text-gray-900 dark:hover:text-white" onClick={() => setShowMembersModal(false)}>&times;</button>
+              <h4 className="font-bold mb-4 text-lg text-gray-900 dark:text-white">Channel Members</h4>
+              <div className="overflow-y-auto flex-1 space-y-3 pr-2">
                 {channelMembers.length === 0 ? (
-                  <p className="text-gray-500 text-sm">Loading members...</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">Loading members...</p>
                 ) : (
                   channelMembers.map(m => (
                     <div key={m.id} className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600 overflow-hidden">
+                      <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center text-xs font-bold text-gray-600 dark:text-gray-300 overflow-hidden">
                         {m.avatar_url ? <img src={m.avatar_url} alt={m.username} className="w-full h-full object-cover" /> : (m.full_name || m.username)[0].toUpperCase()}
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{m.full_name || m.username}</div>
-                        <div className="text-xs text-gray-500 capitalize">{m.role}</div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">{m.full_name || m.username}</div>
+                        <div className="text-xs text-gray-500 dark:text-zinc-400 capitalize">{m.role}</div>
                       </div>
                     </div>
                   ))
