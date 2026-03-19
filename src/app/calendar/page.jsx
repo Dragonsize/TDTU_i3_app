@@ -121,11 +121,149 @@ function formatDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function parseDateOnly(dateValue) {
+  if (!dateValue || !dateValue.includes("-")) return null;
+  const [yearText, monthText, dayText] = dateValue.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) return null;
+  return new Date(year, month - 1, day);
+}
+
+function formatDateButtonLabel(dateValue) {
+  const parsed = parseDateOnly(dateValue);
+  if (!parsed) return "Select date";
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function monthGridMonday(date) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const firstDayOffset = (new Date(year, month, 1).getDay() + 6) % 7;
+  const start = new Date(year, month, 1 - firstDayOffset);
+  return Array.from({ length: 42 }, (_, idx) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + idx);
+    return d;
+  });
+}
+
 function isSameDate(a, b) {
   return (
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
+  );
+}
+
+function DateDropdown({ value, onChange, dark = false }) {
+  const [open, setOpen] = useState(false);
+  const [displayMonth, setDisplayMonth] = useState(() => parseDateOnly(value) || new Date());
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (!containerRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    const parsed = parseDateOnly(value);
+    if (parsed) setDisplayMonth(parsed);
+  }, [value]);
+
+  const days = monthGridMonday(displayMonth);
+  const selected = parseDateOnly(value);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className={`w-full h-[40px] rounded-md px-3 text-sm text-left flex items-center justify-between ${
+          dark
+            ? "border border-[#3c4043] bg-[#202124] text-white"
+            : "border border-slate-300 bg-slate-50 text-slate-900"
+        }`}
+      >
+        <span>{formatDateButtonLabel(value)}</span>
+        <span className={`${dark ? "text-[#9aa0a6]" : "text-slate-500"}`}>▾</span>
+      </button>
+
+      {open && (
+        <div
+          className={`absolute left-0 mt-1 w-[280px] rounded-lg shadow-xl z-40 p-3 ${
+            dark ? "bg-[#202124] border border-[#3c4043]" : "bg-white border border-slate-300"
+          }`}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <button
+              type="button"
+              onClick={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() - 1, 1))}
+              className={`w-7 h-7 rounded-full ${dark ? "text-[#e8eaed] hover:bg-[#2d2f31]" : "text-slate-700 hover:bg-slate-100"}`}
+            >
+              ‹
+            </button>
+            <div className={`text-sm font-medium ${dark ? "text-white" : "text-slate-900"}`}>
+              {displayMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+            </div>
+            <button
+              type="button"
+              onClick={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 1))}
+              className={`w-7 h-7 rounded-full ${dark ? "text-[#e8eaed] hover:bg-[#2d2f31]" : "text-slate-700 hover:bg-slate-100"}`}
+            >
+              ›
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 mb-1">
+            {["M", "T", "W", "T", "F", "S", "S"].map((label, idx) => (
+              <div key={`${label}-${idx}`} className={`text-center text-xs py-1 ${dark ? "text-[#9aa0a6]" : "text-slate-500"}`}>
+                {label}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-y-0.5">
+            {days.map((day) => {
+              const inCurrentMonth = day.getMonth() === displayMonth.getMonth();
+              const isSelected = selected && isSameDate(day, selected);
+              return (
+                <button
+                  key={day.toISOString()}
+                  type="button"
+                  onClick={() => {
+                    onChange(formatDateKey(day));
+                    setOpen(false);
+                  }}
+                  className={`w-9 h-9 mx-auto rounded-full text-sm ${
+                    dark
+                      ? isSelected
+                        ? "bg-[#1a73e8] text-white font-semibold"
+                        : inCurrentMonth
+                          ? "text-[#e8eaed] hover:bg-[#2d2f31]"
+                          : "text-[#5f6368]"
+                      : isSelected
+                        ? "bg-[#1a73e8] text-white font-semibold"
+                        : inCurrentMonth
+                          ? "text-slate-800 hover:bg-slate-100"
+                          : "text-slate-400"
+                  }`}
+                >
+                  {day.getDate()}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -621,11 +759,9 @@ export default function CalendarPage() {
                   <div className="rounded-md border border-slate-300 p-2 bg-white">
                     <div className="text-[11px] font-semibold text-slate-500 mb-1">Window start</div>
                     <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="date"
+                      <DateDropdown
                         value={windowStartParts.date}
-                        onChange={(e) => setMeetingWindowStart(mergeDateTime(e.target.value, windowStartParts.time || "09:00"))}
-                        className="border border-slate-300 rounded-md px-2 py-1.5 text-xs text-slate-900 bg-slate-50"
+                        onChange={(nextDate) => setMeetingWindowStart(mergeDateTime(nextDate, windowStartParts.time || "09:00"))}
                       />
                       <TimeDropdown
                         value={windowStartParts.time}
@@ -638,11 +774,9 @@ export default function CalendarPage() {
                   <div className="rounded-md border border-slate-300 p-2 bg-white">
                     <div className="text-[11px] font-semibold text-slate-500 mb-1">Window end</div>
                     <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="date"
+                      <DateDropdown
                         value={windowEndParts.date}
-                        onChange={(e) => setMeetingWindowEnd(mergeDateTime(e.target.value, windowEndParts.time || "18:00"))}
-                        className="border border-slate-300 rounded-md px-2 py-1.5 text-xs text-slate-900 bg-slate-50"
+                        onChange={(nextDate) => setMeetingWindowEnd(mergeDateTime(nextDate, windowEndParts.time || "18:00"))}
                       />
                       <TimeDropdown
                         value={windowEndParts.time}
@@ -777,12 +911,10 @@ export default function CalendarPage() {
                     <div className="rounded-lg border border-[#3c4043] bg-[#2d2f31] p-3">
                       <div className="text-[11px] uppercase tracking-wide text-[#9aa0a6] mb-2">Start</div>
                       <div className="grid grid-cols-[1.3fr_1fr] gap-2">
-                        <input
-                          type="date"
+                        <DateDropdown
                           value={startParts.date}
-                          onChange={(e) => setStartTime(mergeDateTime(e.target.value, startParts.time || "09:00"))}
-                          required
-                          className="border border-[#3c4043] bg-[#202124] rounded-md px-3 py-2 text-sm text-white"
+                          onChange={(nextDate) => setStartTime(mergeDateTime(nextDate, startParts.time || "09:00"))}
+                          dark
                         />
                         <TimeDropdown
                           value={startParts.time}
@@ -794,12 +926,10 @@ export default function CalendarPage() {
                     <div className="rounded-lg border border-[#3c4043] bg-[#2d2f31] p-3">
                       <div className="text-[11px] uppercase tracking-wide text-[#9aa0a6] mb-2">End</div>
                       <div className="grid grid-cols-[1.3fr_1fr] gap-2">
-                        <input
-                          type="date"
+                        <DateDropdown
                           value={endParts.date}
-                          onChange={(e) => setEndTime(mergeDateTime(e.target.value, endParts.time || "10:00"))}
-                          required
-                          className="border border-[#3c4043] bg-[#202124] rounded-md px-3 py-2 text-sm text-white"
+                          onChange={(nextDate) => setEndTime(mergeDateTime(nextDate, endParts.time || "10:00"))}
+                          dark
                         />
                         <TimeDropdown
                           value={endParts.time}
