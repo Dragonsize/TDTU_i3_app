@@ -15,7 +15,7 @@ function isActiveNav(activePath, href) {
   return activePath === href || activePath.startsWith(`${href}/`);
 }
 
-export default function AppShell({ user, activePath, contentClassName = "", children }) {
+export default function AppShell({ user, activePath, contentClassName = "", fullHeight = false, children }) {
   const displayName = user?.full_name || user?.fullname || "";
   const avatarInitial =
     (displayName && displayName.trim()[0]) ||
@@ -23,8 +23,8 @@ export default function AppShell({ user, activePath, contentClassName = "", chil
     "U";
 
   return (
-    <div className="min-h-[100dvh] bg-white flex flex-col">
-      <header className="w-full h-16 bg-white/60 border-b border-black/10 flex items-center justify-between px-4 sm:px-6 lg:px-10 xl:px-16 sticky top-0 z-20 backdrop-blur-sm">
+    <div className={`${fullHeight ? 'h-[100dvh] overflow-hidden' : 'min-h-[100dvh]'} bg-white flex flex-col`}>
+      <header className="w-full h-16 bg-white/60 border-b border-black/10 flex items-center justify-between px-4 sm:px-6 lg:px-10 xl:px-16 sticky top-0 z-20 backdrop-blur-sm shrink-0">
         <div className="flex items-center gap-3 sm:gap-6 min-w-0">
           <Link href="/dashboard" className="flex items-center gap-1.5">
             <div className="w-7 h-7 bg-gray-950 rounded-lg"></div>
@@ -63,7 +63,7 @@ export default function AppShell({ user, activePath, contentClassName = "", chil
         </Link>
       </header>
 
-      <nav className="md:hidden border-b border-black/10 bg-white px-3 py-2 overflow-x-auto">
+      <nav className="md:hidden border-b border-black/10 bg-white px-3 py-2 overflow-x-auto shrink-0">
         <div className="flex items-center gap-2 min-w-max">
           {NAV_ITEMS.map((item) => (
             <Link

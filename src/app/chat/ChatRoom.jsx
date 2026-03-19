@@ -303,7 +303,7 @@ export default function ChatRoom({ user }) {
   };
 
   return (
-    <div className="flex h-[100dvh] w-full overflow-hidden bg-white dark:bg-background-dark font-['Inter']">
+    <div className="flex h-full w-full overflow-hidden bg-white dark:bg-background-dark font-['Inter']">
       {/* Sidebar */}
       <div 
         className={`${isSidebarOpen ? "w-60 sm:w-72 md:w-80" : "w-0"} bg-gray-50 dark:bg-[#18181b] border-r border-gray-200 dark:border-zinc-800 flex flex-col transition-all duration-300 overflow-hidden shrink-0`}

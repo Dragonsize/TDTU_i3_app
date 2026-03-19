@@ -44,8 +44,8 @@ export default function ChatPage() {
   }
 
   return (
-    <AppShell user={user} activePath="/chat" contentClassName="flex-1 min-h-0 overflow-hidden">
-      <main className="flex-1 w-full overflow-hidden">
+    <AppShell user={user} activePath="/chat" contentClassName="flex-1 min-h-0 overflow-hidden flex flex-col" fullHeight={true}>
+      <main className="flex-1 w-full overflow-hidden flex flex-col">
         <ChatRoom user={user} />
       </main>
     </AppShell>
