@@ -1588,7 +1588,7 @@ def add_project_member(project_id: str, request: AddMemberRequest, user=Depends(
 def get_workflows(project_id: str, user=Depends(get_current_user)):
     db = require_db_client()
     require_project_member(user.get("sub"), project_id)
-    response = db.table("workspaces").select("*").eq("project_id", project_id).order("created_at", desc=False).execute()
+    response = db.table("workspaces").select("*").eq("project_id", project_id).execute()
     if getattr(response, "error", None):
         error_text = str(response.error).lower()
         if "permission denied" in error_text or "row-level security" in error_text:
@@ -1611,7 +1611,6 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
         "name": request.title,
         "description": request.description or "",
         "creator_id": user.get("sub"),
-        "status": "in_process",
     }
     response = db.table("workspaces").insert(workflow_data).execute()
     if getattr(response, "error", None):
