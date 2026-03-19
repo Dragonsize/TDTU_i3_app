@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 
@@ -25,6 +25,90 @@ function splitDateTime(localValue) {
 function mergeDateTime(date, time) {
   if (!date || !time) return "";
   return `${date}T${time}`;
+}
+
+const TIME_OPTIONS = Array.from({ length: 96 }, (_, idx) => {
+  const hour = String(Math.floor(idx / 4)).padStart(2, "0");
+  const minute = String((idx % 4) * 15).padStart(2, "0");
+  return `${hour}:${minute}`;
+});
+
+function formatTimeLabel(timeValue) {
+  if (!timeValue || !timeValue.includes(":")) return "Select time";
+  const [hoursText, minutesText] = timeValue.split(":");
+  const hours = Number(hoursText);
+  const minutes = Number(minutesText);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return timeValue;
+
+  const period = hours >= 12 ? "PM" : "AM";
+  const twelveHour = hours % 12 || 12;
+  return `${twelveHour}:${String(minutes).padStart(2, "0")} ${period}`;
+}
+
+function TimeDropdown({ value, onChange, dark = false }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (!containerRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className={`w-full h-[40px] rounded-md px-3 text-sm text-left flex items-center justify-between ${
+          dark
+            ? "border border-[#3c4043] bg-[#202124] text-white"
+            : "border border-slate-300 bg-slate-50 text-slate-900"
+        }`}
+      >
+        <span>{formatTimeLabel(value)}</span>
+        <span className={`${dark ? "text-[#9aa0a6]" : "text-slate-500"}`}>▾</span>
+      </button>
+
+      {open && (
+        <div
+          className={`absolute left-0 right-0 mt-1 max-h-52 overflow-y-auto rounded-md shadow-xl z-40 ${
+            dark ? "bg-[#202124] border border-[#3c4043]" : "bg-white border border-slate-300"
+          }`}
+        >
+          {TIME_OPTIONS.map((option) => {
+            const active = option === value;
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => {
+                  onChange(option);
+                  setOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2 text-sm ${
+                  dark
+                    ? active
+                      ? "bg-[#8ab4f8] text-[#202124] font-semibold"
+                      : "text-white hover:bg-[#2d2f31]"
+                    : active
+                      ? "bg-[#e8f0fe] text-[#1a73e8] font-semibold"
+                      : "text-slate-800 hover:bg-slate-100"
+                }`}
+              >
+                {formatTimeLabel(option)}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function monthRange(date) {
@@ -543,11 +627,11 @@ export default function CalendarPage() {
                         onChange={(e) => setMeetingWindowStart(mergeDateTime(e.target.value, windowStartParts.time || "09:00"))}
                         className="border border-slate-300 rounded-md px-2 py-1.5 text-xs text-slate-900 bg-slate-50"
                       />
-                      <input
-                        type="time"
+                      <TimeDropdown
                         value={windowStartParts.time}
-                        onChange={(e) => setMeetingWindowStart(mergeDateTime(windowStartParts.date || formatDateKey(new Date()), e.target.value))}
-                        className="border border-slate-300 rounded-md px-2 py-1.5 text-xs text-slate-900 bg-slate-50"
+                        onChange={(nextTime) =>
+                          setMeetingWindowStart(mergeDateTime(windowStartParts.date || formatDateKey(new Date()), nextTime))
+                        }
                       />
                     </div>
                   </div>
@@ -560,11 +644,11 @@ export default function CalendarPage() {
                         onChange={(e) => setMeetingWindowEnd(mergeDateTime(e.target.value, windowEndParts.time || "18:00"))}
                         className="border border-slate-300 rounded-md px-2 py-1.5 text-xs text-slate-900 bg-slate-50"
                       />
-                      <input
-                        type="time"
+                      <TimeDropdown
                         value={windowEndParts.time}
-                        onChange={(e) => setMeetingWindowEnd(mergeDateTime(windowEndParts.date || formatDateKey(new Date()), e.target.value))}
-                        className="border border-slate-300 rounded-md px-2 py-1.5 text-xs text-slate-900 bg-slate-50"
+                        onChange={(nextTime) =>
+                          setMeetingWindowEnd(mergeDateTime(windowEndParts.date || formatDateKey(new Date()), nextTime))
+                        }
                       />
                     </div>
                   </div>
@@ -700,12 +784,10 @@ export default function CalendarPage() {
                           required
                           className="border border-[#3c4043] bg-[#202124] rounded-md px-3 py-2 text-sm text-white"
                         />
-                        <input
-                          type="time"
+                        <TimeDropdown
                           value={startParts.time}
-                          onChange={(e) => setStartTime(mergeDateTime(startParts.date || formatDateKey(new Date()), e.target.value))}
-                          required
-                          className="border border-[#3c4043] bg-[#202124] rounded-md px-3 py-2 text-sm text-white"
+                          onChange={(nextTime) => setStartTime(mergeDateTime(startParts.date || formatDateKey(new Date()), nextTime))}
+                          dark
                         />
                       </div>
                     </div>
@@ -719,12 +801,12 @@ export default function CalendarPage() {
                           required
                           className="border border-[#3c4043] bg-[#202124] rounded-md px-3 py-2 text-sm text-white"
                         />
-                        <input
-                          type="time"
+                        <TimeDropdown
                           value={endParts.time}
-                          onChange={(e) => setEndTime(mergeDateTime(endParts.date || startParts.date || formatDateKey(new Date()), e.target.value))}
-                          required
-                          className="border border-[#3c4043] bg-[#202124] rounded-md px-3 py-2 text-sm text-white"
+                          onChange={(nextTime) =>
+                            setEndTime(mergeDateTime(endParts.date || startParts.date || formatDateKey(new Date()), nextTime))
+                          }
+                          dark
                         />
                       </div>
                     </div>
