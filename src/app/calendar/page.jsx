@@ -316,29 +316,29 @@ export default function CalendarPage() {
 
   return (
     <AppShell user={user} activePath="/calendar" contentClassName="flex-1">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 xl:px-16 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 xl:px-16 py-8 bg-[#f8fafd]">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-neutral-950 font-['Inter']">Calendar & Meeting Planner</h1>
-            <p className="text-gray-600 font-['Arimo'] mt-1">Personal scheduling plus project-wide team availability.</p>
+            <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 font-['Inter']">Calendar & Meeting Planner</h1>
+            <p className="text-slate-600 font-['Arimo'] mt-1">Personal scheduling plus project-wide team availability.</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setViewMode("personal")} className={`px-3 py-2 rounded-lg text-sm ${viewMode === "personal" ? "bg-black text-white" : "bg-gray-100"}`}>Personal</button>
-            <button onClick={() => setViewMode("team")} className={`px-3 py-2 rounded-lg text-sm ${viewMode === "team" ? "bg-black text-white" : "bg-gray-100"}`}>Team</button>
+            <button onClick={() => setViewMode("personal")} className={`px-4 py-2 rounded-lg text-sm font-semibold border ${viewMode === "personal" ? "bg-[#1a73e8] text-white border-[#1a73e8]" : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"}`}>Personal</button>
+            <button onClick={() => setViewMode("team")} className={`px-4 py-2 rounded-lg text-sm font-semibold border ${viewMode === "team" ? "bg-[#1a73e8] text-white border-[#1a73e8]" : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"}`}>Team</button>
           </div>
         </div>
 
-        {error && <div className="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 px-3 py-2 text-sm">{error}</div>}
+        {error && <div className="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 px-3 py-2 text-sm font-medium">{error}</div>}
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <section className="xl:col-span-2 rounded-2xl border border-gray-200 bg-white p-4 sm:p-6">
+          <section className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
             <div className="flex items-center justify-between mb-3">
-              <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))} className="px-3 py-2 rounded-lg bg-gray-100 text-sm">Prev</button>
-              <div className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium">{currentMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</div>
-              <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))} className="px-3 py-2 rounded-lg bg-gray-100 text-sm">Next</button>
+              <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))} className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 font-medium hover:bg-slate-50">Prev</button>
+              <div className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-900 bg-slate-50">{currentMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</div>
+              <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))} className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 font-medium hover:bg-slate-50">Next</button>
             </div>
 
-            <div className="grid grid-cols-7 gap-2 mb-2 text-xs font-semibold text-gray-500">
+            <div className="grid grid-cols-7 gap-2 mb-2 text-xs font-semibold text-slate-600">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => <div key={d} className="text-center py-1">{d}</div>)}
             </div>
             <div className="grid grid-cols-7 gap-2">
@@ -347,11 +347,12 @@ export default function CalendarPage() {
                 const dayEvents = (eventsByDay[key] || []).slice(0, 2);
                 const isCurrentMonth = d.getMonth() === currentMonth.getMonth();
                 const isSelected = key === formatDateKey(selectedDay);
+                const isToday = key === formatDateKey(new Date());
                 return (
-                  <button key={key} onClick={() => setSelectedDay(new Date(d))} className={`min-h-[88px] text-left rounded-xl border p-2 ${isSelected ? "border-blue-500 bg-blue-50" : "border-gray-200"} ${isCurrentMonth ? "bg-white" : "bg-gray-50 text-gray-400"}`}>
-                    <div className="text-xs font-semibold mb-1">{d.getDate()}</div>
+                  <button key={key} onClick={() => setSelectedDay(new Date(d))} className={`min-h-[108px] text-left rounded-xl border p-2 transition-colors ${isSelected ? "border-[#1a73e8] bg-[#e8f0fe]" : "border-slate-200 hover:border-slate-300"} ${isCurrentMonth ? "bg-white" : "bg-slate-50"}`}>
+                    <div className={`text-xs font-semibold mb-1 ${isCurrentMonth ? "text-slate-800" : "text-slate-400"} ${isToday ? "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#1a73e8] text-white" : ""}`}>{d.getDate()}</div>
                     {dayEvents.map((ev) => (
-                      <div key={ev.id} className="truncate text-[11px] rounded px-1.5 py-0.5 text-white mb-1" style={{ backgroundColor: ev.color || "#3b82f6" }}>{ev.title}</div>
+                      <div key={ev.id} className="truncate text-[11px] rounded-md px-1.5 py-1 text-white mb-1 font-medium" style={{ backgroundColor: ev.color || "#1a73e8" }}>{ev.title}</div>
                     ))}
                   </button>
                 );
@@ -359,49 +360,49 @@ export default function CalendarPage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6">
-            <h2 className="text-lg font-bold font-['Arimo'] mb-3">{editingEventId ? "Edit Event" : "Create Event"}</h2>
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+            <h2 className="text-lg font-bold font-['Arimo'] text-slate-900 mb-3">{editingEventId ? "Edit Event" : "Create Event"}</h2>
             <form onSubmit={submitEvent} className="space-y-3">
-              <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Title" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-              <input type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-              <input type="datetime-local" value={endTime} onChange={(e) => setEndTime(e.target.value)} required className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-              <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+              <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Title" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" />
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" rows={2} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" />
+              <input type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} required className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900" />
+              <input type="datetime-local" value={endTime} onChange={(e) => setEndTime(e.target.value)} required className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900" />
+              <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900">
                 <option value="">Personal event</option>
                 {projects.map((p) => <option key={p.id} value={p.id}>{p.title || p.name}</option>)}
               </select>
               <div className="grid grid-cols-2 gap-2">
-                <select value={eventType} onChange={(e) => setEventType(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                <select value={eventType} onChange={(e) => setEventType(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900">
                   <option value="meeting">Meeting</option>
                   <option value="deadline">Deadline</option>
                   <option value="task">Task</option>
                   <option value="focus">Focus</option>
                 </select>
-                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-full h-10 border border-gray-300 rounded-lg px-1" />
+                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-full h-10 border border-slate-300 rounded-lg px-1 bg-white" />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <button type="submit" disabled={submitting} className="w-full bg-gray-950 text-white rounded-lg py-2 text-sm font-semibold disabled:opacity-60">{submitting ? "Saving..." : editingEventId ? "Update" : "Add Event"}</button>
-                {editingEventId && <button type="button" onClick={resetForm} className="w-full bg-gray-100 rounded-lg py-2 text-sm font-semibold">Cancel</button>}
+                <button type="submit" disabled={submitting} className="w-full bg-[#1a73e8] text-white rounded-lg py-2 text-sm font-semibold hover:bg-[#1765cc] disabled:opacity-60">{submitting ? "Saving..." : editingEventId ? "Update" : "Add Event"}</button>
+                {editingEventId && <button type="button" onClick={resetForm} className="w-full bg-slate-100 text-slate-700 rounded-lg py-2 text-sm font-semibold hover:bg-slate-200">Cancel</button>}
               </div>
             </form>
           </section>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
-          <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">{selectedDay.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}</h3>
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-slate-800 mb-2">{selectedDay.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}</h3>
             <div className="space-y-2 max-h-[280px] overflow-auto pr-1">
-              {selectedEvents.length === 0 && <p className="text-xs text-gray-500">No events for this day.</p>}
+              {selectedEvents.length === 0 && <p className="text-xs text-slate-500">No events for this day.</p>}
               {selectedEvents.map((ev) => (
-                <div key={ev.id} className="border border-gray-200 rounded-lg p-2">
+                <div key={ev.id} className="border border-slate-200 rounded-lg p-2 bg-white">
                   <div className="flex justify-between gap-2">
                     <div>
-                      <div className="text-sm font-semibold" style={{ color: ev.color || "#111827" }}>{ev.title}</div>
-                      <div className="text-xs text-gray-500">{new Date(ev.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - {new Date(ev.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                      <div className="text-sm font-semibold" style={{ color: ev.color || "#0f172a" }}>{ev.title}</div>
+                      <div className="text-xs text-slate-500">{new Date(ev.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - {new Date(ev.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button onClick={() => startEditEvent(ev)} className="text-xs text-blue-600">Edit</button>
-                      <button onClick={() => deleteEvent(ev.id)} className="text-xs text-red-600">Delete</button>
+                      <button onClick={() => startEditEvent(ev)} className="text-xs text-[#1a73e8] font-medium">Edit</button>
+                      <button onClick={() => deleteEvent(ev.id)} className="text-xs text-red-600 font-medium">Delete</button>
                     </div>
                   </div>
                 </div>
@@ -410,16 +411,16 @@ export default function CalendarPage() {
           </section>
 
           {viewMode === "team" && (
-            <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6">
-              <h3 className="text-lg font-bold font-['Arimo'] mb-3">Project Team Availability</h3>
-              <select value={teamProjectId} onChange={(e) => setTeamProjectId(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3">
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+              <h3 className="text-lg font-bold font-['Arimo'] text-slate-900 mb-3">Project Team Availability</h3>
+              <select value={teamProjectId} onChange={(e) => setTeamProjectId(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 mb-3">
                 <option value="">Select project</option>
                 {projects.map((p) => <option key={p.id} value={p.id}>{p.title || p.name}</option>)}
               </select>
 
-              <div className="mb-3 max-h-28 overflow-auto border border-gray-200 rounded-lg p-2">
+              <div className="mb-3 max-h-28 overflow-auto border border-slate-200 rounded-lg p-2 bg-slate-50">
                 {(teamData.members || []).map((member) => (
-                  <label key={member.id} className="flex items-center gap-2 text-sm py-1">
+                  <label key={member.id} className="flex items-center gap-2 text-sm text-slate-700 py-1">
                     <input type="checkbox" checked={selectedMemberIds.includes(member.id)} onChange={() => toggleMemberSelection(member.id)} />
                     <span>{member.full_name || member.username} ({member.role})</span>
                   </label>
@@ -427,35 +428,35 @@ export default function CalendarPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-2 mb-2">
-                <input type="datetime-local" value={meetingWindowStart} onChange={(e) => setMeetingWindowStart(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-                <input type="datetime-local" value={meetingWindowEnd} onChange={(e) => setMeetingWindowEnd(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                <input type="datetime-local" value={meetingWindowStart} onChange={(e) => setMeetingWindowStart(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900" />
+                <input type="datetime-local" value={meetingWindowEnd} onChange={(e) => setMeetingWindowEnd(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900" />
               </div>
               <div className="flex gap-2 mb-3">
-                <input type="number" min={15} step={15} value={meetingDuration} onChange={(e) => setMeetingDuration(Number(e.target.value))} className="w-28 border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-                <button onClick={findMeetingSlots} disabled={planningMeeting} className="px-3 py-2 rounded-lg bg-black text-white text-sm disabled:opacity-60">{planningMeeting ? "Finding..." : "Find Slots"}</button>
+                <input type="number" min={15} step={15} value={meetingDuration} onChange={(e) => setMeetingDuration(Number(e.target.value))} className="w-28 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900" />
+                <button onClick={findMeetingSlots} disabled={planningMeeting} className="px-3 py-2 rounded-lg bg-[#1a73e8] text-white text-sm font-medium hover:bg-[#1765cc] disabled:opacity-60">{planningMeeting ? "Finding..." : "Find Slots"}</button>
               </div>
 
               <div className="space-y-2 max-h-36 overflow-auto mb-3">
-                {meetingSlots.length === 0 && <p className="text-xs text-gray-500">No slots yet. Choose range and click Find Slots.</p>}
+                {meetingSlots.length === 0 && <p className="text-xs text-slate-500">No slots yet. Choose range and click Find Slots.</p>}
                 {meetingSlots.map((slot) => (
-                  <div key={slot.start_time} className="border border-gray-200 rounded-lg p-2 flex items-center justify-between gap-2">
-                    <div className="text-xs text-gray-700">
+                  <div key={slot.start_time} className="border border-slate-200 rounded-lg p-2 flex items-center justify-between gap-2 bg-white">
+                    <div className="text-xs text-slate-700">
                       {new Date(slot.start_time).toLocaleString()} - {new Date(slot.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </div>
-                    <button onClick={() => scheduleMeetingAtSlot(slot)} className="text-xs px-2 py-1 rounded bg-blue-600 text-white">Schedule</button>
+                    <button onClick={() => scheduleMeetingAtSlot(slot)} className="text-xs px-2 py-1 rounded bg-[#1a73e8] text-white font-medium">Schedule</button>
                   </div>
                 ))}
               </div>
 
-              <div className="border-t border-gray-200 pt-3">
-                <h4 className="text-sm font-semibold mb-2">Selected Day Team Calendar</h4>
+              <div className="border-t border-slate-200 pt-3">
+                <h4 className="text-sm font-semibold text-slate-800 mb-2">Selected Day Team Calendar</h4>
                 <div className="space-y-2 max-h-44 overflow-auto">
                   {selectedDayTeamEvents.map((ev) => {
                     const member = (teamData.members || []).find((m) => m.id === ev.user_id);
                     return (
-                      <div key={ev.id} className="text-xs border border-gray-200 rounded-lg p-2">
-                        <div className="font-semibold">{member?.full_name || member?.username || "Member"}: {ev.title}</div>
-                        <div className="text-gray-500">{new Date(ev.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - {new Date(ev.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                      <div key={ev.id} className="text-xs border border-slate-200 rounded-lg p-2 bg-white">
+                        <div className="font-semibold text-slate-800">{member?.full_name || member?.username || "Member"}: {ev.title}</div>
+                        <div className="text-slate-500">{new Date(ev.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - {new Date(ev.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
                       </div>
                     );
                   })}
