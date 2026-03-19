@@ -1,9 +1,217 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
+
+function formatDateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function parseDateOnly(dateValue) {
+  if (!dateValue || !dateValue.includes("-")) return null;
+  const [yearText, monthText, dayText] = dateValue.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) return null;
+  return new Date(year, month - 1, day);
+}
+
+function formatDateButtonLabel(dateValue) {
+  const parsed = parseDateOnly(dateValue);
+  if (!parsed) return "Select date";
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function monthGridMonday(date) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const firstDayOffset = (new Date(year, month, 1).getDay() + 6) % 7;
+  const start = new Date(year, month, 1 - firstDayOffset);
+  return Array.from({ length: 42 }, (_, idx) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + idx);
+    return d;
+  });
+}
+
+function isSameDate(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+const TIME_OPTIONS = Array.from({ length: 96 }, (_, idx) => {
+  const hour = String(Math.floor(idx / 4)).padStart(2, "0");
+  const minute = String((idx % 4) * 15).padStart(2, "0");
+  return `${hour}:${minute}`;
+});
+
+function formatTimeLabel(timeValue) {
+  if (!timeValue || !timeValue.includes(":")) return "Select time";
+  const [hoursText, minutesText] = timeValue.split(":");
+  const hours = Number(hoursText);
+  const minutes = Number(minutesText);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return timeValue;
+
+  const period = hours >= 12 ? "PM" : "AM";
+  const twelveHour = hours % 12 || 12;
+  return `${twelveHour}:${String(minutes).padStart(2, "0")} ${period}`;
+}
+
+function DateDropdown({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [displayMonth, setDisplayMonth] = useState(() => parseDateOnly(value) || new Date());
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (!containerRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    const parsed = parseDateOnly(value);
+    if (parsed) setDisplayMonth(parsed);
+  }, [value]);
+
+  const days = monthGridMonday(displayMonth);
+  const selected = parseDateOnly(value);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="w-full h-[40px] rounded-md px-3 text-sm text-left flex items-center justify-between border border-gray-300 bg-white text-black"
+      >
+        <span>{formatDateButtonLabel(value)}</span>
+        <span className="text-gray-500">▾</span>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 mt-1 w-[280px] rounded-lg shadow-xl z-40 p-3 bg-white border border-gray-300">
+          <div className="flex items-center justify-between mb-2">
+            <button
+              type="button"
+              onClick={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() - 1, 1))}
+              className="w-7 h-7 rounded-full text-slate-700 hover:bg-slate-100"
+            >
+              ‹
+            </button>
+            <div className="text-sm font-medium text-slate-900">
+              {displayMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+            </div>
+            <button
+              type="button"
+              onClick={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 1))}
+              className="w-7 h-7 rounded-full text-slate-700 hover:bg-slate-100"
+            >
+              ›
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 mb-1">
+            {["M", "T", "W", "T", "F", "S", "S"].map((label, idx) => (
+              <div key={`${label}-${idx}`} className="text-center text-xs py-1 text-slate-500">
+                {label}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-y-0.5">
+            {days.map((day) => {
+              const inCurrentMonth = day.getMonth() === displayMonth.getMonth();
+              const isSelected = selected && isSameDate(day, selected);
+              return (
+                <button
+                  key={day.toISOString()}
+                  type="button"
+                  onClick={() => {
+                    onChange(formatDateKey(day));
+                    setOpen(false);
+                  }}
+                  className={`w-9 h-9 mx-auto rounded-full text-sm ${
+                    isSelected
+                      ? "bg-[#1a73e8] text-white font-semibold"
+                      : inCurrentMonth
+                        ? "text-slate-800 hover:bg-slate-100"
+                        : "text-slate-400"
+                  }`}
+                >
+                  {day.getDate()}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TimeDropdown({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (!containerRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="w-full h-[40px] rounded-md px-3 text-sm text-left flex items-center justify-between border border-gray-300 bg-white text-black"
+      >
+        <span>{formatTimeLabel(value)}</span>
+        <span className="text-gray-500">▾</span>
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 mt-1 max-h-52 overflow-y-auto rounded-md shadow-xl z-40 bg-white border border-slate-300">
+          {TIME_OPTIONS.map((option) => {
+            const active = option === value;
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => {
+                  onChange(option);
+                  setOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2 text-sm ${
+                  active
+                    ? "bg-[#e8f0fe] text-[#1a73e8] font-semibold"
+                    : "text-slate-800 hover:bg-slate-100"
+                }`}
+              >
+                {formatTimeLabel(option)}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 
 export default function ProjectDetailPage() {
@@ -25,6 +233,7 @@ export default function ProjectDetailPage() {
   const [newFlowName, setNewFlowName] = useState("");
   const [newFlowDesc, setNewFlowDesc] = useState("");
   const [newFlowDeadline, setNewFlowDeadline] = useState("");
+  const [newFlowDeadlineTime, setNewFlowDeadlineTime] = useState("09:00");
   const [selectedFlowMembers, setSelectedFlowMembers] = useState([]);
 
   const handleFlowMemberToggle = (memberId, checked) => {
@@ -43,18 +252,12 @@ export default function ProjectDetailPage() {
         return;
       }
 
-      // Accept manual date typing in dd/mm/yyyy or yyyy-mm-dd and normalize to yyyy-mm-dd.
-      const rawDeadline = (newFlowDeadline || "").trim();
-      let isoDeadline = "";
-      if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDeadline)) {
-        const [d, m, y] = rawDeadline.split("/");
-        isoDeadline = `${y}-${m}-${d}`;
-      } else if (/^\d{4}-\d{2}-\d{2}$/.test(rawDeadline)) {
-        isoDeadline = rawDeadline;
-      } else {
-        alert("Deadline must be in dd/mm/yyyy or yyyy-mm-dd format.");
+      const isoDeadlineDate = (newFlowDeadline || "").trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDeadlineDate)) {
+        alert("Please choose a deadline date.");
         return;
       }
+      const isoDeadline = `${isoDeadlineDate}T${newFlowDeadlineTime || "09:00"}`;
 
       const workflowRes = await fetch(`/api/projects/${id}/workflows`, {
         method: "POST",
@@ -105,6 +308,7 @@ export default function ProjectDetailPage() {
       setNewFlowName("");
       setNewFlowDesc("");
       setNewFlowDeadline("");
+      setNewFlowDeadlineTime("09:00");
       setSelectedFlowMembers([]);
       // Optionally, refetch workspaces
       setWorkspaceLoading(true);
@@ -323,7 +527,13 @@ export default function ProjectDetailPage() {
                   {/* Create Flow Button */}
                   <button
                     className="mt-6 w-full h-12 bg-stone-400 rounded-[14px] flex items-center justify-center text-white text-base font-normal font-['Habibi'] hover:bg-stone-500 transition"
-                    onClick={() => setShowCreateFlowModal(true)}
+                    onClick={() => {
+                      if (!newFlowDeadline) {
+                        setNewFlowDeadline(formatDateKey(new Date()));
+                      }
+                      setNewFlowDeadlineTime((prev) => prev || "09:00");
+                      setShowCreateFlowModal(true);
+                    }}
                   >
                     + Create Flow
                   </button>
@@ -344,54 +554,15 @@ export default function ProjectDetailPage() {
                                 <label className="text-black text-base font-normal font-['Arimo']">Description</label>
                                 <textarea className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black" value={newFlowDesc} onChange={e => setNewFlowDesc(e.target.value)} />
                                 <label className="text-black text-base font-normal font-['Arimo']">Deadline</label>
-                                <div className="relative w-full">
-                                  <input
-                                    type="text"
-                                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black bg-white focus:outline-none focus:border-blue-500 hover:border-blue-400 transition-colors pr-10"
-                                    style={{ color: 'black', backgroundColor: 'white' }}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  <DateDropdown
                                     value={newFlowDeadline}
-                                    onChange={e => {
-                                      const input = e.target.value;
-                                      const numbers = input.replace(/\D/g, "");
-                                      let formatted = numbers;
-                                      if (numbers.length > 2) formatted = `${numbers.slice(0, 2)}/${numbers.slice(2)}`;
-                                      if (numbers.length > 4) formatted = `${formatted.slice(0, 5)}/${numbers.slice(4, 8)}`;
-                                      setNewFlowDeadline(formatted);
-                                    }}
-                                    placeholder="dd/mm/yyyy"
-                                    maxLength={10}
-                                    required
+                                    onChange={setNewFlowDeadline}
                                   />
-                                  <button
-                                    type="button"
-                                    tabIndex={0}
-                                    aria-label="Pick date"
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 bg-white hover:bg-gray-100 rounded focus:outline-none border border-transparent focus:border-blue-400"
-                                    onClick={() => {
-                                      // Open a hidden date input and sync value
-                                      const input = document.createElement('input');
-                                      input.type = 'date';
-                                      if (newFlowDeadline && newFlowDeadline.length === 10) {
-                                        const [d, m, y] = newFlowDeadline.split('/');
-                                        input.value = `${y}-${m}-${d}`;
-                                      }
-                                      input.style.position = 'absolute';
-                                      input.style.left = '-9999px';
-                                      document.body.appendChild(input);
-                                      input.onchange = (e) => {
-                                        if (input.value) {
-                                          const [y, m, d] = input.value.split('-');
-                                          setNewFlowDeadline(`${d}/${m}/${y}`);
-                                        }
-                                        document.body.removeChild(input);
-                                      };
-                                      input.click();
-                                    }}
-                                  >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-600">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3.75 7.5h16.5M4.5 21h15a.75.75 0 00.75-.75V7.5a.75.75 0 00-.75-.75h-15A.75.75 0 003.75 7.5v12.75c0 .414.336.75.75.75z" />
-                                    </svg>
-                                  </button>
+                                  <TimeDropdown
+                                    value={newFlowDeadlineTime}
+                                    onChange={setNewFlowDeadlineTime}
+                                  />
                                 </div>
                                 <label className="text-black text-base font-normal font-['Arimo']">Assign Members</label>
                                 <div className="w-full flex flex-col gap-2">
