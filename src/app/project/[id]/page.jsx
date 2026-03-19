@@ -43,47 +43,62 @@ export default function ProjectDetailPage() {
         return;
       }
 
-      // Always send deadline in yyyy-mm-dd format
-      let isoDeadline = newFlowDeadline;
-      if (isoDeadline && isoDeadline.includes("/")) {
-        // Convert dd/mm/yyyy to yyyy-mm-dd
-        const [d, m, y] = isoDeadline.split("/");
+      // Accept manual date typing in dd/mm/yyyy or yyyy-mm-dd and normalize to yyyy-mm-dd.
+      const rawDeadline = (newFlowDeadline || "").trim();
+      let isoDeadline = "";
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDeadline)) {
+        const [d, m, y] = rawDeadline.split("/");
         isoDeadline = `${y}-${m}-${d}`;
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(rawDeadline)) {
+        isoDeadline = rawDeadline;
+      } else {
+        alert("Deadline must be in dd/mm/yyyy or yyyy-mm-dd format.");
+        return;
       }
+
       const workflowRes = await fetch(`/api/projects/${id}/workflows`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: newFlowName,
-          description: newFlowDesc,
-          deadline: isoDeadline,
-          creator_id: currentUser?.id
+          description: newFlowDesc
         }),
       });
 
-      if (!workflowRes.ok) throw new Error("Failed to create workflow");
+      if (!workflowRes.ok) {
+        const errData = await workflowRes.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to create workflow");
+      }
       const workflow = await workflowRes.json();
       // 2. Assign members
       for (const memberId of selectedFlowMembers) {
         const member = members.find((m) => m.id === memberId);
         if (!member) continue;
-        await fetch(`/api/workflows/${workflow.id}/members`, {
+        const assignRes = await fetch(`/api/workflows/${workflow.id}/members`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ username: member.username, role: member.role || "member" }),
         });
+        if (!assignRes.ok) {
+          const errData = await assignRes.json().catch(() => ({}));
+          throw new Error(errData.detail || `Failed to assign ${member.username}`);
+        }
       }
       // 3. Create deadline (assign to lead or first member)
       const deadlineAssignee = members.find((m) => m.id === selectedFlowMembers[0]);
       if (deadlineAssignee) {
-        await fetch(`/api/workflows/${workflow.id}/deadlines`, {
+        const deadlineRes = await fetch(`/api/workflows/${workflow.id}/deadlines`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: `${newFlowName} Deadline`, due_date: newFlowDeadline, assigned_to: deadlineAssignee.username }),
+          body: JSON.stringify({ title: `${newFlowName} Deadline`, due_date: isoDeadline, assigned_to: deadlineAssignee.username }),
         });
+        if (!deadlineRes.ok) {
+          const errData = await deadlineRes.json().catch(() => ({}));
+          throw new Error(errData.detail || "Failed to create deadline");
+        }
       }
       // 4. Refresh workspace list
       setShowCreateFlowModal(false);

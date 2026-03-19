@@ -1611,7 +1611,7 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
         "name": request.title,
         "description": request.description or "",
         "creator_id": user.get("sub"),
-        "status": "active",
+        "status": "in_process",
     }
     response = db.table("workspaces").insert(workflow_data).execute()
     if getattr(response, "error", None):
