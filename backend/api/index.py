@@ -625,9 +625,9 @@ def create_chat_channel(request: CreateChannelRequest, user=Depends(get_current_
             
         # Add all users to the members table
         new_channel_id = channel.data[0]["id"]
-        members_to_insert = [{"channel_id": new_channel_id, "user_id": user_id}]
+        members_to_insert = [{"channel_id": new_channel_id, "user_id": user_id, "role": "admin"}]
         for tid in target_ids:
-            members_to_insert.append({"channel_id": new_channel_id, "user_id": tid})
+            members_to_insert.append({"channel_id": new_channel_id, "user_id": tid, "role": "member"})
             
         db.table("chat_channel_members").insert(members_to_insert).execute()
         
@@ -654,7 +654,8 @@ def create_chat_channel(request: CreateChannelRequest, user=Depends(get_current_
     if not request.project_id:
         db.table("chat_channel_members").insert({
             "channel_id": channel.data[0]["id"],
-            "user_id": user_id
+            "user_id": user_id,
+            "role": "admin"
         }).execute()
         
     return channel.data[0]
@@ -669,8 +670,14 @@ def delete_chat_channel(channel_id: str, user=Depends(get_current_user)):
     if not channel.data:
         raise HTTPException(status_code=404, detail="Channel not found")
     
-    # Only allow creator to delete (or you could add project lead logic here)
-    if channel.data["created_by"] != user_id:
+    # Only allow creator or an admin to delete
+    is_admin = channel.data["created_by"] == user_id
+    if not is_admin and not channel.data.get("project_id"):
+        mem = db.table("chat_channel_members").select("role").eq("channel_id", channel_id).eq("user_id", user_id).execute()
+        if mem.data and len(mem.data) > 0 and mem.data[0].get("role") == "admin":
+            is_admin = True
+            
+    if not is_admin:
         raise HTTPException(status_code=403, detail="Not authorized to delete this channel")
 
     # Delete messages first, then the channel
@@ -680,9 +687,25 @@ def delete_chat_channel(channel_id: str, user=Depends(get_current_user)):
     
     return {"status": "success"}
 
+@app.delete("/api/chat/channels/{channel_id}/leave")
+def leave_chat_channel(channel_id: str, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+    
+    # Check if user is actually a member
+    membership = db.table("chat_channel_members").select("*").eq("channel_id", channel_id).eq("user_id", user_id).execute()
+    if not membership.data:
+        raise HTTPException(status_code=404, detail="You are not a member of this channel")
+        
+    # Delete the user from members
+    db.table("chat_channel_members").delete().eq("channel_id", channel_id).eq("user_id", user_id).execute()
+    
+    return {"status": "success"}
+
 class UpdateChannelRequest(BaseModel):
     name: Optional[str] = None
     project_id: Optional[str] = None
+    created_by: Optional[str] = None
 
 @app.patch("/api/chat/channels/{channel_id}")
 def update_chat_channel(channel_id: str, request: UpdateChannelRequest, user=Depends(get_current_user)):
@@ -694,7 +717,13 @@ def update_chat_channel(channel_id: str, request: UpdateChannelRequest, user=Dep
     if not channel.data:
         raise HTTPException(status_code=404, detail="Channel not found")
     
-    if channel.data["created_by"] != user_id:
+    is_admin = channel.data["created_by"] == user_id
+    if not is_admin and not channel.data.get("project_id"):
+        mem = db.table("chat_channel_members").select("role").eq("channel_id", channel_id).eq("user_id", user_id).execute()
+        if mem.data and len(mem.data) > 0 and mem.data[0].get("role") == "admin":
+            is_admin = True
+            
+    if not is_admin:
         raise HTTPException(status_code=403, detail="Not authorized to update this channel")
 
     updates = {}
@@ -704,6 +733,8 @@ def update_chat_channel(channel_id: str, request: UpdateChannelRequest, user=Dep
         # Verify project membership
         require_project_member(user_id, request.project_id)
         updates["project_id"] = request.project_id
+    if request.created_by is not None:
+        updates["created_by"] = request.created_by
 
     if not updates:
         return channel.data[0]
@@ -795,14 +826,40 @@ def get_chat_channel_members(channel_id: str, user=Depends(get_current_user)):
         return members
     else:
         # Fetch from chat_channel_members
-        response = db.table("chat_channel_members").select("user_id, profiles:user_id(id, username, full_name, email, avatar_url)").eq("channel_id", channel_id).execute()
+        response = db.table("chat_channel_members").select("user_id, role, profiles:user_id(id, username, full_name, email, avatar_url)").eq("channel_id", channel_id).execute()
         members = []
         for row in response.data:
             if row.get("profiles"):
                 p = row["profiles"]
-                p["role"] = "member"
+                p["role"] = row.get("role", "member")
                 members.append(p)
         return members
+
+class UpdateMemberRoleRequest(BaseModel):
+    role: str
+
+@app.patch("/api/chat/channels/{channel_id}/members/{target_user_id}/role")
+def update_chat_channel_member_role(channel_id: str, target_user_id: str, request: UpdateMemberRoleRequest, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+    
+    channel = db.table("chat_channels").select("*").eq("id", channel_id).single().execute()
+    if not channel.data:
+        raise HTTPException(status_code=404, detail="Channel not found")
+        
+    is_admin = channel.data["created_by"] == user_id
+    if not is_admin and not channel.data.get("project_id"):
+        mem = db.table("chat_channel_members").select("role").eq("channel_id", channel_id).eq("user_id", user_id).execute()
+        if mem.data and len(mem.data) > 0 and mem.data[0].get("role") == "admin":
+            is_admin = True
+            
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Not authorized to change roles")
+        
+    response = db.table("chat_channel_members").update({"role": request.role}).eq("channel_id", channel_id).eq("user_id", target_user_id).execute()
+    if not response.data:
+        raise HTTPException(status_code=500, detail="Failed to update member role")
+    return {"status": "success"}
 
 # List messages in a channel (paginated)
 @app.get("/api/chat/messages")
