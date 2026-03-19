@@ -900,6 +900,10 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
         if not user or not user.id:
             print(f"Sign up failed: {auth_response}")
             raise HTTPException(status_code=400, detail="Failed to create user")
+            
+        # Detect fake user object returned by Supabase email enumeration protection
+        if getattr(user, 'identities', None) is not None and len(user.identities) == 0:
+            raise HTTPException(status_code=409, detail="Email is already registered, would you like to sign in?")
 
         # Try to auto-confirm, but don't fail if it doesn't work
         if supabase_admin:
@@ -939,7 +943,7 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
     except Exception as exc:
         error_str = str(exc).lower()
         # Check for common Supabase auth errors and provide friendly messages
-        if "23505" in error_str or "duplicate key" in error_str or "already registered" in error_str:
+        if "23505" in error_str or "23503" in error_str or "duplicate key" in error_str or "already registered" in error_str:
             raise HTTPException(status_code=409, detail="Email is already registered, would you like to sign in?")
         elif (
             "invalid email" in error_str
@@ -967,6 +971,10 @@ def register(request: RegisterRequest, response: Response, http_request: Request
         user = getattr(user_response, "user", None)
         if not user:
             raise HTTPException(status_code=401, detail="Invalid Supabase token")
+            
+        # Detect fake user object returned by Supabase email enumeration protection
+        if getattr(user, 'identities', None) is not None and len(user.identities) == 0:
+            raise HTTPException(status_code=409, detail="Email is already registered, would you like to sign in?")
 
         # Auto-confirm the user via admin API so they can sign in immediately
         if supabase_admin:
@@ -1007,6 +1015,9 @@ def register(request: RegisterRequest, response: Response, http_request: Request
     except HTTPException:
         raise
     except Exception as exc:
+        error_str = str(exc).lower()
+        if "23505" in error_str or "23503" in error_str or "duplicate key" in error_str or "already registered" in error_str:
+            raise HTTPException(status_code=409, detail="Email is already registered, would you like to sign in?")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
