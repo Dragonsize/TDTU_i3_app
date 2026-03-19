@@ -1,12 +1,19 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 
 function toIsoFromLocal(localDateTime) {
   if (!localDateTime) return "";
   return new Date(localDateTime).toISOString();
+}
+
+function toInputDateTime(isoString) {
+  if (!isoString) return "";
+  const d = new Date(isoString);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
 }
 
 function monthRange(date) {
@@ -19,14 +26,29 @@ function formatDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function isSameDate(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 function eventInDay(event, day) {
   const d = new Date(day);
   const start = new Date(event.start_time);
-  return start.getFullYear() === d.getFullYear() && start.getMonth() === d.getMonth() && start.getDate() === d.getDate();
+  return isSameDate(start, d);
+}
+
+function formatTimeRange(start, end) {
+  const s = new Date(start).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const e = new Date(end).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return `${s} - ${e}`;
 }
 
 export default function CalendarPage() {
   const router = useRouter();
+
   const [user, setUser] = useState(null);
   const [projects, setProjects] = useState([]);
   const [events, setEvents] = useState([]);
@@ -45,7 +67,7 @@ export default function CalendarPage() {
   const [endTime, setEndTime] = useState("");
   const [projectId, setProjectId] = useState("");
   const [eventType, setEventType] = useState("meeting");
-  const [color, setColor] = useState("#3b82f6");
+  const [color, setColor] = useState("#1a73e8");
 
   const [teamProjectId, setTeamProjectId] = useState("");
   const [teamData, setTeamData] = useState({ members: [], events: [], busy_times: [] });
@@ -65,7 +87,7 @@ export default function CalendarPage() {
     setEvents(Array.isArray(data) ? data : []);
   };
 
-  const fetchTeamCalendar = async () => {
+  const fetchTeamCalendar = useCallback(async () => {
     if (!teamProjectId) return;
     const { start, end } = monthRange(currentMonth);
     const res = await fetch(
@@ -77,16 +99,14 @@ export default function CalendarPage() {
       throw new Error(data.detail || "Failed to load team calendar");
     }
     const data = await res.json();
+    const members = data.members || [];
     setTeamData({
-      members: data.members || [],
+      members,
       events: data.events || [],
       busy_times: data.busy_times || [],
     });
-    setSelectedMemberIds((prev) => {
-      if (prev.length > 0) return prev;
-      return (data.members || []).map((m) => m.id);
-    });
-  };
+    setSelectedMemberIds((prev) => (prev.length > 0 ? prev : members.map((m) => m.id)));
+  }, [teamProjectId, currentMonth]);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -130,7 +150,7 @@ export default function CalendarPage() {
   useEffect(() => {
     if (loading || !teamProjectId || viewMode !== "team") return;
     fetchTeamCalendar().catch((err) => setError(err.message || "Could not refresh team calendar."));
-  }, [currentMonth, teamProjectId, viewMode, loading]);
+  }, [fetchTeamCalendar, loading, teamProjectId, viewMode]);
 
   const eventsByDay = useMemo(() => {
     const map = {};
@@ -145,6 +165,26 @@ export default function CalendarPage() {
     return map;
   }, [events]);
 
+  const selectedMemberSet = useMemo(() => new Set(selectedMemberIds), [selectedMemberIds]);
+
+  const filteredTeamEvents = useMemo(
+    () => (teamData.events || []).filter((ev) => selectedMemberSet.has(ev.user_id)),
+    [teamData.events, selectedMemberSet]
+  );
+
+  const teamEventsByDay = useMemo(() => {
+    const map = {};
+    for (const ev of filteredTeamEvents) {
+      const key = formatDateKey(new Date(ev.start_time));
+      if (!map[key]) map[key] = [];
+      map[key].push(ev);
+    }
+    for (const key of Object.keys(map)) {
+      map[key].sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+    }
+    return map;
+  }, [filteredTeamEvents]);
+
   const monthDays = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -157,14 +197,20 @@ export default function CalendarPage() {
     });
   }, [currentMonth]);
 
-  const selectedEvents = eventsByDay[formatDateKey(selectedDay)] || [];
-  const selectedMemberSet = new Set(selectedMemberIds);
-  const selectedDayTeamEvents = (teamData.events || []).filter(
-    (ev) => selectedMemberSet.has(ev.user_id) && eventInDay(ev, selectedDay)
-  );
+  const sourceMap = viewMode === "team" ? teamEventsByDay : eventsByDay;
+  const selectedEvents = sourceMap[formatDateKey(selectedDay)] || [];
+
   const selectedDayBusy = (teamData.busy_times || []).filter(
     (ev) => selectedMemberSet.has(ev.user_id) && eventInDay(ev, selectedDay)
   );
+
+  const memberById = useMemo(() => {
+    const m = {};
+    for (const member of teamData.members || []) {
+      m[member.id] = member;
+    }
+    return m;
+  }, [teamData.members]);
 
   const resetForm = () => {
     setEditingEventId(null);
@@ -174,7 +220,7 @@ export default function CalendarPage() {
     setEndTime("");
     setProjectId("");
     setEventType("meeting");
-    setColor("#3b82f6");
+    setColor("#1a73e8");
   };
 
   const submitEvent = async (e) => {
@@ -220,11 +266,11 @@ export default function CalendarPage() {
     setEditingEventId(ev.id);
     setTitle(ev.title || "");
     setDescription(ev.description || "");
-    setStartTime(new Date(ev.start_time).toISOString().slice(0, 16));
-    setEndTime(new Date(ev.end_time).toISOString().slice(0, 16));
+    setStartTime(toInputDateTime(ev.start_time));
+    setEndTime(toInputDateTime(ev.end_time));
     setProjectId(ev.project_id || "");
     setEventType(ev.event_type || "meeting");
-    setColor(ev.color || "#3b82f6");
+    setColor(ev.color || "#1a73e8");
   };
 
   const deleteEvent = async (eventId) => {
@@ -295,7 +341,7 @@ export default function CalendarPage() {
           end_time: slot.end_time,
           member_ids: selectedMemberIds,
           event_type: "meeting",
-          color: "#0ea5e9",
+          color: "#1a73e8",
         }),
       });
       if (!res.ok) {
@@ -316,163 +362,313 @@ export default function CalendarPage() {
 
   return (
     <AppShell user={user} activePath="/calendar" contentClassName="flex-1">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 xl:px-16 py-8 bg-[#f8fafd]">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 font-['Inter']">Calendar & Meeting Planner</h1>
-            <p className="text-slate-600 font-['Arimo'] mt-1">Personal scheduling plus project-wide team availability.</p>
-          </div>
+      <main className="max-w-[1500px] mx-auto px-3 sm:px-6 lg:px-8 py-4 bg-[#f8fafd] min-h-[calc(100vh-64px)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
-            <button onClick={() => setViewMode("personal")} className={`px-4 py-2 rounded-lg text-sm font-semibold border ${viewMode === "personal" ? "bg-[#1a73e8] text-white border-[#1a73e8]" : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"}`}>Personal</button>
-            <button onClick={() => setViewMode("team")} className={`px-4 py-2 rounded-lg text-sm font-semibold border ${viewMode === "team" ? "bg-[#1a73e8] text-white border-[#1a73e8]" : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"}`}>Team</button>
+            <button
+              onClick={() => setCurrentMonth(new Date())}
+              className="px-3 py-1.5 rounded-md border border-slate-300 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50"
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+              className="w-9 h-9 rounded-full bg-white border border-slate-300 text-slate-600 hover:bg-slate-50"
+              title="Previous month"
+            >
+              ‹
+            </button>
+            <button
+              onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+              className="w-9 h-9 rounded-full bg-white border border-slate-300 text-slate-600 hover:bg-slate-50"
+              title="Next month"
+            >
+              ›
+            </button>
+            <h1 className="ml-2 text-2xl font-semibold text-slate-900 font-['Arimo']">
+              {currentMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewMode("personal")}
+              className={`px-4 py-2 rounded-md text-sm font-medium border ${
+                viewMode === "personal"
+                  ? "bg-[#1a73e8] text-white border-[#1a73e8]"
+                  : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+              }`}
+            >
+              Personal
+            </button>
+            <button
+              onClick={() => setViewMode("team")}
+              className={`px-4 py-2 rounded-md text-sm font-medium border ${
+                viewMode === "team"
+                  ? "bg-[#1a73e8] text-white border-[#1a73e8]"
+                  : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+              }`}
+            >
+              Team
+            </button>
           </div>
         </div>
 
-        {error && <div className="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 px-3 py-2 text-sm font-medium">{error}</div>}
+        {error && (
+          <div className="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 px-3 py-2 text-sm font-medium">
+            {error}
+          </div>
+        )}
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <section className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))} className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 font-medium hover:bg-slate-50">Prev</button>
-              <div className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-900 bg-slate-50">{currentMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</div>
-              <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))} className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 font-medium hover:bg-slate-50">Next</button>
+        <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-4">
+          <aside className="space-y-4">
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h2 className="text-base font-semibold text-slate-900 mb-3 font-['Arimo']">
+                {editingEventId ? "Edit event" : "Create event"}
+              </h2>
+              <form onSubmit={submitEvent} className="space-y-2.5">
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
+                  placeholder="Add title"
+                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900"
+                />
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Description"
+                  rows={2}
+                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900"
+                />
+                <input
+                  type="datetime-local"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  required
+                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900"
+                />
+                <input
+                  type="datetime-local"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  required
+                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900"
+                />
+                <select
+                  value={projectId}
+                  onChange={(e) => setProjectId(e.target.value)}
+                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900"
+                >
+                  <option value="">Personal event</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title || p.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={eventType}
+                    onChange={(e) => setEventType(e.target.value)}
+                    className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900"
+                  >
+                    <option value="meeting">Meeting</option>
+                    <option value="deadline">Deadline</option>
+                    <option value="task">Task</option>
+                    <option value="focus">Focus</option>
+                  </select>
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="w-full h-10 border border-slate-300 rounded-md px-1 bg-white"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="bg-[#1a73e8] text-white rounded-md py-2 text-sm font-semibold hover:bg-[#1765cc] disabled:opacity-60"
+                  >
+                    {submitting ? "Saving..." : editingEventId ? "Update" : "Save"}
+                  </button>
+                  {editingEventId && (
+                    <button
+                      type="button"
+                      onClick={resetForm}
+                      className="bg-slate-100 text-slate-700 rounded-md py-2 text-sm font-semibold hover:bg-slate-200"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </form>
+            </section>
+
+            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-800 mb-2">
+                {selectedDay.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+              </h3>
+              <div className="space-y-2 max-h-[280px] overflow-auto pr-1">
+                {selectedEvents.length === 0 && <p className="text-xs text-slate-500">No events for this day.</p>}
+                {selectedEvents.map((ev) => (
+                  <div key={ev.id} className="border border-slate-200 rounded-md p-2">
+                    <div className="text-xs font-semibold" style={{ color: ev.color || "#1a73e8" }}>
+                      {ev.title}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">{formatTimeRange(ev.start_time, ev.end_time)}</div>
+                    {viewMode === "team" && memberById[ev.user_id] && (
+                      <div className="text-xs text-slate-500 mt-0.5">
+                        {memberById[ev.user_id].full_name || memberById[ev.user_id].username}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3 mt-1.5">
+                      <button onClick={() => startEditEvent(ev)} className="text-xs text-[#1a73e8] font-medium">Edit</button>
+                      <button onClick={() => deleteEvent(ev.id)} className="text-xs text-red-600 font-medium">Delete</button>
+                    </div>
+                  </div>
+                ))}
+
+                {viewMode === "team" && selectedDayBusy.map((busy, idx) => (
+                  <div key={`${busy.user_id}-${idx}`} className="border border-amber-200 bg-amber-50 rounded-md p-2">
+                    <div className="text-xs font-semibold text-amber-800">
+                      {(memberById[busy.user_id]?.full_name || memberById[busy.user_id]?.username || "Member") + " busy"}
+                    </div>
+                    <div className="text-xs text-amber-700 mt-0.5">{formatTimeRange(busy.start_time, busy.end_time)}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {viewMode === "team" && (
+              <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <h3 className="text-sm font-semibold text-slate-800 mb-2">Team meeting finder</h3>
+                <select
+                  value={teamProjectId}
+                  onChange={(e) => setTeamProjectId(e.target.value)}
+                  className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900 mb-2"
+                >
+                  <option value="">Select project</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title || p.name}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="mb-2 max-h-24 overflow-auto border border-slate-200 rounded-md p-2 bg-slate-50">
+                  {(teamData.members || []).map((member) => (
+                    <label key={member.id} className="flex items-center gap-2 text-xs text-slate-700 py-0.5">
+                      <input
+                        type="checkbox"
+                        checked={selectedMemberIds.includes(member.id)}
+                        onChange={() => toggleMemberSelection(member.id)}
+                      />
+                      <span>{member.full_name || member.username}</span>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 mb-2">
+                  <input
+                    type="datetime-local"
+                    value={meetingWindowStart}
+                    onChange={(e) => setMeetingWindowStart(e.target.value)}
+                    className="border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900"
+                  />
+                  <input
+                    type="datetime-local"
+                    value={meetingWindowEnd}
+                    onChange={(e) => setMeetingWindowEnd(e.target.value)}
+                    className="border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 mb-2">
+                  <input
+                    type="number"
+                    min={15}
+                    step={15}
+                    value={meetingDuration}
+                    onChange={(e) => setMeetingDuration(Number(e.target.value))}
+                    className="w-24 border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900"
+                  />
+                  <button
+                    onClick={findMeetingSlots}
+                    disabled={planningMeeting}
+                    className="px-3 py-2 rounded-md bg-[#1a73e8] text-white text-xs font-medium hover:bg-[#1765cc] disabled:opacity-60"
+                  >
+                    {planningMeeting ? "Finding..." : "Find slots"}
+                  </button>
+                </div>
+
+                <div className="space-y-1.5 max-h-36 overflow-auto">
+                  {meetingSlots.map((slot) => (
+                    <div key={slot.start_time} className="border border-slate-200 rounded-md p-2 flex items-center justify-between gap-2">
+                      <div className="text-xs text-slate-700">{new Date(slot.start_time).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
+                      <button
+                        onClick={() => scheduleMeetingAtSlot(slot)}
+                        className="text-xs px-2 py-1 rounded bg-[#1a73e8] text-white"
+                      >
+                        Schedule
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </aside>
+
+          <section className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((label) => (
+                <div key={label} className="py-2 text-center text-xs font-semibold text-slate-600">{label}</div>
+              ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-2 mb-2 text-xs font-semibold text-slate-600">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => <div key={d} className="text-center py-1">{d}</div>)}
-            </div>
-            <div className="grid grid-cols-7 gap-2">
-              {monthDays.map((d) => {
+            <div className="grid grid-cols-7">
+              {monthDays.map((d, idx) => {
                 const key = formatDateKey(d);
-                const dayEvents = (eventsByDay[key] || []).slice(0, 2);
+                const dayEvents = (sourceMap[key] || []).slice(0, 4);
                 const isCurrentMonth = d.getMonth() === currentMonth.getMonth();
-                const isSelected = key === formatDateKey(selectedDay);
-                const isToday = key === formatDateKey(new Date());
+                const isSelected = isSameDate(d, selectedDay);
+                const isToday = isSameDate(d, new Date());
+                const isLastCol = (idx + 1) % 7 === 0;
+                const isLastRow = idx >= 35;
+
                 return (
-                  <button key={key} onClick={() => setSelectedDay(new Date(d))} className={`min-h-[108px] text-left rounded-xl border p-2 transition-colors ${isSelected ? "border-[#1a73e8] bg-[#e8f0fe]" : "border-slate-200 hover:border-slate-300"} ${isCurrentMonth ? "bg-white" : "bg-slate-50"}`}>
-                    <div className={`text-xs font-semibold mb-1 ${isCurrentMonth ? "text-slate-800" : "text-slate-400"} ${isToday ? "inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#1a73e8] text-white" : ""}`}>{d.getDate()}</div>
-                    {dayEvents.map((ev) => (
-                      <div key={ev.id} className="truncate text-[11px] rounded-md px-1.5 py-1 text-white mb-1 font-medium" style={{ backgroundColor: ev.color || "#1a73e8" }}>{ev.title}</div>
-                    ))}
+                  <button
+                    key={key}
+                    onClick={() => setSelectedDay(new Date(d))}
+                    className={`min-h-[122px] p-1.5 text-left align-top ${!isLastCol ? "border-r border-slate-200" : ""} ${!isLastRow ? "border-b border-slate-200" : ""} ${isSelected ? "bg-[#e8f0fe]" : "bg-white hover:bg-slate-50"}`}
+                  >
+                    <div className={`mb-1 text-xs font-semibold ${isCurrentMonth ? "text-slate-800" : "text-slate-400"}`}>
+                      <span className={`${isToday ? "inline-flex w-6 h-6 items-center justify-center rounded-full bg-[#1a73e8] text-white" : ""}`}>
+                        {d.getDate()}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      {dayEvents.map((ev) => {
+                        const memberName = memberById[ev.user_id]?.username;
+                        return (
+                          <div
+                            key={ev.id}
+                            className="truncate rounded px-1.5 py-0.5 text-[11px] text-white font-medium"
+                            style={{ backgroundColor: ev.color || "#1a73e8" }}
+                            title={viewMode === "team" && memberName ? `${ev.title} (${memberName})` : ev.title}
+                          >
+                            {viewMode === "team" && memberName ? `${memberName}: ${ev.title}` : ev.title}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </button>
                 );
               })}
             </div>
           </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
-            <h2 className="text-lg font-bold font-['Arimo'] text-slate-900 mb-3">{editingEventId ? "Edit Event" : "Create Event"}</h2>
-            <form onSubmit={submitEvent} className="space-y-3">
-              <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="Title" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" />
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" rows={2} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" />
-              <input type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} required className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900" />
-              <input type="datetime-local" value={endTime} onChange={(e) => setEndTime(e.target.value)} required className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900" />
-              <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900">
-                <option value="">Personal event</option>
-                {projects.map((p) => <option key={p.id} value={p.id}>{p.title || p.name}</option>)}
-              </select>
-              <div className="grid grid-cols-2 gap-2">
-                <select value={eventType} onChange={(e) => setEventType(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900">
-                  <option value="meeting">Meeting</option>
-                  <option value="deadline">Deadline</option>
-                  <option value="task">Task</option>
-                  <option value="focus">Focus</option>
-                </select>
-                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-full h-10 border border-slate-300 rounded-lg px-1 bg-white" />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button type="submit" disabled={submitting} className="w-full bg-[#1a73e8] text-white rounded-lg py-2 text-sm font-semibold hover:bg-[#1765cc] disabled:opacity-60">{submitting ? "Saving..." : editingEventId ? "Update" : "Add Event"}</button>
-                {editingEventId && <button type="button" onClick={resetForm} className="w-full bg-slate-100 text-slate-700 rounded-lg py-2 text-sm font-semibold hover:bg-slate-200">Cancel</button>}
-              </div>
-            </form>
-          </section>
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-6">
-          <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
-            <h3 className="text-sm font-semibold text-slate-800 mb-2">{selectedDay.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}</h3>
-            <div className="space-y-2 max-h-[280px] overflow-auto pr-1">
-              {selectedEvents.length === 0 && <p className="text-xs text-slate-500">No events for this day.</p>}
-              {selectedEvents.map((ev) => (
-                <div key={ev.id} className="border border-slate-200 rounded-lg p-2 bg-white">
-                  <div className="flex justify-between gap-2">
-                    <div>
-                      <div className="text-sm font-semibold" style={{ color: ev.color || "#0f172a" }}>{ev.title}</div>
-                      <div className="text-xs text-slate-500">{new Date(ev.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - {new Date(ev.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => startEditEvent(ev)} className="text-xs text-[#1a73e8] font-medium">Edit</button>
-                      <button onClick={() => deleteEvent(ev.id)} className="text-xs text-red-600 font-medium">Delete</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {viewMode === "team" && (
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
-              <h3 className="text-lg font-bold font-['Arimo'] text-slate-900 mb-3">Project Team Availability</h3>
-              <select value={teamProjectId} onChange={(e) => setTeamProjectId(e.target.value)} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 mb-3">
-                <option value="">Select project</option>
-                {projects.map((p) => <option key={p.id} value={p.id}>{p.title || p.name}</option>)}
-              </select>
-
-              <div className="mb-3 max-h-28 overflow-auto border border-slate-200 rounded-lg p-2 bg-slate-50">
-                {(teamData.members || []).map((member) => (
-                  <label key={member.id} className="flex items-center gap-2 text-sm text-slate-700 py-1">
-                    <input type="checkbox" checked={selectedMemberIds.includes(member.id)} onChange={() => toggleMemberSelection(member.id)} />
-                    <span>{member.full_name || member.username} ({member.role})</span>
-                  </label>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <input type="datetime-local" value={meetingWindowStart} onChange={(e) => setMeetingWindowStart(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900" />
-                <input type="datetime-local" value={meetingWindowEnd} onChange={(e) => setMeetingWindowEnd(e.target.value)} className="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900" />
-              </div>
-              <div className="flex gap-2 mb-3">
-                <input type="number" min={15} step={15} value={meetingDuration} onChange={(e) => setMeetingDuration(Number(e.target.value))} className="w-28 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900" />
-                <button onClick={findMeetingSlots} disabled={planningMeeting} className="px-3 py-2 rounded-lg bg-[#1a73e8] text-white text-sm font-medium hover:bg-[#1765cc] disabled:opacity-60">{planningMeeting ? "Finding..." : "Find Slots"}</button>
-              </div>
-
-              <div className="space-y-2 max-h-36 overflow-auto mb-3">
-                {meetingSlots.length === 0 && <p className="text-xs text-slate-500">No slots yet. Choose range and click Find Slots.</p>}
-                {meetingSlots.map((slot) => (
-                  <div key={slot.start_time} className="border border-slate-200 rounded-lg p-2 flex items-center justify-between gap-2 bg-white">
-                    <div className="text-xs text-slate-700">
-                      {new Date(slot.start_time).toLocaleString()} - {new Date(slot.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </div>
-                    <button onClick={() => scheduleMeetingAtSlot(slot)} className="text-xs px-2 py-1 rounded bg-[#1a73e8] text-white font-medium">Schedule</button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t border-slate-200 pt-3">
-                <h4 className="text-sm font-semibold text-slate-800 mb-2">Selected Day Team Calendar</h4>
-                <div className="space-y-2 max-h-44 overflow-auto">
-                  {selectedDayTeamEvents.map((ev) => {
-                    const member = (teamData.members || []).find((m) => m.id === ev.user_id);
-                    return (
-                      <div key={ev.id} className="text-xs border border-slate-200 rounded-lg p-2 bg-white">
-                        <div className="font-semibold text-slate-800">{member?.full_name || member?.username || "Member"}: {ev.title}</div>
-                        <div className="text-slate-500">{new Date(ev.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - {new Date(ev.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                      </div>
-                    );
-                  })}
-                  {selectedDayBusy.map((busy, idx) => {
-                    const member = (teamData.members || []).find((m) => m.id === busy.user_id);
-                    return (
-                      <div key={`${busy.user_id}-${idx}`} className="text-xs border border-amber-200 bg-amber-50 rounded-lg p-2">
-                        <div className="font-semibold">{member?.full_name || member?.username || "Member"}: Busy Block</div>
-                        <div className="text-amber-700">{new Date(busy.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - {new Date(busy.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </section>
-          )}
         </div>
       </main>
     </AppShell>
