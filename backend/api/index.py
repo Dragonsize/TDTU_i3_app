@@ -7,7 +7,8 @@ import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, UploadFile, Form, Request, Query
+from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, UploadFile, Form, Request, Query, WebSocket, WebSocketDisconnect, BackgroundTasks
+import asyncio
 def sanitize_chat_input(text: str) -> str:
     # Remove dangerous SQL/meta chars and trim
     if not isinstance(text, str):
@@ -446,6 +447,61 @@ def require_project_lead(user_id: str, project_id: str) -> None:
 
 # --- Chat API ---
 
+class ConnectionManager:
+    def __init__(self):
+        # channel_id -> list of active connections
+        self.active_connections: Dict[str, List[WebSocket]] = {}
+
+    async def connect(self, channel_id: str, websocket: WebSocket):
+        await websocket.accept()
+        if channel_id not in self.active_connections:
+            self.active_connections[channel_id] = []
+        self.active_connections[channel_id].append(websocket)
+
+    def disconnect(self, channel_id: str, websocket: WebSocket):
+        if channel_id in self.active_connections:
+            if websocket in self.active_connections[channel_id]:
+                self.active_connections[channel_id].remove(websocket)
+            if not self.active_connections[channel_id]:
+                del self.active_connections[channel_id]
+
+    async def broadcast(self, channel_id: str, message: dict):
+        if channel_id in self.active_connections:
+            for connection in self.active_connections[channel_id][:]:
+                try:
+                    await connection.send_json(message)
+                except Exception:
+                    self.disconnect(channel_id, connection)
+
+manager = ConnectionManager()
+
+async def async_broadcast(channel_id: str, message: dict):
+    await manager.broadcast(channel_id, message)
+
+@app.websocket("/api/chat/ws")
+async def websocket_chat(websocket: WebSocket, channel_id: str = Query(...), access_token: str = Cookie(None)):
+    try:
+        if not access_token:
+            await websocket.close(code=1008)
+            return
+        payload = verify_token(access_token)
+        if not payload or payload.get("type") != "access":
+            await websocket.close(code=1008)
+            return
+        user_id = payload.get("sub")
+    except Exception:
+        await websocket.close(code=1008)
+        return
+        
+    await manager.connect(channel_id, websocket)
+    try:
+        while True:
+            # Keep the connection alive
+            data = await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(channel_id, websocket)
+
+
 class CreateChannelRequest(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
@@ -749,7 +805,7 @@ def list_chat_messages(channel_id: str = Query(...), limit: int = Query(30, ge=1
     return list(reversed(messages.data)) if messages.data else []
 
 @app.post("/api/chat/messages")
-def send_chat_message(request: SendMessageRequest, user=Depends(get_current_user)):
+def send_chat_message(request: SendMessageRequest, background_tasks: BackgroundTasks, user=Depends(get_current_user)):
     db = require_db_client()
     user_id = user.get("sub")
     # Check access
@@ -769,6 +825,15 @@ def send_chat_message(request: SendMessageRequest, user=Depends(get_current_user
         raise HTTPException(status_code=500, detail="Failed to send message")
     # Update channel last_message_at
     db.table("chat_channels").update({"last_message_at": datetime.now(timezone.utc).isoformat()}).eq("id", request.channel_id).execute()
+    
+    # Needs full message data for WS to include author details
+    full_msg_query = db.table("chat_messages").select("*, profiles!sender_id(username,avatar_url)").eq("id", msg.data[0]["id"]).limit(1).execute()
+    if full_msg_query.data:
+        full_msg = full_msg_query.data[0]
+        background_tasks.add_task(async_broadcast, request.channel_id, full_msg)
+    else:
+        background_tasks.add_task(async_broadcast, request.channel_id, msg.data[0])
+        
     return msg.data[0]
 
 @app.get("/api/health")

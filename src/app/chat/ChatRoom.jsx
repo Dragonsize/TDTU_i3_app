@@ -65,42 +65,56 @@ export default function ChatRoom({ user }) {
     }
   }, [channels]);
 
-  // 2. Poll messages from DB for the active channel
+  // 2. Setup WebSocket for real-time messages for the active channel
   useEffect(() => {
     if (!activeChannel || !user) return;
 
     setMessages([]);
     lastMessageSignatureRef.current = "";
 
-    const fetchMessages = async () => {
+    // Fetch initial history
+    const fetchInitialMessages = async () => {
       try {
         const res = await fetch(`/api/chat/messages?channel_id=${activeChannel.id}&limit=50`);
         if (res.ok) {
           const data = await res.json();
-          const lastMessage = data[data.length - 1];
-          const signature = `${data.length}:${lastMessage?.id || ""}:${lastMessage?.sent_at || ""}`;
-
-          if (signature !== lastMessageSignatureRef.current) {
-            setMessages((prev) => {
-              const hadMessages = prev.length;
-              const hasNewMessage = data.length > hadMessages;
-              if (hasNewMessage || !hadMessages) {
-                scrollToBottom();
-              }
-              return data;
-            });
-            lastMessageSignatureRef.current = signature;
-          }
+          setMessages(data);
+          scrollToBottom();
         }
       } catch (error) {
         console.error("Failed to fetch messages", error);
       }
     };
-    fetchMessages();
-    const pollInterval = setInterval(fetchMessages, 2500);
+    
+    fetchInitialMessages();
+
+    // Connect to WebSocket using same domain (proxy handles it)
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/api/chat/ws?channel_id=${activeChannel.id}`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onmessage = (event) => {
+      try {
+        const newMsg = JSON.parse(event.data);
+        setMessages((prev) => {
+          // Avoid duplicates if we already have it
+          if (prev.some((m) => m.id === newMsg.id)) {
+            return prev;
+          }
+          scrollToBottom();
+          return [...prev, newMsg];
+        });
+      } catch (e) {
+        console.error("Error parsing websocket message", e);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
 
     return () => {
-      clearInterval(pollInterval);
+      ws.close();
     };
   }, [activeChannel, user]);
 
