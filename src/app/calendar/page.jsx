@@ -16,6 +16,17 @@ function toInputDateTime(isoString) {
   return d.toISOString().slice(0, 16);
 }
 
+function splitDateTime(localValue) {
+  if (!localValue || !localValue.includes("T")) return { date: "", time: "" };
+  const [date, time] = localValue.split("T");
+  return { date, time: (time || "").slice(0, 5) };
+}
+
+function mergeDateTime(date, time) {
+  if (!date || !time) return "";
+  return `${date}T${time}`;
+}
+
 function monthRange(date) {
   const start = new Date(date.getFullYear(), date.getMonth(), 1);
   const end = new Date(date.getFullYear(), date.getMonth() + 1, 1);
@@ -204,6 +215,11 @@ export default function CalendarPage() {
   const selectedDayBusy = (teamData.busy_times || []).filter(
     (ev) => selectedMemberSet.has(ev.user_id) && eventInDay(ev, selectedDay)
   );
+
+  const startParts = splitDateTime(startTime);
+  const endParts = splitDateTime(endTime);
+  const windowStartParts = splitDateTime(meetingWindowStart);
+  const windowEndParts = splitDateTime(meetingWindowEnd);
 
   const memberById = useMemo(() => {
     const m = {};
@@ -518,18 +534,40 @@ export default function CalendarPage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-2 mb-2">
-                  <input
-                    type="datetime-local"
-                    value={meetingWindowStart}
-                    onChange={(e) => setMeetingWindowStart(e.target.value)}
-                    className="border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900"
-                  />
-                  <input
-                    type="datetime-local"
-                    value={meetingWindowEnd}
-                    onChange={(e) => setMeetingWindowEnd(e.target.value)}
-                    className="border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900"
-                  />
+                  <div className="rounded-md border border-slate-300 p-2 bg-white">
+                    <div className="text-[11px] font-semibold text-slate-500 mb-1">Window start</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="date"
+                        value={windowStartParts.date}
+                        onChange={(e) => setMeetingWindowStart(mergeDateTime(e.target.value, windowStartParts.time || "09:00"))}
+                        className="border border-slate-300 rounded-md px-2 py-1.5 text-xs text-slate-900 bg-slate-50"
+                      />
+                      <input
+                        type="time"
+                        value={windowStartParts.time}
+                        onChange={(e) => setMeetingWindowStart(mergeDateTime(windowStartParts.date || formatDateKey(new Date()), e.target.value))}
+                        className="border border-slate-300 rounded-md px-2 py-1.5 text-xs text-slate-900 bg-slate-50"
+                      />
+                    </div>
+                  </div>
+                  <div className="rounded-md border border-slate-300 p-2 bg-white">
+                    <div className="text-[11px] font-semibold text-slate-500 mb-1">Window end</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="date"
+                        value={windowEndParts.date}
+                        onChange={(e) => setMeetingWindowEnd(mergeDateTime(e.target.value, windowEndParts.time || "18:00"))}
+                        className="border border-slate-300 rounded-md px-2 py-1.5 text-xs text-slate-900 bg-slate-50"
+                      />
+                      <input
+                        type="time"
+                        value={windowEndParts.time}
+                        onChange={(e) => setMeetingWindowEnd(mergeDateTime(windowEndParts.date || formatDateKey(new Date()), e.target.value))}
+                        className="border border-slate-300 rounded-md px-2 py-1.5 text-xs text-slate-900 bg-slate-50"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 mb-2">
@@ -652,20 +690,44 @@ export default function CalendarPage() {
                   />
 
                   <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <input
-                      type="datetime-local"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      required
-                      className="w-full border border-[#3c4043] bg-[#2d2f31] rounded-md px-3 py-2 text-sm text-white"
-                    />
-                    <input
-                      type="datetime-local"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      required
-                      className="w-full border border-[#3c4043] bg-[#2d2f31] rounded-md px-3 py-2 text-sm text-white"
-                    />
+                    <div className="rounded-lg border border-[#3c4043] bg-[#2d2f31] p-3">
+                      <div className="text-[11px] uppercase tracking-wide text-[#9aa0a6] mb-2">Start</div>
+                      <div className="grid grid-cols-[1.3fr_1fr] gap-2">
+                        <input
+                          type="date"
+                          value={startParts.date}
+                          onChange={(e) => setStartTime(mergeDateTime(e.target.value, startParts.time || "09:00"))}
+                          required
+                          className="border border-[#3c4043] bg-[#202124] rounded-md px-3 py-2 text-sm text-white"
+                        />
+                        <input
+                          type="time"
+                          value={startParts.time}
+                          onChange={(e) => setStartTime(mergeDateTime(startParts.date || formatDateKey(new Date()), e.target.value))}
+                          required
+                          className="border border-[#3c4043] bg-[#202124] rounded-md px-3 py-2 text-sm text-white"
+                        />
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-[#3c4043] bg-[#2d2f31] p-3">
+                      <div className="text-[11px] uppercase tracking-wide text-[#9aa0a6] mb-2">End</div>
+                      <div className="grid grid-cols-[1.3fr_1fr] gap-2">
+                        <input
+                          type="date"
+                          value={endParts.date}
+                          onChange={(e) => setEndTime(mergeDateTime(e.target.value, endParts.time || "10:00"))}
+                          required
+                          className="border border-[#3c4043] bg-[#202124] rounded-md px-3 py-2 text-sm text-white"
+                        />
+                        <input
+                          type="time"
+                          value={endParts.time}
+                          onChange={(e) => setEndTime(mergeDateTime(endParts.date || startParts.date || formatDateKey(new Date()), e.target.value))}
+                          required
+                          className="border border-[#3c4043] bg-[#202124] rounded-md px-3 py-2 text-sm text-white"
+                        />
+                      </div>
+                    </div>
                     <select
                       value={projectId}
                       onChange={(e) => setProjectId(e.target.value)}
