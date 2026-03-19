@@ -20,6 +20,16 @@ CREATE TABLE public.ai_chat_sessions (
   CONSTRAINT ai_chat_sessions_pkey PRIMARY KEY (id),
   CONSTRAINT ai_chat_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
+CREATE TABLE public.busy_times (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  start_time timestamp with time zone NOT NULL,
+  end_time timestamp with time zone NOT NULL,
+  description text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT busy_times_pkey PRIMARY KEY (id),
+  CONSTRAINT busy_times_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
 CREATE TABLE public.calendar_events (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   project_id uuid,
@@ -39,10 +49,9 @@ CREATE TABLE public.chat_channel_members (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   channel_id uuid NOT NULL,
   user_id uuid NOT NULL,
-  role text NOT NULL DEFAULT 'member'::text,
   joined_at timestamp with time zone DEFAULT now(),
+  role text NOT NULL DEFAULT 'member'::text CHECK (role = ANY (ARRAY['admin'::text, 'member'::text])),
   CONSTRAINT chat_channel_members_pkey PRIMARY KEY (id),
-  CONSTRAINT chat_channel_members_role_check CHECK (role = ANY (ARRAY['admin'::text, 'member'::text])),
   CONSTRAINT chat_channel_members_channel_id_fkey FOREIGN KEY (channel_id) REFERENCES public.chat_channels(id),
   CONSTRAINT chat_channel_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
@@ -69,9 +78,6 @@ CREATE TABLE public.chat_messages (
   CONSTRAINT chat_messages_channel_id_fkey FOREIGN KEY (channel_id) REFERENCES public.chat_channels(id),
   CONSTRAINT chat_messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.profiles(id)
 );
-
-CREATE INDEX idx_chat_channel_members_channel_role ON public.chat_channel_members USING btree (channel_id, role);
-CREATE INDEX idx_chat_channel_members_channel_user ON public.chat_channel_members USING btree (channel_id, user_id);
 CREATE TABLE public.documents (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   filename text NOT NULL,
@@ -164,4 +170,4 @@ CREATE TABLE public.workspaces (
   CONSTRAINT workspaces_pkey PRIMARY KEY (id),
   CONSTRAINT workspaces_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
   CONSTRAINT workspaces_creator_id_fkey FOREIGN KEY (creator_id) REFERENCES public.profiles(id)
-);a
+);

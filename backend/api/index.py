@@ -4,7 +4,7 @@
 import os
 import re
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, UploadFile, Form, Request, Query, WebSocket, WebSocketDisconnect, BackgroundTasks
@@ -309,14 +309,12 @@ class CreateDeadlineRequest(BaseModel):
     @field_validator("due_date")
     def validate_due_date(cls, value: str) -> str:
         try:
-            normalized = f"{value}T23:59:00Z" if len(value) == 10 and value.count("-") == 2 else value
-            dt = datetime.fromisoformat(normalized.replace("Z", "+00:00"))
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            if dt < datetime.now(timezone.utc) + timedelta(hours=1):
-                raise ValueError("Deadline must be at least 1 hour in the future")
+            normalized = normalize_deadline_due_date(value)
+            due = date.fromisoformat(normalized)
+            if due < datetime.now(timezone.utc).date():
+                raise ValueError("Deadline date cannot be in the past")
         except ValueError:
-            raise ValueError("Invalid due_date; must be ISO-8601 and at least 1 hour in the future")
+            raise ValueError("Invalid due_date; use YYYY-MM-DD and not in the past")
         return value
 
 
@@ -1590,9 +1588,11 @@ def add_project_member(project_id: str, request: AddMemberRequest, user=Depends(
 def get_workflows(project_id: str, user=Depends(get_current_user)):
     db = require_db_client()
     require_project_member(user.get("sub"), project_id)
-    workflow_table = resolve_existing_table(db, ["workspaces", "workflows"])
-    response = db.table(workflow_table).select("*").eq("project_id", project_id).execute()
+    response = db.table("workspaces").select("*").eq("project_id", project_id).order("created_at", desc=False).execute()
     if getattr(response, "error", None):
+        error_text = str(response.error).lower()
+        if "permission denied" in error_text or "row-level security" in error_text:
+            raise HTTPException(status_code=403, detail="Not authorized to view workflows")
         raise HTTPException(status_code=500, detail=f"Failed to fetch workflows: {response.error}")
 
     data = []
@@ -1606,7 +1606,6 @@ def get_workflows(project_id: str, user=Depends(get_current_user)):
 def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depends(get_current_user)):
     db = require_db_client()
     require_project_lead(user.get("sub"), project_id)
-    workflow_table = resolve_existing_table(db, ["workspaces", "workflows"])
     workflow_data = {
         "project_id": project_id,
         "name": request.title,
@@ -1614,15 +1613,15 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
         "creator_id": user.get("sub"),
         "status": "active",
     }
-    response = db.table(workflow_table).insert(workflow_data).execute()
-    if getattr(response, "error", None) and "name" in str(response.error).lower():
-        workflow_data["title"] = workflow_data.pop("name")
-        response = db.table(workflow_table).insert(workflow_data).execute()
+    response = db.table("workspaces").insert(workflow_data).execute()
     if getattr(response, "error", None):
+        error_text = str(response.error).lower()
+        if "permission denied" in error_text or "row-level security" in error_text:
+            raise HTTPException(status_code=403, detail="Not authorized to create workflows")
         raise HTTPException(status_code=500, detail=f"Failed to create workflow: {response.error}")
     if not response.data:
         raise HTTPException(status_code=500, detail="Failed to create workflow")
-    
+
     workflow = response.data[0]
     workflow["title"] = workflow.get("name", workflow.get("title"))
     return workflow
@@ -1631,33 +1630,15 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
 def normalize_deadline_due_date(due_date: str) -> str:
     trimmed = (due_date or "").strip()
     if len(trimmed) == 10 and trimmed.count("-") == 2:
-        # Date-only input from HTML date picker defaults to end-of-day UTC.
-        return f"{trimmed}T23:59:00Z"
-    return trimmed
-
-
-def resolve_existing_table(db: Client, candidates: List[str]) -> str:
-    for table_name in candidates:
-        try:
-            probe = db.table(table_name).select("id").limit(1).execute()
-            err = getattr(probe, "error", None)
-            if not err:
-                return table_name
-            err_text = str(err).lower()
-            if "does not exist" in err_text or "undefined table" in err_text:
-                continue
-            return table_name
-        except Exception:
-            continue
-    return candidates[0]
+        return trimmed
+    parsed = datetime.fromisoformat(trimmed.replace("Z", "+00:00"))
+    return parsed.date().isoformat()
 
 
 @app.post("/api/workflows/{workflow_id}/members")
 def assign_workflow_member(workflow_id: str, request: AssignWorkflowMemberRequest, user=Depends(get_current_user)):
     db = require_db_client()
-    workflow_table = resolve_existing_table(db, ["workspaces", "workflows"])
-    assignments_table = resolve_existing_table(db, ["workspace_assignments", "workflow_assignments"])
-    workflow = db.table(workflow_table).select("project_id").eq("id", workflow_id).execute()
+    workflow = db.table("workspaces").select("project_id").eq("id", workflow_id).execute()
     if getattr(workflow, "error", None):
         raise HTTPException(status_code=500, detail=f"Failed to load workflow: {workflow.error}")
     if not workflow.data:
@@ -1670,7 +1651,7 @@ def assign_workflow_member(workflow_id: str, request: AssignWorkflowMemberReques
         raise HTTPException(status_code=404, detail="User not found")
 
     member_id = profile_response.data[0]["id"]
-    insert_response = db.table(assignments_table).insert({
+    insert_response = db.table("workspace_assignments").insert({
         "workspace_id": workflow_id,
         "user_id": member_id,
         "role": request.role,
@@ -1685,9 +1666,7 @@ def assign_workflow_member(workflow_id: str, request: AssignWorkflowMemberReques
 @app.post("/api/workflows/{workflow_id}/deadlines")
 def create_deadline(workflow_id: str, request: CreateDeadlineRequest, user=Depends(get_current_user)):
     db = require_db_client()
-    workflow_table = resolve_existing_table(db, ["workspaces", "workflows"])
-    deadlines_table = resolve_existing_table(db, ["workspace_deadlines", "workflow_deadlines"])
-    workflow = db.table(workflow_table).select("project_id").eq("id", workflow_id).execute()
+    workflow = db.table("workspaces").select("project_id").eq("id", workflow_id).execute()
     if getattr(workflow, "error", None):
         raise HTTPException(status_code=500, detail=f"Failed to load workflow: {workflow.error}")
     if not workflow.data:
@@ -1700,7 +1679,7 @@ def create_deadline(workflow_id: str, request: CreateDeadlineRequest, user=Depen
         raise HTTPException(status_code=404, detail="Assignee not found")
 
     assignee_id = profile_response.data[0]["id"]
-    response = db.table(deadlines_table).insert({
+    response = db.table("workspace_deadlines").insert({
         "workspace_id": workflow_id,
         "title": request.title,
         "due_date": normalize_deadline_due_date(request.due_date),
@@ -1717,9 +1696,7 @@ def create_deadline(workflow_id: str, request: CreateDeadlineRequest, user=Depen
 @app.get("/api/workflows/{workflow_id}/deadlines")
 def get_workflow_deadlines(workflow_id: str, user=Depends(get_current_user)):
     db = require_db_client()
-    workflow_table = resolve_existing_table(db, ["workspaces", "workflows"])
-    deadlines_table = resolve_existing_table(db, ["workspace_deadlines", "workflow_deadlines"])
-    workflow = db.table(workflow_table).select("project_id").eq("id", workflow_id).limit(1).execute()
+    workflow = db.table("workspaces").select("project_id").eq("id", workflow_id).limit(1).execute()
     if getattr(workflow, "error", None):
         raise HTTPException(status_code=500, detail=f"Failed to load workflow: {workflow.error}")
     if not workflow.data:
@@ -1728,7 +1705,7 @@ def get_workflow_deadlines(workflow_id: str, user=Depends(get_current_user)):
     require_project_member(user.get("sub"), workflow.data[0]["project_id"])
 
     response = (
-        db.table(deadlines_table)
+        db.table("workspace_deadlines")
         .select("*")
         .eq("workspace_id", workflow_id)
         .order("due_date", desc=False)
