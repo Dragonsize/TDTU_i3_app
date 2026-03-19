@@ -226,6 +226,7 @@ export default function ProjectDetailPage() {
   const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
   const [workspaces, setWorkspaces] = useState([]);
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
+  const [workspaceError, setWorkspaceError] = useState("");
   const [showDeadlineModal, setShowDeadlineModal] = useState(false);
   const [deadlines, setDeadlines] = useState([]);
   const [deadlineLoading, setDeadlineLoading] = useState(false);
@@ -312,10 +313,20 @@ export default function ProjectDetailPage() {
       setSelectedFlowMembers([]);
       // Optionally, refetch workspaces
       setWorkspaceLoading(true);
+      setWorkspaceError("");
       fetch(`/api/projects/${id}/workflows`, { credentials: "include" })
-        .then((res) => res.json())
+        .then(async (res) => {
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.detail || "Failed to load workspace flows");
+          }
+          return res.json();
+        })
         .then((data) => setWorkspaces(Array.isArray(data) ? data : []))
-        .catch(() => setWorkspaces([]))
+        .catch((err) => {
+          setWorkspaceError(err.message || "Failed to load workspace flows");
+          setWorkspaces([]);
+        })
         .finally(() => setWorkspaceLoading(false));
     } catch (err) {
       alert("Failed to create workspace flow: " + err.message);
@@ -353,10 +364,20 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     if (!showWorkspaceModal || !id) return;
     setWorkspaceLoading(true);
+    setWorkspaceError("");
     fetch(`/api/projects/${id}/workflows`, { credentials: "include" })
-      .then(res => res.json())
+      .then(async (res) => {
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || "Failed to load workspace flows");
+        }
+        return res.json();
+      })
       .then(data => setWorkspaces(Array.isArray(data) ? data : []))
-      .catch(() => setWorkspaces([]))
+      .catch((err) => {
+        setWorkspaceError(err.message || "Failed to load workspace flows");
+        setWorkspaces([]);
+      })
       .finally(() => setWorkspaceLoading(false));
   }, [showWorkspaceModal, id]);
 
@@ -505,6 +526,11 @@ export default function ProjectDetailPage() {
             <div className="flex-1 bg-white flex flex-col items-center pt-6">
               <div className="w-full flex flex-col items-center">
                 <div className="w-full max-w-[420px] min-h-[240px] max-h-[56dvh] bg-zinc-300 rounded-[16px] mx-auto relative p-4 overflow-y-auto">
+                  {workspaceError && (
+                    <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                      {workspaceError}
+                    </div>
+                  )}
                   {workspaceLoading ? (
                     <div className="text-center text-gray-500 text-base mt-16">Loading workspace flows...</div>
                   ) : workspaces.length === 0 ? (
