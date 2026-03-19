@@ -751,6 +751,70 @@ All authenticated endpoints require an `access_token` cookie (httpOnly). Tokens 
 
 ---
 
+## Chat Endpoints
+
+### PATCH `/api/chat/channels/{channel_id}/members/{target_user_id}/role`
+**Purpose:** Promote/demote a member role in non-project channels.
+
+**Auth Required:** Yes
+
+**Request Body:**
+```json
+{
+  "role": "admin | member"
+}
+```
+
+**Notes:**
+- Channel creator always remains admin.
+- Project-linked channels must use project role management.
+
+**Response:**
+```json
+{
+  "status": "success"
+}
+```
+
+---
+
+### DELETE `/api/chat/channels/{channel_id}/members/{target_user_id}`
+**Purpose:** Remove a member from a channel.
+
+**Auth Required:** Yes
+
+**Notes:**
+- Allowed for effective channel admins (creator/admin, or project lead for project-linked channels).
+- Channel creator cannot be removed.
+- For non-project channels, if removal would leave zero admins, the oldest remaining member is auto-promoted to admin.
+
+**Response:**
+```json
+{
+  "status": "success"
+}
+```
+
+---
+
+### DELETE `/api/chat/channels/{channel_id}/leave`
+**Purpose:** Leave a non-project chat channel.
+
+**Auth Required:** Yes
+
+**Notes:**
+- Channel creator cannot leave.
+- Project-linked channels cannot be left directly via this endpoint.
+
+**Response:**
+```json
+{
+  "status": "success"
+}
+```
+
+---
+
 ## Chatbot Endpoint
 
 ### POST `/api/chatbot`

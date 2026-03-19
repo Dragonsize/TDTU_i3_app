@@ -39,8 +39,10 @@ CREATE TABLE public.chat_channel_members (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   channel_id uuid NOT NULL,
   user_id uuid NOT NULL,
+  role text NOT NULL DEFAULT 'member'::text,
   joined_at timestamp with time zone DEFAULT now(),
   CONSTRAINT chat_channel_members_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_channel_members_role_check CHECK (role = ANY (ARRAY['admin'::text, 'member'::text])),
   CONSTRAINT chat_channel_members_channel_id_fkey FOREIGN KEY (channel_id) REFERENCES public.chat_channels(id),
   CONSTRAINT chat_channel_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
@@ -67,6 +69,9 @@ CREATE TABLE public.chat_messages (
   CONSTRAINT chat_messages_channel_id_fkey FOREIGN KEY (channel_id) REFERENCES public.chat_channels(id),
   CONSTRAINT chat_messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.profiles(id)
 );
+
+CREATE INDEX idx_chat_channel_members_channel_role ON public.chat_channel_members USING btree (channel_id, role);
+CREATE INDEX idx_chat_channel_members_channel_user ON public.chat_channel_members USING btree (channel_id, user_id);
 CREATE TABLE public.documents (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   filename text NOT NULL,

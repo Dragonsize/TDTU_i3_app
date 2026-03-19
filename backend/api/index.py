@@ -445,6 +445,71 @@ def require_project_lead(user_id: str, project_id: str) -> None:
     if membership.get("role") != "lead":
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
+
+VALID_CHAT_MEMBER_ROLES = {"admin", "member"}
+
+
+def is_chat_channel_admin(db: Client, channel_id: str, user_id: str) -> bool:
+    membership = (
+        db.table("chat_channel_members")
+        .select("role")
+        .eq("channel_id", channel_id)
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    return bool(membership.data and membership.data[0].get("role") == "admin")
+
+
+def is_project_channel_lead(db: Client, project_id: str, user_id: str) -> bool:
+    membership = (
+        db.table("project_members")
+        .select("role")
+        .eq("project_id", project_id)
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    return bool(membership.data and membership.data[0].get("role") == "lead")
+
+
+def can_manage_chat_channel(db: Client, channel: Dict[str, Any], user_id: str) -> bool:
+    if channel.get("created_by") == user_id:
+        return True
+    project_id = channel.get("project_id")
+    if project_id:
+        return is_project_channel_lead(db, project_id, user_id)
+    return is_chat_channel_admin(db, channel["id"], user_id)
+
+
+def auto_promote_oldest_member_if_needed(db: Client, channel_id: str) -> Optional[str]:
+    has_admin = (
+        db.table("chat_channel_members")
+        .select("user_id")
+        .eq("channel_id", channel_id)
+        .eq("role", "admin")
+        .limit(1)
+        .execute()
+    )
+    if has_admin.data:
+        return None
+
+    candidate = (
+        db.table("chat_channel_members")
+        .select("user_id")
+        .eq("channel_id", channel_id)
+        .order("joined_at", desc=False)
+        .order("user_id", desc=False)
+        .limit(1)
+        .execute()
+    )
+    if not candidate.data:
+        return None
+
+    promoted_user_id = candidate.data[0]["user_id"]
+    db.table("chat_channel_members").update({"role": "admin"}).eq("channel_id", channel_id).eq("user_id", promoted_user_id).execute()
+    return promoted_user_id
+
 # --- Chat API ---
 
 class ConnectionManager:
@@ -670,14 +735,7 @@ def delete_chat_channel(channel_id: str, user=Depends(get_current_user)):
     if not channel.data:
         raise HTTPException(status_code=404, detail="Channel not found")
     
-    # Only allow creator or an admin to delete
-    is_admin = channel.data["created_by"] == user_id
-    if not is_admin and not channel.data.get("project_id"):
-        mem = db.table("chat_channel_members").select("role").eq("channel_id", channel_id).eq("user_id", user_id).execute()
-        if mem.data and len(mem.data) > 0 and mem.data[0].get("role") == "admin":
-            is_admin = True
-            
-    if not is_admin:
+    if not can_manage_chat_channel(db, channel.data, user_id):
         raise HTTPException(status_code=403, detail="Not authorized to delete this channel")
 
     # Delete messages first, then the channel
@@ -691,6 +749,14 @@ def delete_chat_channel(channel_id: str, user=Depends(get_current_user)):
 def leave_chat_channel(channel_id: str, user=Depends(get_current_user)):
     db = require_db_client()
     user_id = user.get("sub")
+
+    channel = db.table("chat_channels").select("id, project_id, created_by").eq("id", channel_id).single().execute()
+    if not channel.data:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    if channel.data.get("created_by") == user_id:
+        raise HTTPException(status_code=400, detail="Channel creator cannot leave this channel")
+    if channel.data.get("project_id"):
+        raise HTTPException(status_code=400, detail="Project-linked channels cannot be left directly")
     
     # Check if user is actually a member
     membership = db.table("chat_channel_members").select("*").eq("channel_id", channel_id).eq("user_id", user_id).execute()
@@ -699,6 +765,8 @@ def leave_chat_channel(channel_id: str, user=Depends(get_current_user)):
         
     # Delete the user from members
     db.table("chat_channel_members").delete().eq("channel_id", channel_id).eq("user_id", user_id).execute()
+    if not channel.data.get("project_id"):
+        auto_promote_oldest_member_if_needed(db, channel_id)
     
     return {"status": "success"}
 
@@ -717,13 +785,7 @@ def update_chat_channel(channel_id: str, request: UpdateChannelRequest, user=Dep
     if not channel.data:
         raise HTTPException(status_code=404, detail="Channel not found")
     
-    is_admin = channel.data["created_by"] == user_id
-    if not is_admin and not channel.data.get("project_id"):
-        mem = db.table("chat_channel_members").select("role").eq("channel_id", channel_id).eq("user_id", user_id).execute()
-        if mem.data and len(mem.data) > 0 and mem.data[0].get("role") == "admin":
-            is_admin = True
-            
-    if not is_admin:
+    if not can_manage_chat_channel(db, channel.data, user_id):
         raise HTTPException(status_code=403, detail="Not authorized to update this channel")
 
     updates = {}
@@ -757,27 +819,52 @@ def add_chat_member(channel_id: str, request: AddChannelMemberRequest, user=Depe
     if not channel.data:
         raise HTTPException(status_code=404, detail="Channel not found")
     
-    if channel.data["created_by"] != user_id:
+    if not can_manage_chat_channel(db, channel.data, user_id):
         raise HTTPException(status_code=403, detail="Not authorized")
         
     # Find user to add
-    target = db.table("profiles").select("id").eq("email", request.email).execute()
+    target = db.table("profiles").select("id, full_name, username").eq("email", request.email).execute()
     if not target.data:
         raise HTTPException(status_code=404, detail="User not found")
     new_member_id = target.data[0]["id"]
+    if new_member_id == user_id:
+        raise HTTPException(status_code=400, detail="You are already in this channel")
     
     # If project channel, add to project
     if channel.data.get("project_id"):
+        existing_project_member = (
+            db.table("project_members")
+            .select("id")
+            .eq("project_id", channel.data["project_id"])
+            .eq("user_id", new_member_id)
+            .limit(1)
+            .execute()
+        )
+        if existing_project_member.data:
+            return {"status": "success", "message": "User is already a project member"}
+
         db.table("project_members").insert({
             "project_id": channel.data["project_id"],
             "user_id": new_member_id,
             "role": "member"
         }).execute()
     else:
+        existing_member = (
+            db.table("chat_channel_members")
+            .select("id")
+            .eq("channel_id", channel_id)
+            .eq("user_id", new_member_id)
+            .limit(1)
+            .execute()
+        )
+        if existing_member.data:
+            return {"status": "success", "message": "User is already a channel member"}
+
         # DM/Group: Add to members table
         db.table("chat_channel_members").insert({
             "channel_id": channel_id,
-            "user_id": new_member_id
+            "user_id": new_member_id,
+            "role": "member"
         }).execute()
         
         # Update channel name to include new member's name
@@ -847,18 +934,71 @@ def update_chat_channel_member_role(channel_id: str, target_user_id: str, reques
     if not channel.data:
         raise HTTPException(status_code=404, detail="Channel not found")
         
-    is_admin = channel.data["created_by"] == user_id
-    if not is_admin and not channel.data.get("project_id"):
-        mem = db.table("chat_channel_members").select("role").eq("channel_id", channel_id).eq("user_id", user_id).execute()
-        if mem.data and len(mem.data) > 0 and mem.data[0].get("role") == "admin":
-            is_admin = True
-            
-    if not is_admin:
+    if not can_manage_chat_channel(db, channel.data, user_id):
         raise HTTPException(status_code=403, detail="Not authorized to change roles")
+    if channel.data.get("project_id"):
+        raise HTTPException(status_code=400, detail="Use project role management for project-linked channels")
+
+    requested_role = request.role.strip().lower()
+    if requested_role not in VALID_CHAT_MEMBER_ROLES:
+        raise HTTPException(status_code=400, detail="Role must be one of: admin, member")
+    if channel.data.get("created_by") == target_user_id and requested_role != "admin":
+        raise HTTPException(status_code=400, detail="Channel creator must remain an admin")
         
-    response = db.table("chat_channel_members").update({"role": request.role}).eq("channel_id", channel_id).eq("user_id", target_user_id).execute()
+    response = (
+        db.table("chat_channel_members")
+        .update({"role": requested_role})
+        .eq("channel_id", channel_id)
+        .eq("user_id", target_user_id)
+        .execute()
+    )
     if not response.data:
         raise HTTPException(status_code=500, detail="Failed to update member role")
+
+    if requested_role != "admin" and not channel.data.get("project_id"):
+        auto_promote_oldest_member_if_needed(db, channel_id)
+
+    return {"status": "success"}
+
+
+@app.delete("/api/chat/channels/{channel_id}/members/{target_user_id}")
+def remove_chat_member(channel_id: str, target_user_id: str, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+
+    channel = db.table("chat_channels").select("*").eq("id", channel_id).single().execute()
+    if not channel.data:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    if not can_manage_chat_channel(db, channel.data, user_id):
+        raise HTTPException(status_code=403, detail="Not authorized to remove members")
+    if channel.data.get("created_by") == target_user_id:
+        raise HTTPException(status_code=400, detail="Channel creator cannot be removed")
+
+    if channel.data.get("project_id"):
+        response = (
+            db.table("project_members")
+            .delete()
+            .eq("project_id", channel.data["project_id"])
+            .eq("user_id", target_user_id)
+            .execute()
+        )
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Target user is not a project member")
+        return {"status": "success"}
+
+    target = (
+        db.table("chat_channel_members")
+        .select("user_id, role")
+        .eq("channel_id", channel_id)
+        .eq("user_id", target_user_id)
+        .limit(1)
+        .execute()
+    )
+    if not target.data:
+        raise HTTPException(status_code=404, detail="Target user is not a channel member")
+
+    db.table("chat_channel_members").delete().eq("channel_id", channel_id).eq("user_id", target_user_id).execute()
+    auto_promote_oldest_member_if_needed(db, channel_id)
     return {"status": "success"}
 
 # List messages in a channel (paginated)

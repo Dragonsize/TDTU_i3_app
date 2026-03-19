@@ -23,7 +23,8 @@ export default function ChatRoom({ user }) {
   const [projects, setProjects] = useState([]);
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [channelMembers, setChannelMembers] = useState([]);
-  const [channelMembers, setChannelMembers] = useState([]);
+  const messagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
 
   // Fetch members on active channel change to evaluate role privileges
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function ChatRoom({ user }) {
     }
   }, [activeChannel, showMembersModal]);
 
-  const amIAdmin = activeChannel?.created_by === user?.id || channelMembers.some(m => m.id === user?.id && m.role === 'admin');
+  const amIAdmin = activeChannel?.created_by === user?.id || channelMembers.some(m => m.id === user?.id && (m.role === "admin" || m.role === "lead"));
   const lastMessageSignatureRef = useRef("");
 
   // 1. Fetch Channels on Mount (and poll gently so users notice new chats)
@@ -241,6 +242,9 @@ export default function ChatRoom({ user }) {
           setActiveChannel(null);
           setMessages([]);
         }
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.detail || "Failed to leave channel");
       }
     } catch (error) {
       console.error("Failed to leave channel", error);
@@ -262,9 +266,33 @@ export default function ChatRoom({ user }) {
 
       if (res.ok) {
         setChannelMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.detail || "Failed to update role");
       }
     } catch (error) {
       console.error("Failed to change role", error);
+    }
+  };
+
+  const handleRemoveMember = async (e, memberId) => {
+    e.stopPropagation();
+    if (!activeChannel) return;
+    if (!confirm("Are you sure you want to remove this member?")) return;
+
+    try {
+      const res = await fetch(`/api/chat/channels/${activeChannel.id}/members/${memberId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        setChannelMembers((prev) => prev.filter((m) => m.id !== memberId));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.detail || "Failed to remove member");
+      }
+    } catch (error) {
+      console.error("Failed to remove member", error);
     }
   };
 
@@ -318,7 +346,13 @@ export default function ChatRoom({ user }) {
     if (res.ok) {
       setShowAddMemberModal(false);
       setAddMemberValue("");
-      // Optionally refetch channel members
+      fetch(`/api/chat/channels/${activeChannel.id}/members`)
+        .then((r) => (r.ok ? r.json() : []))
+        .then(setChannelMembers)
+        .catch(console.error);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(err.detail || "Failed to add member");
     }
   };
 
@@ -532,7 +566,7 @@ export default function ChatRoom({ user }) {
                         </>
                       )}
                       
-                      {!amIAdmin && (
+                      {!amIAdmin && !activeChannel?.project_id && (
                         <button onClick={(e) => { setShowDropdown(false); handleLeaveChannel(e, activeChannel.id); }} className="px-4 py-2.5 text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 font-medium border-t border-gray-100 dark:border-zinc-700 mt-1">
                           Leave Chat
                         </button>
@@ -609,7 +643,7 @@ export default function ChatRoom({ user }) {
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-gray-900 dark:text-white truncate flex items-center gap-2">
                             <span className="truncate">{m.full_name || m.username}</span>
-                            {(activeChannel?.created_by === m.id || m.role === 'admin') && (
+                            {(activeChannel?.created_by === m.id || m.role === 'admin' || m.role === "lead") && (
                               <span className="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded uppercase font-bold shrink-0">Admin</span>
                             )}
                           </div>
@@ -618,12 +652,22 @@ export default function ChatRoom({ user }) {
                       </div>
 
                       {amIAdmin && activeChannel?.created_by !== m.id && m.id !== user?.id && (
-                        <button 
-                          onClick={(e) => handleToggleAdmin(e, m.id, m.role)}
-                          className="text-xs px-2 py-1 rounded border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
-                        >
-                          {m.role === 'admin' ? "Remove Admin" : "Make Admin"}
-                        </button>
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          {!activeChannel?.project_id && m.role !== "lead" && (
+                            <button
+                              onClick={(e) => handleToggleAdmin(e, m.id, m.role)}
+                              className="text-xs px-2 py-1 rounded border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                            >
+                              {m.role === "admin" ? "Remove Admin" : "Make Admin"}
+                            </button>
+                          )}
+                          <button
+                            onClick={(e) => handleRemoveMember(e, m.id)}
+                            className="text-xs px-2 py-1 rounded border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       )}
                     </div>
                   ))
