@@ -487,11 +487,28 @@ def call_external_chatbot(question: str, api_key: str, api_base: str, model: str
             data = json.loads(raw)
     except urllib.error.HTTPError as exc:
         body = ""
+        parsed_message = ""
         try:
             body = exc.read().decode("utf-8")
+            parsed = json.loads(body) if body else {}
+            if isinstance(parsed, dict):
+                err = parsed.get("error") or {}
+                parsed_message = err.get("message") if isinstance(err, dict) else ""
+            elif isinstance(parsed, list) and parsed and isinstance(parsed[0], dict):
+                err = parsed[0].get("error") or {}
+                parsed_message = err.get("message") if isinstance(err, dict) else ""
         except Exception:
             body = ""
-        raise HTTPException(status_code=502, detail=f"Chatbot provider error: {body or str(exc)}")
+
+        message = (parsed_message or body or str(exc)).strip()
+        message_lower = message.lower()
+        if exc.code == 429 or "quota" in message_lower or "resource_exhausted" in message_lower or "rate limit" in message_lower:
+            raise HTTPException(
+                status_code=429,
+                detail="Chatbot provider quota exceeded. Using built-in fallback response.",
+            )
+
+        raise HTTPException(status_code=502, detail=f"Chatbot provider error: {message}")
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Chatbot provider unavailable: {str(exc)}")
 
@@ -2373,13 +2390,26 @@ def chatbot(
     model = (request.model or CHATBOT_MODEL).strip()
 
     if api_key:
-        answer = call_external_chatbot(question, api_key, api_base, model)
-        return {
-            "question": question,
-            "answer": answer,
-            "provider": "external",
-            "model": model,
-        }
+        try:
+            answer = call_external_chatbot(question, api_key, api_base, model)
+            return {
+                "question": question,
+                "answer": answer,
+                "provider": "external",
+                "model": model,
+            }
+        except HTTPException as exc:
+            # Gracefully degrade to local assistant when provider quota is exhausted.
+            if exc.status_code == 429:
+                fallback = find_best_match(question)
+                return {
+                    "question": question,
+                    "answer": fallback,
+                    "provider": "built-in-fallback",
+                    "model": "rules",
+                    "warning": exc.detail,
+                }
+            raise
 
     response = find_best_match(question)
     return {
