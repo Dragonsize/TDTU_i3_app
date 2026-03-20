@@ -94,10 +94,10 @@ function TimeDropdown({ value, onChange, dark = false }) {
                 className={`w-full text-left px-3 py-2 text-sm ${
                   dark
                     ? active
-                      ? "bg-[#8ab4f8] text-[#202124] font-semibold"
+                      ? "bg-[#e8eaed] text-[#202124] font-semibold"
                       : "text-white hover:bg-[#2d2f31]"
                     : active
-                      ? "bg-[#e8f0fe] text-[#1a73e8] font-semibold"
+                      ? "bg-slate-200 text-slate-900 font-semibold"
                       : "text-slate-800 hover:bg-slate-100"
                 }`}
               >
@@ -275,12 +275,12 @@ function DateDropdown({ value, onChange, dark = false }) {
                   className={`w-9 h-9 mx-auto rounded-full text-sm ${
                     dark
                       ? isSelected
-                        ? "bg-[#1a73e8] text-white font-semibold"
+                        ? "bg-[#e8eaed] text-[#202124] font-semibold"
                         : inCurrentMonth
                           ? "text-[#e8eaed] hover:bg-[#2d2f31]"
                           : "text-[#5f6368]"
                       : isSelected
-                        ? "bg-[#1a73e8] text-white font-semibold"
+                        ? "bg-slate-900 text-white font-semibold"
                         : inCurrentMonth
                           ? "text-slate-800 hover:bg-slate-100"
                           : "text-slate-400"
@@ -326,13 +326,14 @@ export default function CalendarPage() {
 
   const [editingEventId, setEditingEventId] = useState(null);
   const [showEventModal, setShowEventModal] = useState(false);
+  const [activeEventMenu, setActiveEventMenu] = useState(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [projectId, setProjectId] = useState("");
   const [eventType, setEventType] = useState("meeting");
-  const [color, setColor] = useState("#1a73e8");
+  const [color, setColor] = useState("#111827");
 
   const [teamProjectId, setTeamProjectId] = useState("");
   const [teamData, setTeamData] = useState({ members: [], events: [], busy_times: [] });
@@ -476,9 +477,13 @@ export default function CalendarPage() {
   const sourceMap = viewMode === "team" ? teamEventsByDay : eventsByDay;
   const selectedEvents = sourceMap[formatDateKey(selectedDay)] || [];
 
-  const selectedDayBusy = (teamData.busy_times || []).filter(
-    (ev) => selectedMemberSet.has(ev.user_id) && eventInDay(ev, selectedDay)
-  );
+  const eventsById = useMemo(() => {
+    const map = {};
+    for (const ev of events) {
+      map[ev.id] = ev;
+    }
+    return map;
+  }, [events]);
 
   const headerLabel = useMemo(() => {
     if (calendarView === "day") {
@@ -563,7 +568,7 @@ export default function CalendarPage() {
     setEndTime("");
     setProjectId("");
     setEventType("meeting");
-    setColor("#1a73e8");
+    setColor("#111827");
   };
 
   const openCreateEventModal = () => {
@@ -625,9 +630,22 @@ export default function CalendarPage() {
     setEndTime(toInputDateTime(ev.end_time));
     setProjectId(ev.project_id || "");
     setEventType(ev.event_type || "meeting");
-    setColor(ev.color || "#1a73e8");
+    setColor(ev.color || "#111827");
     setShowEventModal(true);
   };
+
+  const openEventMenu = (event, ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    setSelectedDay(new Date(event.start_time));
+    setActiveEventMenu({ eventId: event.id, x: ev.clientX, y: ev.clientY });
+  };
+
+  useEffect(() => {
+    const handleClose = () => setActiveEventMenu(null);
+    document.addEventListener("click", handleClose);
+    return () => document.removeEventListener("click", handleClose);
+  }, []);
 
   const deleteEvent = async (eventId) => {
     if (!confirm("Delete this event?")) return;
@@ -764,7 +782,7 @@ export default function CalendarPage() {
                   onClick={() => setCalendarView(item.key)}
                   className={`px-3 py-1.5 rounded text-sm font-medium ${
                     calendarView === item.key
-                      ? "bg-[#1a73e8] text-white"
+                      ? "bg-slate-900 text-white"
                       : "text-slate-700 hover:bg-slate-100"
                   }`}
                 >
@@ -776,7 +794,7 @@ export default function CalendarPage() {
               onClick={() => setViewMode("personal")}
               className={`px-4 py-2 rounded-md text-sm font-medium border ${
                 viewMode === "personal"
-                  ? "bg-[#1a73e8] text-white border-[#1a73e8]"
+                  ? "bg-slate-900 text-white border-slate-900"
                   : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
               }`}
             >
@@ -786,7 +804,7 @@ export default function CalendarPage() {
               onClick={() => setViewMode("team")}
               className={`px-4 py-2 rounded-md text-sm font-medium border ${
                 viewMode === "team"
-                  ? "bg-[#1a73e8] text-white border-[#1a73e8]"
+                  ? "bg-slate-900 text-white border-slate-900"
                   : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
               }`}
             >
@@ -803,41 +821,6 @@ export default function CalendarPage() {
 
         <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-4">
           <aside className="space-y-4">
-            <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="text-sm font-semibold text-slate-800 mb-2">
-                {selectedDay.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
-              </h3>
-              <div className="space-y-2 max-h-[280px] overflow-auto pr-1">
-                {selectedEvents.length === 0 && <p className="text-xs text-slate-500">No events for this day.</p>}
-                {selectedEvents.map((ev) => (
-                  <div key={ev.id} className="border border-slate-200 rounded-md p-2">
-                    <div className="text-xs font-semibold" style={{ color: ev.color || "#1a73e8" }}>
-                      {ev.title}
-                    </div>
-                    <div className="text-xs text-slate-500 mt-0.5">{formatTimeRange(ev.start_time, ev.end_time)}</div>
-                    {viewMode === "team" && memberById[ev.user_id] && (
-                      <div className="text-xs text-slate-500 mt-0.5">
-                        {memberById[ev.user_id].full_name || memberById[ev.user_id].username}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-3 mt-1.5">
-                      <button onClick={() => startEditEvent(ev)} className="text-xs text-[#1a73e8] font-medium">Edit</button>
-                      <button onClick={() => deleteEvent(ev.id)} className="text-xs text-red-600 font-medium">Delete</button>
-                    </div>
-                  </div>
-                ))}
-
-                {viewMode === "team" && selectedDayBusy.map((busy, idx) => (
-                  <div key={`${busy.user_id}-${idx}`} className="border border-amber-200 bg-amber-50 rounded-md p-2">
-                    <div className="text-xs font-semibold text-amber-800">
-                      {(memberById[busy.user_id]?.full_name || memberById[busy.user_id]?.username || "Member") + " busy"}
-                    </div>
-                    <div className="text-xs text-amber-700 mt-0.5">{formatTimeRange(busy.start_time, busy.end_time)}</div>
-                  </div>
-                ))}
-              </div>
-            </section>
-
             {viewMode === "team" && (
               <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                 <h3 className="text-sm font-semibold text-slate-800 mb-2">Team meeting finder</h3>
@@ -912,7 +895,7 @@ export default function CalendarPage() {
                   <button
                     onClick={findMeetingSlots}
                     disabled={planningMeeting}
-                    className="px-3 py-2 rounded-md bg-[#1a73e8] text-white text-xs font-medium hover:bg-[#1765cc] disabled:opacity-60"
+                    className="px-3 py-2 rounded-md bg-slate-900 text-white text-xs font-medium hover:bg-black disabled:opacity-60"
                   >
                     {planningMeeting ? "Finding..." : "Find slots"}
                   </button>
@@ -924,7 +907,7 @@ export default function CalendarPage() {
                       <div className="text-xs text-slate-700">{new Date(slot.start_time).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
                       <button
                         onClick={() => scheduleMeetingAtSlot(slot)}
-                        className="text-xs px-2 py-1 rounded bg-[#1a73e8] text-white"
+                        className="text-xs px-2 py-1 rounded bg-slate-900 text-white"
                       >
                         Schedule
                       </button>
@@ -964,7 +947,7 @@ export default function CalendarPage() {
                         className={`min-h-[122px] p-1.5 text-left align-top ${!isLastCol ? "border-r border-slate-200" : ""} ${!isLastRow ? "border-b border-slate-200" : ""} ${isSelected ? "bg-[#e8f0fe]" : "bg-white hover:bg-slate-50"}`}
                       >
                         <div className={`mb-1 text-xs font-semibold ${isCurrentMonth ? "text-slate-800" : "text-slate-400"}`}>
-                          <span className={`${isToday ? "inline-flex w-6 h-6 items-center justify-center rounded-full bg-[#1a73e8] text-white" : ""}`}>
+                          <span className={`${isToday ? "inline-flex w-6 h-6 items-center justify-center rounded-full bg-slate-900 text-white" : ""}`}>
                             {d.getDate()}
                           </span>
                         </div>
@@ -973,14 +956,15 @@ export default function CalendarPage() {
                           {dayEvents.map((ev) => {
                             const memberName = memberById[ev.user_id]?.username;
                             return (
-                              <div
+                              <button
                                 key={ev.id}
-                                className="truncate rounded px-1.5 py-0.5 text-[11px] text-white font-medium"
-                                style={{ backgroundColor: ev.color || "#1a73e8" }}
+                                type="button"
+                                onClick={(clickEv) => openEventMenu(ev, clickEv)}
+                                className="w-full truncate rounded px-1.5 py-0.5 text-[11px] text-white font-medium bg-slate-900 text-left"
                                 title={viewMode === "team" && memberName ? `${ev.title} (${memberName})` : ev.title}
                               >
                                 {viewMode === "team" && memberName ? `${memberName}: ${ev.title}` : ev.title}
-                              </div>
+                              </button>
                             );
                           })}
                         </div>
@@ -998,7 +982,7 @@ export default function CalendarPage() {
                     <button
                       key={formatDateKey(d)}
                       onClick={() => setSelectedDay(new Date(d))}
-                      className={`py-2 text-center text-xs font-semibold border-r border-slate-200 last:border-r-0 ${isSameDate(d, selectedDay) ? "bg-[#e8f0fe] text-[#1a73e8]" : "text-slate-600"}`}
+                      className={`py-2 text-center text-xs font-semibold border-r border-slate-200 last:border-r-0 ${isSameDate(d, selectedDay) ? "bg-slate-900 text-white" : "text-slate-600"}`}
                     >
                       {d.toLocaleDateString("en-US", { weekday: "short" })} {d.getDate()}
                     </button>
@@ -1015,15 +999,16 @@ export default function CalendarPage() {
                           {dayEvents.map((ev) => {
                             const memberName = memberById[ev.user_id]?.username;
                             return (
-                              <div
+                              <button
                                 key={ev.id}
-                                className="rounded px-2 py-1 text-[11px] text-white font-medium"
-                                style={{ backgroundColor: ev.color || "#1a73e8" }}
+                                type="button"
+                                onClick={(clickEv) => openEventMenu(ev, clickEv)}
+                                className="w-full rounded px-2 py-1 text-[11px] text-white font-medium bg-slate-900 text-left"
                                 title={viewMode === "team" && memberName ? `${ev.title} (${memberName})` : ev.title}
                               >
                                 <div className="truncate">{viewMode === "team" && memberName ? `${memberName}: ${ev.title}` : ev.title}</div>
                                 <div className="opacity-90">{new Date(ev.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                              </div>
+                              </button>
                             );
                           })}
                         </div>
@@ -1048,14 +1033,15 @@ export default function CalendarPage() {
                           {hourEvents.map((ev) => {
                             const memberName = memberById[ev.user_id]?.username;
                             return (
-                              <div
+                              <button
                                 key={ev.id}
-                                className="rounded px-2 py-1 text-xs text-white font-medium"
-                                style={{ backgroundColor: ev.color || "#1a73e8" }}
+                                type="button"
+                                onClick={(clickEv) => openEventMenu(ev, clickEv)}
+                                className="w-full rounded px-2 py-1 text-xs text-white font-medium bg-slate-900 text-left"
                                 title={viewMode === "team" && memberName ? `${ev.title} (${memberName})` : ev.title}
                               >
                                 {viewMode === "team" && memberName ? `${memberName}: ${ev.title}` : ev.title}
-                              </div>
+                              </button>
                             );
                           })}
                         </div>
@@ -1086,7 +1072,7 @@ export default function CalendarPage() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="px-5 py-2 rounded-full bg-[#8ab4f8] text-[#202124] font-semibold text-sm disabled:opacity-60"
+                    className="px-5 py-2 rounded-full bg-white text-[#202124] font-semibold text-sm disabled:opacity-60"
                   >
                     {submitting ? "Saving..." : "Save"}
                   </button>
@@ -1178,6 +1164,35 @@ export default function CalendarPage() {
                 </div>
               </form>
             </div>
+          </div>
+        )}
+
+        {activeEventMenu && eventsById[activeEventMenu.eventId] && (
+          <div
+            className="fixed z-50 bg-white border border-slate-300 rounded-lg shadow-xl p-2 min-w-[140px]"
+            style={{ left: `${activeEventMenu.x}px`, top: `${activeEventMenu.y}px` }}
+            onClick={(ev) => ev.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="w-full text-left px-2 py-1.5 text-sm text-slate-700 hover:bg-slate-100 rounded"
+              onClick={() => {
+                startEditEvent(eventsById[activeEventMenu.eventId]);
+                setActiveEventMenu(null);
+              }}
+            >
+              Edit event
+            </button>
+            <button
+              type="button"
+              className="w-full text-left px-2 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded"
+              onClick={() => {
+                deleteEvent(activeEventMenu.eventId);
+                setActiveEventMenu(null);
+              }}
+            >
+              Delete event
+            </button>
           </div>
         )}
       </main>
