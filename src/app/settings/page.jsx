@@ -12,6 +12,10 @@ export default function SettingsPage() {
   const [newName, setNewName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [chatbotApiKey, setChatbotApiKey] = useState("");
+  const [chatbotApiBase, setChatbotApiBase] = useState("https://api.openai.com/v1");
+  const [chatbotModel, setChatbotModel] = useState("gpt-4o-mini");
+  const [chatbotSaved, setChatbotSaved] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -23,6 +27,12 @@ export default function SettingsPage() {
       })
       .catch(() => router.push("/login"));
   }, [router]);
+
+  useEffect(() => {
+    setChatbotApiKey(localStorage.getItem("chatbot_api_key") || "");
+    setChatbotApiBase(localStorage.getItem("chatbot_api_base") || "https://api.openai.com/v1");
+    setChatbotModel(localStorage.getItem("chatbot_api_model") || "gpt-4o-mini");
+  }, []);
 
   const handleRename = async () => {
     setSaving(true);
@@ -54,6 +64,14 @@ export default function SettingsPage() {
     } catch (err) {
       setError("Logout failed");
     }
+  };
+
+  const handleSaveChatbotSettings = () => {
+    localStorage.setItem("chatbot_api_key", chatbotApiKey.trim());
+    localStorage.setItem("chatbot_api_base", chatbotApiBase.trim() || "https://api.openai.com/v1");
+    localStorage.setItem("chatbot_api_model", chatbotModel.trim() || "gpt-4o-mini");
+    setChatbotSaved("Chatbot API settings saved.");
+    setTimeout(() => setChatbotSaved(""), 2500);
   };
 
   return (
@@ -106,6 +124,46 @@ export default function SettingsPage() {
             <div><span className="font-medium">Email:</span> {profile.email}</div>
             <div><span className="font-medium">Full Name:</span> {profile.full_name}</div>
             {/* Add more fields as needed */}
+          </div>
+        </div>
+
+        <div className="mt-6 w-full">
+          <h2 className="text-lg font-bold mb-2">Chatbot API</h2>
+          <div className="bg-white rounded-lg shadow p-4 flex flex-col gap-3">
+            <label className="text-sm font-medium text-gray-700">API Key</label>
+            <input
+              type="password"
+              value={chatbotApiKey}
+              onChange={(e) => setChatbotApiKey(e.target.value)}
+              placeholder="Paste your API key"
+              className="border rounded px-3 py-2 text-sm"
+            />
+
+            <label className="text-sm font-medium text-gray-700">API Base URL</label>
+            <input
+              type="text"
+              value={chatbotApiBase}
+              onChange={(e) => setChatbotApiBase(e.target.value)}
+              placeholder="https://api.openai.com/v1"
+              className="border rounded px-3 py-2 text-sm"
+            />
+
+            <label className="text-sm font-medium text-gray-700">Model</label>
+            <input
+              type="text"
+              value={chatbotModel}
+              onChange={(e) => setChatbotModel(e.target.value)}
+              placeholder="gpt-4o-mini"
+              className="border rounded px-3 py-2 text-sm"
+            />
+
+            <button
+              onClick={handleSaveChatbotSettings}
+              className="mt-1 bg-gray-900 text-white rounded py-2 text-sm font-medium hover:bg-black"
+            >
+              Save Chatbot API Settings
+            </button>
+            {chatbotSaved && <div className="text-green-600 text-sm">{chatbotSaved}</div>}
           </div>
         </div>
         <button

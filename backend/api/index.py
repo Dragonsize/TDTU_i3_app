@@ -4,10 +4,13 @@
 import os
 import re
 import hashlib
+import json
+import urllib.error
+import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, UploadFile, Form, Request, Query, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, UploadFile, Form, Request, Query, WebSocket, WebSocketDisconnect, BackgroundTasks, Header
 import asyncio
 def sanitize_chat_input(text: str) -> str:
     # Remove dangerous SQL/meta chars and trim
@@ -40,6 +43,13 @@ SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "").strip()
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-this-secret")
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "").strip()
+CHATBOT_API_BASE = os.getenv("CHATBOT_API_BASE", "https://api.openai.com/v1").strip().rstrip("/")
+CHATBOT_MODEL = os.getenv("CHATBOT_MODEL", "gpt-4o-mini").strip()
+CHATBOT_API_KEY = os.getenv("CHATBOT_API_KEY", "").strip()
+CHATBOT_SYSTEM_PROMPT = os.getenv(
+    "CHATBOT_SYSTEM_PROMPT",
+    "You are a helpful assistant for project management tasks. Keep responses concise and actionable.",
+).strip()
 
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "1"))
@@ -378,6 +388,8 @@ class UploadDocumentRequest(BaseModel):
 
 class ChatbotRequest(BaseModel):
     question: str = Field(..., min_length=1)
+    api_base: Optional[str] = None
+    model: Optional[str] = None
 
 
 class NotificationSubscriptionRequest(BaseModel):
@@ -446,6 +458,54 @@ def find_best_match(question: str) -> str:
             if keyword.lower() in question_lower:
                 return data["response"]
     return CHATBOT_KNOWLEDGE["general"]["response"]
+
+
+def call_external_chatbot(question: str, api_key: str, api_base: str, model: str) -> str:
+    url = f"{api_base.rstrip('/')}/chat/completions"
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": CHATBOT_SYSTEM_PROMPT},
+            {"role": "user", "content": question},
+        ],
+        "temperature": 0.3,
+    }
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            raw = response.read().decode("utf-8")
+            data = json.loads(raw)
+    except urllib.error.HTTPError as exc:
+        body = ""
+        try:
+            body = exc.read().decode("utf-8")
+        except Exception:
+            body = ""
+        raise HTTPException(status_code=502, detail=f"Chatbot provider error: {body or str(exc)}")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Chatbot provider unavailable: {str(exc)}")
+
+    choices = data.get("choices") or []
+    if not choices:
+        raise HTTPException(status_code=502, detail="Chatbot provider returned no choices")
+
+    message = (choices[0] or {}).get("message") or {}
+    content = message.get("content")
+    if isinstance(content, list):
+        # Some providers return structured content blocks.
+        content = "\n".join(part.get("text", "") for part in content if isinstance(part, dict))
+    if not isinstance(content, str) or not content.strip():
+        raise HTTPException(status_code=502, detail="Chatbot provider returned empty content")
+    return content.strip()
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
@@ -2300,9 +2360,32 @@ def mark_notification_read(notification_id: str, user=Depends(get_current_user))
     return {"status": "success"}
 
 @app.post("/api/chatbot")
-def chatbot(request: ChatbotRequest):
-    response = find_best_match(request.question)
-    return {"question": request.question, "answer": response}
+def chatbot(
+    request: ChatbotRequest,
+    user=Depends(get_current_user),
+    x_chatbot_api_key: Optional[str] = Header(default=None, alias="x-chatbot-api-key"),
+):
+    question = sanitize_chat_input(request.question)
+    api_key = (x_chatbot_api_key or CHATBOT_API_KEY or "").strip()
+    api_base = (request.api_base or CHATBOT_API_BASE).strip().rstrip("/")
+    model = (request.model or CHATBOT_MODEL).strip()
+
+    if api_key:
+        answer = call_external_chatbot(question, api_key, api_base, model)
+        return {
+            "question": question,
+            "answer": answer,
+            "provider": "external",
+            "model": model,
+        }
+
+    response = find_best_match(question)
+    return {
+        "question": question,
+        "answer": response,
+        "provider": "built-in",
+        "model": "rules",
+    }
 
 
 @app.post("/api/notifications/subscribe")

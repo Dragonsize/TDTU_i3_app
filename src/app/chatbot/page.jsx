@@ -8,6 +8,15 @@ export default function ChatbotPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [messages, setMessages] = useState([
+    {
+      role: "assistant",
+      content: "Hi! Ask me anything about your project workflows, deadlines, chat, files, or scheduling.",
+    },
+  ]);
+  const [question, setQuestion] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -39,11 +48,99 @@ export default function ChatbotPage() {
     );
   }
 
+  const sendQuestion = async (e) => {
+    e.preventDefault();
+    const trimmed = question.trim();
+    if (!trimmed || sending) return;
+
+    setSending(true);
+    setError("");
+    setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+    setQuestion("");
+
+    try {
+      const apiKey = localStorage.getItem("chatbot_api_key") || "";
+      const apiBase = localStorage.getItem("chatbot_api_base") || "";
+      const model = localStorage.getItem("chatbot_api_model") || "";
+
+      const res = await fetch("/api/chatbot", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(apiKey ? { "x-chatbot-api-key": apiKey } : {}),
+        },
+        body: JSON.stringify({
+          question: trimmed,
+          ...(apiBase ? { api_base: apiBase } : {}),
+          ...(model ? { model } : {}),
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to get chatbot response");
+      }
+
+      setMessages((prev) => [...prev, { role: "assistant", content: data.answer || "No response." }]);
+    } catch (err) {
+      setError(err.message || "Failed to get chatbot response");
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "I could not answer right now. Check your API settings in Settings page." },
+      ]);
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <AppShell user={user} activePath="/chatbot" contentClassName="flex-1">
-      <div className="flex items-center justify-center text-lg sm:text-2xl font-bold min-h-[calc(100dvh-4rem)] px-4 text-center">
-        Chatbot placeholder page
-      </div>
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 min-h-[calc(100dvh-4rem)] flex flex-col">
+        <div className="mb-3">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 font-['Arimo']">Project Chatbot</h1>
+          <p className="text-sm text-slate-600 mt-1">Configure API key/base/model in Settings to use your own AI provider.</p>
+        </div>
+
+        <div className="flex-1 rounded-xl border border-slate-200 bg-white shadow-sm p-3 sm:p-4 overflow-auto space-y-3">
+          {messages.map((msg, idx) => (
+            <div key={`${msg.role}-${idx}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div
+                className={`max-w-[88%] sm:max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-6 ${
+                  msg.role === "user"
+                    ? "bg-[#1a73e8] text-white"
+                    : "bg-slate-100 text-slate-900"
+                }`}
+              >
+                {msg.content}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {error && (
+          <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={sendQuestion} className="mt-3 flex gap-2">
+          <input
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            placeholder="Ask your question..."
+            className="flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/30"
+            disabled={sending}
+          />
+          <button
+            type="submit"
+            disabled={sending || !question.trim()}
+            className="rounded-lg bg-[#1a73e8] text-white px-4 py-2.5 text-sm font-semibold hover:bg-[#1765cc] disabled:opacity-60"
+          >
+            {sending ? "Sending..." : "Send"}
+          </button>
+        </form>
+      </main>
     </AppShell>
   );
 }
