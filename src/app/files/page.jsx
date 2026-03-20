@@ -385,10 +385,13 @@ export default function FilesPage() {
     return (
       <AppShell user={currentUser} activePath="/files" contentClassName="flex-1">
         <main className="w-full flex flex-col items-center pt-8 sm:pt-12 pb-10 sm:pb-12 px-4 sm:px-6">
-          <h1 className="text-center text-black text-3xl sm:text-4xl md:text-5xl font-normal font-['Instrument_Sans'] mb-8 sm:mb-12">Files</h1>
+          <h1 className="text-center text-black text-3xl sm:text-4xl md:text-5xl font-normal font-['Instrument_Sans'] mb-2">Files</h1>
+          <p className="text-sm sm:text-base text-stone-700 font-['Arimo'] mb-8 sm:mb-12 text-center">
+            Keep your documents organized, private, or shared with your project team.
+          </p>
           
           <div 
-            className="w-full max-w-[1215px] min-h-[420px] sm:min-h-[560px] bg-zinc-300 rounded-2xl p-4 sm:p-8 lg:p-12 relative"
+            className="w-full max-w-[1215px] min-h-[420px] sm:min-h-[560px] rounded-3xl p-4 sm:p-8 lg:p-10 relative bg-gradient-to-br from-zinc-200 via-zinc-100 to-stone-200 border border-stone-300/70 shadow-[0_20px_60px_rgba(0,0,0,0.12)]"
             onDrop={handleDrop} 
             onDragOver={handleDragOver}
           >
@@ -397,7 +400,7 @@ export default function FilesPage() {
                     <button
                       type="button"
                       onClick={() => setAccessMenuOpen((prev) => !prev)}
-                      className="w-12 h-12 rounded-xl border border-stone-300 bg-[#eceff3] text-[#4a5565] flex items-center justify-center shadow-sm hover:bg-[#e3e8ee]"
+                      className="w-12 h-12 rounded-xl border border-stone-300 bg-white text-[#4a5565] flex items-center justify-center shadow-sm hover:bg-stone-50"
                       title="File access"
                       aria-label="File access"
                     >
@@ -448,15 +451,15 @@ export default function FilesPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 sm:gap-x-6 lg:gap-x-8 gap-y-6 sm:gap-y-10 lg:gap-y-12 items-start">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 sm:gap-x-6 lg:gap-x-8 gap-y-6 sm:gap-y-8 lg:gap-y-10 items-start">
                   {/* File cards */}
                   {files.map((file) => (
                     <div
                       key={file.id}
-                      className="flex flex-col items-center group cursor-pointer"
+                      className="flex flex-col items-center group cursor-pointer rounded-2xl p-2 transition-all hover:bg-white/50"
                       onClick={() => setSelectedFile(file)}
                     >
-                      <div className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 mb-3 sm:mb-4 relative flex items-center justify-center bg-white rounded-xl shadow-sm overflow-hidden transition-transform group-hover:scale-105">
+                      <div className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 mb-3 sm:mb-4 relative flex items-center justify-center bg-white rounded-2xl shadow-md border border-stone-200 overflow-hidden transition-transform group-hover:scale-105">
                         {/* Document icon for file */}
                         <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" className="text-gray-500">
                           <rect x="6" y="4" width="12" height="16" rx="2" strokeWidth="2.5"/>
@@ -466,22 +469,22 @@ export default function FilesPage() {
                         </svg>
                       </div>
                       <div className="relative flex items-center justify-center">
-                        <div className="absolute inset-0 bg-neutral-400 opacity-60 rounded-lg"></div>
+                        <div className="absolute inset-0 bg-white/85 border border-stone-300 rounded-lg"></div>
                         <span className="relative z-10 px-2 sm:px-3 py-1 text-black text-xs sm:text-sm lg:text-base font-normal font-['Instrument_Sans'] truncate max-w-[120px] sm:max-w-[140px]">
                           {file.filename || 'Untitled'}
                         </span>
                       </div>
-                      <span className="mt-1 text-[10px] sm:text-xs font-['Arimo'] text-stone-700">
+                      <span className={`mt-2 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-['Arimo'] border ${file.project_id ? "text-blue-700 border-blue-200 bg-blue-50" : "text-stone-700 border-stone-300 bg-stone-100"}`}>
                         {file.project_id ? "Project shared" : "Private"}
                       </span>
                     </div>
                   ))}
                   {/* Upload button as a grid item */}
-                  <label className="flex flex-col items-center cursor-pointer group">
-                    <div className="w-20 h-16 sm:w-24 sm:h-20 lg:w-28 lg:h-24 bg-stone-300 rounded-[29px] flex items-center justify-center mb-3 sm:mb-4 transition-colors group-hover:bg-stone-400">
-                      <span className="text-black text-5xl sm:text-6xl lg:text-8xl font-normal font-['Instrument_Sans'] opacity-50 leading-none pb-1 sm:pb-2 lg:pb-3">+</span>
+                  <label className="flex flex-col items-center cursor-pointer group rounded-2xl p-2 transition-all hover:bg-white/50">
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 bg-white border-2 border-dashed border-stone-400 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 transition-colors group-hover:bg-stone-50 group-hover:border-stone-500">
+                      <span className="text-black text-5xl sm:text-6xl lg:text-7xl font-normal font-['Instrument_Sans'] opacity-50 leading-none">+</span>
                     </div>
-                    <span className="text-black text-base sm:text-xl lg:text-2xl font-normal font-['Instrument_Sans'] text-center">Upload Files</span>
+                    <span className="text-black text-sm sm:text-base lg:text-lg font-normal font-['Instrument_Sans'] text-center">Upload Files</span>
                     <input
                       type="file"
                       className="hidden"
@@ -496,10 +499,10 @@ export default function FilesPage() {
                 {/* Overlay preview for selected file */}
                 {selectedFile && (
                   <div
-                    className="absolute inset-0 z-50 flex bg-white/95 border-2 border-blue-400 rounded-[20px] overflow-hidden p-2 sm:p-4"
+                    className="absolute inset-0 z-50 flex bg-black/20 backdrop-blur-[1px] rounded-[20px] overflow-hidden p-2 sm:p-4"
                     style={{ minHeight: "320px" }}
                   >
-                    <div className="bg-white rounded-2xl shadow-xl flex flex-col md:flex-row max-w-4xl w-full mx-auto" style={{ minHeight: "320px" }}>
+                    <div className="bg-white rounded-2xl border border-stone-300 shadow-xl flex flex-col md:flex-row max-w-4xl w-full mx-auto" style={{ minHeight: "320px" }}>
                       {/* Left: Content preview */}
                       <div className="flex-1 flex items-center justify-center p-8">
                         {selectedFile.file_type && selectedFile.file_type.startsWith("image") ? (
@@ -513,13 +516,13 @@ export default function FilesPage() {
                         )}
                       </div>
 
-                      {/* Right: File info and actions a*/}
-                      <div className="w-full md:w-[340px] flex flex-col justify-center p-4 sm:p-6 md:p-8 border-t md:border-t-0 md:border-l border-gray-200 bg-white">
-                        <div className="text-xl text-black font-bold font-['Instrument_Sans'] mb-2 text-center rounded bg-gray-100 px-4 py-1 mb-4">{selectedFile.filename || "Untitled"}</div>
+                      {/* Right: File info and actions */}
+                      <div className="w-full md:w-[340px] flex flex-col justify-center p-4 sm:p-6 md:p-8 border-t md:border-t-0 md:border-l border-gray-200 bg-stone-50/70">
+                        <div className="text-xl text-black font-bold font-['Instrument_Sans'] text-center rounded-xl bg-white border border-stone-200 px-4 py-2 mb-4 truncate">{selectedFile.filename || "Untitled"}</div>
                         <div className="flex flex-row gap-3 mb-6 justify-center">
                           {/* Download button (>>) */}
                           <button
-                            className="flex flex-col items-center bg-gray-100 hover:bg-blue-100 rounded-lg px-3 py-2 shadow border border-gray-200"
+                            className="flex flex-col items-center bg-white hover:bg-blue-50 rounded-lg px-3 py-2 shadow border border-gray-200"
                             title="Download file"
                             onClick={() => handleDownload(selectedFile.id, selectedFile.filename)}
                           >
@@ -527,7 +530,7 @@ export default function FilesPage() {
                           </button>
                           <div className="relative" ref={selectedAccessMenuRef}>
                             <button
-                              className={`flex flex-col items-center rounded-lg px-3 py-2 shadow border border-gray-200 ${canManageSelectedAccess ? "bg-gray-100 hover:bg-blue-100" : "bg-gray-100 opacity-60 cursor-not-allowed"}`}
+                              className={`flex flex-col items-center rounded-lg px-3 py-2 shadow border border-gray-200 ${canManageSelectedAccess ? "bg-white hover:bg-blue-50" : "bg-gray-100 opacity-60 cursor-not-allowed"}`}
                               title={canManageSelectedAccess ? "Share or manage access" : "Only the uploader can manage access"}
                               onClick={() => {
                                 if (!canManageSelectedAccess) {
@@ -584,7 +587,7 @@ export default function FilesPage() {
                           </div>
                           {/* Delete button */}
                           <button
-                            className={`flex flex-col items-center bg-gray-100 hover:bg-red-100 rounded-lg px-3 py-2 shadow border border-gray-200 ${deleting ? 'opacity-60 cursor-not-allowed' : ''}`}
+                            className={`flex flex-col items-center bg-white hover:bg-red-50 rounded-lg px-3 py-2 shadow border border-gray-200 ${deleting ? 'opacity-60 cursor-not-allowed' : ''}`}
                             title="Delete file"
                             onClick={() => !deleting && handleDelete(selectedFile.id)}
                             disabled={deleting}
@@ -599,7 +602,9 @@ export default function FilesPage() {
                                                   <div className="mt-2 text-xs text-red-600 text-center">{deleteError}</div>
                                                 )}
                         </div>
-                        <div className="text-xs text-gray-600 font-['Arimo'] mb-1 text-center">{selectedFile.project_id ? "Shared to project" : "Private"}</div>
+                        <div className={`text-xs font-['Arimo'] mb-1 text-center ${selectedFile.project_id ? "text-blue-700" : "text-gray-700"}`}>
+                          {selectedFile.project_id ? "Shared to project" : "Private"}
+                        </div>
                         <div className="text-xs text-gray-500 font-['Arimo'] mb-1 text-center">{selectedFile.file_type || "Unknown type"} · {formatFileSize(selectedFile.file_size)}</div>
                         <div className="text-xs text-gray-500 font-['Arimo'] mb-1 text-center">Author: {selectedFile.profiles?.username || selectedFile.username || "Unknown"}</div>
                         <button
