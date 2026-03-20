@@ -261,17 +261,9 @@ export default function ProjectDetailPage() {
   const handleCreateFlowSubmit = async (e) => {
     e.preventDefault();
     try {
-      if (selectedFlowMembers.length === 0) {
-        alert("You must assign at least one member to the flow.");
-        return;
-      }
-
       const isoDeadlineDate = (newFlowDeadline || "").trim();
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDeadlineDate)) {
-        alert("Please choose a deadline date.");
-        return;
-      }
-      const isoDeadline = `${isoDeadlineDate}T${newFlowDeadlineTime || "09:00"}`;
+      const hasValidDeadlineDate = /^\d{4}-\d{2}-\d{2}$/.test(isoDeadlineDate);
+      const isoDeadline = hasValidDeadlineDate ? `${isoDeadlineDate}T${newFlowDeadlineTime || "09:00"}` : "";
 
       const workflowRes = await fetch(`/api/projects/${id}/workflows`, {
         method: "POST",
@@ -303,9 +295,9 @@ export default function ProjectDetailPage() {
           throw new Error(errData.detail || `Failed to assign ${member.username}`);
         }
       }
-      // 3. Create deadline (assign to lead or first member)
+      // 3. Optionally create a deadline when both assignee and due date are available
       const deadlineAssignee = members.find((m) => m.id === selectedFlowMembers[0]);
-      if (deadlineAssignee) {
+      if (deadlineAssignee && isoDeadline) {
         const deadlineRes = await fetch(`/api/workflows/${workflow.id}/deadlines`, {
           method: "POST",
           credentials: "include",
