@@ -964,7 +964,7 @@ export default function CalendarPage() {
                         </div>
 
                         <div className="space-y-1">
-                          {dayEvents.map((ev) => {
+                          {dayEvents.slice(0, 3).map((ev) => {
                             const memberName = memberById[ev.user_id]?.username;
                             return (
                               <button
@@ -979,6 +979,11 @@ export default function CalendarPage() {
                               </button>
                             );
                           })}
+                          {dayEvents.length > 3 && (
+                            <div className="text-[11px] text-slate-500 px-1.5 py-0.5">
+                              ... {dayEvents.length - 3} more
+                            </div>
+                          )}
                         </div>
                       </button>
                     );
@@ -1008,7 +1013,7 @@ export default function CalendarPage() {
                       <div key={key} className={`p-2 align-top ${idx < 6 ? "border-r border-slate-200" : ""}`}>
                         <div className="space-y-1">
                           {dayEvents.length === 0 && <div className="text-[11px] text-slate-400">No events</div>}
-                          {dayEvents.map((ev) => {
+                          {dayEvents.slice(0, 3).map((ev) => {
                             const memberName = memberById[ev.user_id]?.username;
                             return (
                               <button
@@ -1024,6 +1029,11 @@ export default function CalendarPage() {
                               </button>
                             );
                           })}
+                          {dayEvents.length > 3 && (
+                            <div className="text-[11px] text-slate-500 px-2 py-1">
+                              ... {dayEvents.length - 3} more
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -1043,7 +1053,7 @@ export default function CalendarPage() {
                       </div>
                       <div className="p-2 min-h-[60px]">
                         <div className="space-y-1">
-                          {hourEvents.map((ev) => {
+                          {hourEvents.slice(0, 3).map((ev) => {
                             const memberName = memberById[ev.user_id]?.username;
                             return (
                               <button
@@ -1058,6 +1068,11 @@ export default function CalendarPage() {
                               </button>
                             );
                           })}
+                          {hourEvents.length > 3 && (
+                            <div className="text-xs text-slate-500 px-2 py-1">
+                              ... {hourEvents.length - 3} more
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1196,7 +1211,7 @@ export default function CalendarPage() {
                 setActiveEventMenu(null);
               }}
             >
-              Edit event
+              Edit {eventsById[activeEventMenu.eventId]?.title || "event"}
             </button>
             <button
               type="button"
