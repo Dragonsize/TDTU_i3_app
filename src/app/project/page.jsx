@@ -268,8 +268,10 @@ export default function ProjectPage() {
 
       setManagerWorkflows(safeWorkflows);
       setManagerMembers(safeMembers);
-      setDeadlineWorkflowId(safeWorkflows[0]?.id || "");
-      setDeadlineAssignee(safeMembers[0]?.username || "");
+      const firstWorkflowId = safeWorkflows[0]?.id || "";
+      const firstAssignableMember = safeMembers.find((member) => member.username) || null;
+      setDeadlineWorkflowId(firstWorkflowId);
+      setDeadlineAssignee(firstAssignableMember?.username || "");
 
       await loadDeadlinesForWorkflows(safeWorkflows);
     } catch (error) {
@@ -305,6 +307,9 @@ export default function ProjectPage() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
+        if (response.status === 403) {
+          throw new Error("You are not allowed to create deadlines for this project.");
+        }
         throw new Error(data.detail || "Failed to create deadline");
       }
 
@@ -467,6 +472,7 @@ export default function ProjectPage() {
   const isCurrentUserProjectLead = managerMembers.some(
     (member) => member.id === currentUser?.id && member.role === "lead"
   );
+  const canManageDeadlines = Boolean(currentUser);
   const managerMemberById = managerMembers.reduce((acc, member) => {
     acc[member.id] = member;
     return acc;
@@ -759,9 +765,9 @@ export default function ProjectPage() {
             <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 max-h-[80vh] overflow-y-auto">
               <div>
                 <h3 className="text-base font-semibold text-gray-900 mb-3">Create Deadline</h3>
-                {!isCurrentUserProjectLead && !managerLoading && (
+                {!managerLoading && managerWorkflows.length === 0 && (
                   <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                    Only the project lead can create deadlines.
+                    No workflows found. Create a workflow first, then create deadlines.
                   </div>
                 )}
                 <form className="space-y-3" onSubmit={handleCreateManagerDeadline}>
@@ -772,7 +778,7 @@ export default function ProjectPage() {
                       value={deadlineTitle}
                       onChange={(e) => setDeadlineTitle(e.target.value)}
                       placeholder="Release candidate"
-                      disabled={!isCurrentUserProjectLead || managerLoading || creatingDeadline}
+                      disabled={!canManageDeadlines || managerLoading || creatingDeadline || managerWorkflows.length === 0}
                     />
                   </div>
                   <div>
@@ -781,7 +787,7 @@ export default function ProjectPage() {
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
                       value={deadlineWorkflowId}
                       onChange={(e) => setDeadlineWorkflowId(e.target.value)}
-                      disabled={!isCurrentUserProjectLead || managerLoading || creatingDeadline}
+                      disabled={!canManageDeadlines || managerLoading || creatingDeadline || managerWorkflows.length === 0}
                     >
                       <option value="">Select workflow...</option>
                       {managerWorkflows.map((workflow) => (
@@ -797,7 +803,7 @@ export default function ProjectPage() {
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
                       value={deadlineAssignee}
                       onChange={(e) => setDeadlineAssignee(e.target.value)}
-                      disabled={!isCurrentUserProjectLead || managerLoading || creatingDeadline}
+                      disabled={!canManageDeadlines || managerLoading || creatingDeadline || managerWorkflows.length === 0}
                     >
                       <option value="">Select member...</option>
                       {managerMembers.map((member) => (
@@ -815,12 +821,12 @@ export default function ProjectPage() {
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
                       value={deadlineDate}
                       onChange={(e) => setDeadlineDate(e.target.value)}
-                      disabled={!isCurrentUserProjectLead || managerLoading || creatingDeadline}
+                      disabled={!canManageDeadlines || managerLoading || creatingDeadline || managerWorkflows.length === 0}
                     />
                   </div>
                   <button
                     type="submit"
-                    disabled={!isCurrentUserProjectLead || managerLoading || creatingDeadline}
+                    disabled={!canManageDeadlines || managerLoading || creatingDeadline || managerWorkflows.length === 0}
                     className="w-full mt-1 bg-black text-white rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-800 disabled:opacity-60"
                   >
                     {creatingDeadline ? "Creating..." : "Create Deadline"}
