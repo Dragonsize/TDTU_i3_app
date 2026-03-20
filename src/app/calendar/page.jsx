@@ -327,6 +327,7 @@ export default function CalendarPage() {
   const [editingEventId, setEditingEventId] = useState(null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [activeEventMenu, setActiveEventMenu] = useState(null);
+  const eventMenuRef = useRef(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [startTime, setStartTime] = useState("");
@@ -642,7 +643,17 @@ export default function CalendarPage() {
   };
 
   useEffect(() => {
-    const handleClose = () => setActiveEventMenu(null);
+    const handleClose = (ev) => {
+      // Don't close if clicking inside the menu
+      if (eventMenuRef.current && eventMenuRef.current.contains(ev.target)) {
+        return;
+      }
+      // Don't close if clicking on an event button (has data-event-id)
+      if (ev.target.closest('[data-event-button]')) {
+        return;
+      }
+      setActiveEventMenu(null);
+    };
     document.addEventListener("click", handleClose);
     return () => document.removeEventListener("click", handleClose);
   }, []);
@@ -959,6 +970,7 @@ export default function CalendarPage() {
                               <button
                                 key={ev.id}
                                 type="button"
+                                data-event-button
                                 onClick={(clickEv) => openEventMenu(ev, clickEv)}
                                 className="w-full truncate rounded px-1.5 py-0.5 text-[11px] text-white font-medium bg-slate-900 text-left"
                                 title={viewMode === "team" && memberName ? `${ev.title} (${memberName})` : ev.title}
@@ -1002,6 +1014,7 @@ export default function CalendarPage() {
                               <button
                                 key={ev.id}
                                 type="button"
+                                data-event-button
                                 onClick={(clickEv) => openEventMenu(ev, clickEv)}
                                 className="w-full rounded px-2 py-1 text-[11px] text-white font-medium bg-slate-900 text-left"
                                 title={viewMode === "team" && memberName ? `${ev.title} (${memberName})` : ev.title}
@@ -1036,6 +1049,7 @@ export default function CalendarPage() {
                               <button
                                 key={ev.id}
                                 type="button"
+                                data-event-button
                                 onClick={(clickEv) => openEventMenu(ev, clickEv)}
                                 className="w-full rounded px-2 py-1 text-xs text-white font-medium bg-slate-900 text-left"
                                 title={viewMode === "team" && memberName ? `${ev.title} (${memberName})` : ev.title}
@@ -1169,6 +1183,7 @@ export default function CalendarPage() {
 
         {activeEventMenu && eventsById[activeEventMenu.eventId] && (
           <div
+            ref={eventMenuRef}
             className="fixed z-50 bg-white border border-slate-300 rounded-lg shadow-xl p-2 min-w-[140px]"
             style={{ left: `${activeEventMenu.x}px`, top: `${activeEventMenu.y}px` }}
             onClick={(ev) => ev.stopPropagation()}
