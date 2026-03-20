@@ -103,7 +103,11 @@ export default function Dashboard() {
   }, [router]);
 
   if (loading) {
-    return <PageLoader label="Loading..." fullHeight={false} />;
+    return (
+      <AppShell user={user} activePath="/dashboard" contentClassName="flex-1">
+        <PageLoader label="Loading..." />
+      </AppShell>
+    );
   }
 
   return (

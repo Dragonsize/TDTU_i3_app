@@ -498,7 +498,11 @@ export default function ProjectPage() {
   }, [projects, projectSearchQuery]);
 
   if (loading) {
-    return <PageLoader label="Loading projects..." fullHeight={false} />;
+    return (
+      <AppShell user={currentUser} activePath="/project" contentClassName="flex-1">
+        <PageLoader label="Loading projects..." />
+      </AppShell>
+    );
   }
 
   return (

@@ -34,7 +34,11 @@ export default function ChatPage() {
   }, [router]);
 
   if (loading) {
-    return <PageLoader label="Loading..." />;
+    return (
+      <AppShell user={user} activePath="/chat" contentClassName="flex-1" fullHeight={true}>
+        <PageLoader label="Loading..." />
+      </AppShell>
+    );
   }
 
   return (

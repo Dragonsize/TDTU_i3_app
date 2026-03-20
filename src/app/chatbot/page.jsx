@@ -48,7 +48,11 @@ export default function ChatbotPage() {
   }, [router]);
 
   if (loading) {
-    return <PageLoader label="Loading..." />;
+    return (
+      <AppShell user={user} activePath="/chatbot" contentClassName="flex-1">
+        <PageLoader label="Loading..." />
+      </AppShell>
+    );
   }
 
   const sendQuestion = async (e, overrideQuestion = "") => {

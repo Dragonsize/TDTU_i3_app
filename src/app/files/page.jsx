@@ -384,7 +384,11 @@ export default function FilesPage() {
     };
 
     if (loading) {
-      return <PageLoader label="Loading files..." fullHeight={false} />;
+      return (
+        <AppShell user={currentUser} activePath="/files" contentClassName="flex-1">
+          <PageLoader label="Loading files..." />
+        </AppShell>
+      );
     }
 
     return (

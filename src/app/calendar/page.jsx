@@ -743,7 +743,11 @@ export default function CalendarPage() {
   };
 
   if (loading) {
-    return <PageLoader label="Loading calendar..." fullHeight={false} />;
+    return (
+      <AppShell user={user} activePath="/calendar" contentClassName="flex-1">
+        <PageLoader label="Loading calendar..." />
+      </AppShell>
+    );
   }
 
   return (
