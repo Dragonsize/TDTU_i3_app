@@ -4,6 +4,14 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 
+const STARTER_PROMPTS = [
+  "How do I create a new project?",
+  "How can I create a workflow for this project?",
+  "How do I assign members to a workflow?",
+  "How do I create a deadline and assign it?",
+  "Show me how to set a team meeting from calendar.",
+];
+
 export default function ChatbotPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -17,6 +25,7 @@ export default function ChatbotPage() {
   const [question, setQuestion] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const placeholderText = STARTER_PROMPTS[messages.length % STARTER_PROMPTS.length];
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -48,9 +57,9 @@ export default function ChatbotPage() {
     );
   }
 
-  const sendQuestion = async (e) => {
+  const sendQuestion = async (e, overrideQuestion = "") => {
     e.preventDefault();
-    const trimmed = question.trim();
+    const trimmed = (overrideQuestion || question).trim();
     if (!trimmed || sending) return;
 
     setSending(true);
@@ -94,12 +103,35 @@ export default function ChatbotPage() {
     }
   };
 
+  const useStarterPrompt = (prompt, sendNow = false) => {
+    if (sending) return;
+    setQuestion(prompt);
+    if (!sendNow) return;
+
+    // Submit starter immediately for quick onboarding.
+    const syntheticEvent = { preventDefault: () => {} };
+    sendQuestion(syntheticEvent, prompt);
+  };
+
   return (
     <AppShell user={user} activePath="/chatbot" contentClassName="flex-1">
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 min-h-[calc(100dvh-4rem)] flex flex-col">
         <div className="mb-3">
           <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 font-['Arimo']">Project Chatbot</h1>
           <p className="text-sm text-slate-600 mt-1">Configure API key/base/model in Settings to use your own AI provider.</p>
+        </div>
+
+        <div className="mb-3 flex flex-wrap gap-2">
+          {STARTER_PROMPTS.map((prompt) => (
+            <button
+              key={prompt}
+              type="button"
+              onClick={() => useStarterPrompt(prompt, true)}
+              className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              {prompt}
+            </button>
+          ))}
         </div>
 
         <div className="flex-1 rounded-xl border border-slate-200 bg-white shadow-sm p-3 sm:p-4 overflow-auto space-y-3">
@@ -128,7 +160,7 @@ export default function ChatbotPage() {
           <input
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Ask your question..."
+            placeholder={placeholderText}
             className="flex-1 rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/30"
             disabled={sending}
           />
