@@ -391,7 +391,7 @@ export default function FilesPage() {
           </p>
           
           <div 
-            className="w-full max-w-[1215px] min-h-[420px] sm:min-h-[560px] rounded-3xl p-4 sm:p-8 lg:p-10 relative bg-gradient-to-br from-zinc-200 via-zinc-100 to-stone-200 border border-stone-300/70 shadow-[0_20px_60px_rgba(0,0,0,0.12)]"
+            className="w-full max-w-[1215px] min-h-[420px] sm:min-h-[560px] rounded-3xl p-4 sm:p-8 lg:p-10 relative bg-gradient-to-br from-zinc-400 via-zinc-300 to-stone-400 border border-stone-500/70 shadow-[0_20px_60px_rgba(0,0,0,0.16)]"
             onDrop={handleDrop} 
             onDragOver={handleDragOver}
           >
