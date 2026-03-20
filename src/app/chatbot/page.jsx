@@ -103,7 +103,7 @@ export default function ChatbotPage() {
     }
   };
 
-  const useStarterPrompt = (prompt, sendNow = false) => {
+  const handleStarterPrompt = (prompt, sendNow = false) => {
     if (sending) return;
     setQuestion(prompt);
     if (!sendNow) return;
@@ -126,7 +126,7 @@ export default function ChatbotPage() {
             <button
               key={prompt}
               type="button"
-              onClick={() => useStarterPrompt(prompt, true)}
+              onClick={() => handleStarterPrompt(prompt, true)}
               className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
             >
               {prompt}
