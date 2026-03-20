@@ -108,6 +108,7 @@ export default function FilesPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
+  const [shareScope, setShareScope] = useState("individual");
 
   const formatFileSize = (bytes) => {
     if (typeof bytes !== "number" || Number.isNaN(bytes)) {
@@ -184,7 +185,10 @@ export default function FilesPage() {
       try {
         const formData = new FormData();
         formData.append("file", file);
-        if (selectedProject) {
+        if (shareScope === "project" && !selectedProject) {
+          throw new Error("Choose a project to share with all members.");
+        }
+        if (shareScope === "project" && selectedProject) {
           formData.append("project_id", selectedProject);
         }
         const response = await fetch("/api/documents/upload", {
@@ -263,7 +267,10 @@ export default function FilesPage() {
       try {
         const formData = new FormData();
         formData.append("file", file);
-        if (selectedProject) {
+        if (shareScope === "project" && !selectedProject) {
+          throw new Error("Choose a project to share with all members.");
+        }
+        if (shareScope === "project" && selectedProject) {
           formData.append("project_id", selectedProject);
         }
         const response = await fetch("/api/documents/upload", {
@@ -296,6 +303,53 @@ export default function FilesPage() {
             onDrop={handleDrop} 
             onDragOver={handleDragOver}
           >
+                <div className="mb-6 rounded-xl bg-white/80 border border-stone-300 p-3 sm:p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                    <div className="inline-flex items-center gap-2">
+                      <span className="inline-flex w-8 h-8 items-center justify-center rounded-full bg-stone-200 text-stone-700">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M20 21a8 8 0 0 0-16 0" />
+                          <circle cx="12" cy="7" r="4" />
+                        </svg>
+                      </span>
+                      <span className="text-sm sm:text-base text-stone-800 font-medium font-['Arimo']">File access</span>
+                    </div>
+
+                    <select
+                      value={shareScope}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setShareScope(next);
+                        if (next === "individual") {
+                          setSelectedProject("");
+                        }
+                      }}
+                      className="w-full sm:w-64 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+                    >
+                      <option value="individual">Individual (only me)</option>
+                      <option value="project">Project (all members)</option>
+                    </select>
+
+                    {shareScope === "project" && (
+                      <select
+                        value={selectedProject}
+                        onChange={(e) => setSelectedProject(e.target.value)}
+                        className="w-full sm:w-72 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+                      >
+                        <option value="">Choose project...</option>
+                        {projects.map((project) => (
+                          <option key={project.id} value={project.id}>
+                            {project.title || project.name || "Untitled project"}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  <p className="mt-2 text-xs sm:text-sm text-stone-600 font-['Arimo']">
+                    Individual keeps file private to uploader. Project shares file with every member of that project.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 sm:gap-x-6 lg:gap-x-8 gap-y-6 sm:gap-y-10 lg:gap-y-12 items-start">
                   {/* File cards */}
                   {files.map((file) => (
@@ -319,6 +373,9 @@ export default function FilesPage() {
                           {file.filename || 'Untitled'}
                         </span>
                       </div>
+                      <span className="mt-1 text-[10px] sm:text-xs font-['Arimo'] text-stone-700">
+                        {file.project_id ? "Project shared" : "Private"}
+                      </span>
                     </div>
                   ))}
                   {/* Upload button as a grid item */}
