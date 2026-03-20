@@ -387,6 +387,10 @@ class UploadDocumentRequest(BaseModel):
     file_url: str = Field(..., min_length=1)
 
 
+class UpdateDocumentAccessRequest(BaseModel):
+    project_id: Optional[str] = None
+
+
 class ChatbotRequest(BaseModel):
     question: str = Field(..., min_length=1)
     api_base: Optional[str] = None
@@ -2266,6 +2270,29 @@ def get_documents(project_id: Optional[str] = None, user=Depends(get_current_use
     else:
         response = db.table("documents").select("*, profiles!uploaded_by(username)").eq("uploaded_by", user_id).execute()
     return response.data
+
+
+@app.patch("/api/documents/{document_id}/access")
+def update_document_access(document_id: str, request: UpdateDocumentAccessRequest, user=Depends(get_current_user)):
+    db = require_db_client()
+    user_id = user.get("sub")
+
+    doc_resp = db.table("documents").select("*").eq("id", document_id).limit(1).execute()
+    if not doc_resp.data:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    document = doc_resp.data[0]
+    if document.get("uploaded_by") != user_id:
+        raise HTTPException(status_code=403, detail="Only uploader can update file access")
+
+    project_id = request.project_id or None
+    if project_id:
+        require_project_member(user_id, project_id)
+
+    response = db.table("documents").update({"project_id": project_id}).eq("id", document_id).execute()
+    if not response.data:
+        raise HTTPException(status_code=500, detail="Failed to update file access")
+    return response.data[0]
 
 
 @app.post("/api/documents/upload")

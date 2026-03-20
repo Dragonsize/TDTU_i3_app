@@ -110,7 +110,13 @@ export default function FilesPage() {
   const [currentUser, setCurrentUser] = useState(null);
   const [shareScope, setShareScope] = useState("individual");
   const [accessMenuOpen, setAccessMenuOpen] = useState(false);
+  const [selectedAccessMenuOpen, setSelectedAccessMenuOpen] = useState(false);
+  const [selectedAccessScope, setSelectedAccessScope] = useState("individual");
+  const [selectedAccessProject, setSelectedAccessProject] = useState("");
+  const [accessSaving, setAccessSaving] = useState(false);
+  const [accessError, setAccessError] = useState("");
   const accessMenuRef = useRef(null);
+  const selectedAccessMenuRef = useRef(null);
 
   const formatFileSize = (bytes) => {
     if (typeof bytes !== "number" || Number.isNaN(bytes)) {
@@ -127,6 +133,10 @@ export default function FilesPage() {
     }
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   };
+
+  const canManageSelectedAccess = Boolean(
+    selectedFile && currentUser && selectedFile.uploaded_by === currentUser.id
+  );
 
   const fetchFiles = async () => {
     try {
@@ -182,11 +192,28 @@ export default function FilesPage() {
         if (accessMenuRef.current && !accessMenuRef.current.contains(event.target)) {
           setAccessMenuOpen(false);
         }
+        if (selectedAccessMenuRef.current && !selectedAccessMenuRef.current.contains(event.target)) {
+          setSelectedAccessMenuOpen(false);
+        }
       };
 
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+    useEffect(() => {
+      if (!selectedFile) {
+        setSelectedAccessMenuOpen(false);
+        setAccessError("");
+        return;
+      }
+      if (!canManageSelectedAccess) {
+        setSelectedAccessMenuOpen(false);
+      }
+      setSelectedAccessScope(selectedFile.project_id ? "project" : "individual");
+      setSelectedAccessProject(selectedFile.project_id || "");
+      setAccessError("");
+    }, [selectedFile, canManageSelectedAccess]);
 
     const handleUpload = async (event) => {
       const file = event.target.files?.[0];
@@ -270,6 +297,55 @@ export default function FilesPage() {
       }
     };
 
+    const handleSelectedFileAccessSave = async () => {
+      if (!selectedFile) {
+        return;
+      }
+
+      const targetProjectId = selectedAccessScope === "project" ? selectedAccessProject : null;
+      if (selectedAccessScope === "project" && !targetProjectId) {
+        setAccessError("Choose a project to share this file with all members.");
+        return;
+      }
+
+      if ((selectedFile.project_id || null) === targetProjectId) {
+        setSelectedAccessMenuOpen(false);
+        setAccessError("");
+        return;
+      }
+
+      setAccessSaving(true);
+      setAccessError("");
+      try {
+        const response = await fetch(`/api/documents/${selectedFile.id}/access`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ project_id: targetProjectId }),
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.detail || "Failed to update access");
+        }
+
+        const updated = await response.json();
+        setFiles((prev) => prev.map((file) => (file.id === updated.id ? { ...file, ...updated } : file)));
+        setSelectedFile((prev) => {
+          if (!prev || prev.id !== updated.id) {
+            return prev;
+          }
+          return { ...prev, ...updated };
+        });
+        setSelectedAccessMenuOpen(false);
+      } catch (err) {
+        setAccessError(err.message || "Failed to update access");
+      } finally {
+        setAccessSaving(false);
+      }
+    };
+
     // Drag-and-drop upload
     const handleDrop = async (event) => {
       event.preventDefault();
@@ -333,7 +409,7 @@ export default function FilesPage() {
 
                     {accessMenuOpen && (
                       <div className="absolute right-0 mt-2 w-[280px] rounded-xl border border-stone-300 bg-white p-3 shadow-xl z-20">
-                        <div className="text-sm font-semibold text-stone-800 mb-2 font-['Arimo']">Upload access</div>
+                        <div className="text-sm font-semibold text-stone-800 mb-2 font-['Arimo']">Upload settings</div>
                         <select
                           value={shareScope}
                           onChange={(e) => {
@@ -449,13 +525,63 @@ export default function FilesPage() {
                           >
                             <span className="text-xl text-black font-bold">&gt;&gt;</span>
                           </button>
-                          {/* Share/user button (placeholder) */}
-                          <button
-                            className="flex flex-col items-center bg-gray-100 hover:bg-blue-100 rounded-lg px-3 py-2 shadow border border-gray-200"
-                            title="Share or manage access"
-                          >
-                            <svg width="20" height="20" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-2.5 3.5-4 8-4s8 1.5 8 4"/></svg>
-                          </button>
+                          <div className="relative" ref={selectedAccessMenuRef}>
+                            <button
+                              className={`flex flex-col items-center rounded-lg px-3 py-2 shadow border border-gray-200 ${canManageSelectedAccess ? "bg-gray-100 hover:bg-blue-100" : "bg-gray-100 opacity-60 cursor-not-allowed"}`}
+                              title={canManageSelectedAccess ? "Share or manage access" : "Only the uploader can manage access"}
+                              onClick={() => {
+                                if (!canManageSelectedAccess) {
+                                  return;
+                                }
+                                setSelectedAccessMenuOpen((prev) => !prev);
+                              }}
+                              disabled={accessSaving || !canManageSelectedAccess}
+                            >
+                              <svg width="20" height="20" fill="none" stroke="#2563eb" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-2.5 3.5-4 8-4s8 1.5 8 4"/></svg>
+                            </button>
+                            {selectedAccessMenuOpen && canManageSelectedAccess && (
+                              <div className="absolute top-full right-0 mt-2 w-[260px] rounded-xl border border-stone-300 bg-white p-3 shadow-xl z-20">
+                                <div className="text-sm font-semibold text-stone-800 mb-2 font-['Arimo']">File access</div>
+                                <select
+                                  value={selectedAccessScope}
+                                  onChange={(e) => {
+                                    const next = e.target.value;
+                                    setSelectedAccessScope(next);
+                                    if (next === "individual") {
+                                      setSelectedAccessProject("");
+                                    }
+                                  }}
+                                  className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+                                >
+                                  <option value="individual">Individual (only me)</option>
+                                  <option value="project">Project (all members)</option>
+                                </select>
+                                {selectedAccessScope === "project" && (
+                                  <select
+                                    value={selectedAccessProject}
+                                    onChange={(e) => setSelectedAccessProject(e.target.value)}
+                                    className="mt-2 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+                                  >
+                                    <option value="">Choose project...</option>
+                                    {projects.map((project) => (
+                                      <option key={project.id} value={project.id}>
+                                        {project.title || project.name || "Untitled project"}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                                <button
+                                  type="button"
+                                  className="mt-3 w-full rounded-md bg-blue-600 text-white text-sm px-3 py-2 hover:bg-blue-700 disabled:opacity-60"
+                                  onClick={handleSelectedFileAccessSave}
+                                  disabled={accessSaving}
+                                >
+                                  {accessSaving ? "Saving..." : "Save access"}
+                                </button>
+                                {accessError && <div className="mt-2 text-xs text-red-600">{accessError}</div>}
+                              </div>
+                            )}
+                          </div>
                           {/* Delete button */}
                           <button
                             className={`flex flex-col items-center bg-gray-100 hover:bg-red-100 rounded-lg px-3 py-2 shadow border border-gray-200 ${deleting ? 'opacity-60 cursor-not-allowed' : ''}`}
