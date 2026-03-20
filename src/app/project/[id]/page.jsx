@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
+import PageLoader from "@/components/PageLoader";
 
 function formatDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -418,7 +419,7 @@ export default function ProjectDetailPage() {
     fetchData();
   }, [id]);
 
-  if (loading || userLoading) return <div className="min-h-[100dvh] flex items-center justify-center px-4 text-center">Loading...</div>;
+  if (loading || userLoading) return <PageLoader label="Loading..." />;
   if (!project) return <div className="min-h-[100dvh] flex items-center justify-center px-4 text-center">Project not found.</div>;
 
   return (

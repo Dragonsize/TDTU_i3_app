@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
+import PageLoader from "@/components/PageLoader";
 
 function toIsoFromLocal(localDateTime) {
   if (!localDateTime) return "";
@@ -742,7 +743,7 @@ export default function CalendarPage() {
   };
 
   if (loading) {
-    return <div className="w-full min-h-screen bg-white flex items-center justify-center text-gray-600">Loading calendar...</div>;
+    return <PageLoader label="Loading calendar..." fullHeight={false} />;
   }
 
   return (

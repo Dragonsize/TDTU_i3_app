@@ -2,6 +2,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import AppShell from "@/components/AppShell";
+import PageLoader from "@/components/PageLoader";
 // FileImagePreview component for image/* files
 function FileImagePreview({ file }) {
   const [imgUrl, setImgUrl] = useState(null);
@@ -381,6 +382,10 @@ export default function FilesPage() {
     const handleDragOver = (event) => {
       event.preventDefault();
     };
+
+    if (loading) {
+      return <PageLoader label="Loading files..." fullHeight={false} />;
+    }
 
     return (
       <AppShell user={currentUser} activePath="/files" contentClassName="flex-1">

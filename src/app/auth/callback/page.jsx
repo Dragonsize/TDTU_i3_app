@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import PageLoader from '@/components/PageLoader';
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -61,14 +62,7 @@ export default function AuthCallback() {
   }, [router]);
 
   if (loading) {
-    return (
-      <div className="w-full min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-950 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-['Arimo']">Verifying your sign in...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader label="Verifying your sign in..." fullHeight={false} />;
   }
 
   if (error) {

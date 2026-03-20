@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppShell from '@/components/AppShell';
+import PageLoader from '@/components/PageLoader';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -102,14 +103,7 @@ export default function Dashboard() {
   }, [router]);
 
   if (loading) {
-    return (
-      <div className="w-full min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-950 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-['Arimo']">Loading...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader label="Loading..." fullHeight={false} />;
   }
 
   return (

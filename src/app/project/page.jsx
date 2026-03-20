@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
+import PageLoader from "@/components/PageLoader";
 
 const PROJECT_COLORS = [
   "#78716c", // Stone (Default)
@@ -495,6 +496,10 @@ export default function ProjectPage() {
       .sort((a, b) => b.score - a.score)
       .map((item) => item.project);
   }, [projects, projectSearchQuery]);
+
+  if (loading) {
+    return <PageLoader label="Loading projects..." fullHeight={false} />;
+  }
 
   return (
     <AppShell user={currentUser} activePath="/project" contentClassName="flex-1">
