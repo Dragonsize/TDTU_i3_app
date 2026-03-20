@@ -1,6 +1,6 @@
 
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import AppShell from "@/components/AppShell";
 // FileImagePreview component for image/* files
 function FileImagePreview({ file }) {
@@ -109,6 +109,8 @@ export default function FilesPage() {
   const [deleteError, setDeleteError] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
   const [shareScope, setShareScope] = useState("individual");
+  const [accessMenuOpen, setAccessMenuOpen] = useState(false);
+  const accessMenuRef = useRef(null);
 
   const formatFileSize = (bytes) => {
     if (typeof bytes !== "number" || Number.isNaN(bytes)) {
@@ -173,6 +175,17 @@ export default function FilesPage() {
         .catch((err) => {
           if (router) router.push("/login");
         });
+    }, []);
+
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (accessMenuRef.current && !accessMenuRef.current.contains(event.target)) {
+          setAccessMenuOpen(false);
+        }
+      };
+
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
     const handleUpload = async (event) => {
@@ -303,51 +316,60 @@ export default function FilesPage() {
             onDrop={handleDrop} 
             onDragOver={handleDragOver}
           >
-                <div className="mb-6 rounded-xl bg-white/80 border border-stone-300 p-3 sm:p-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                    <div className="inline-flex items-center gap-2">
-                      <span className="inline-flex w-8 h-8 items-center justify-center rounded-full bg-stone-200 text-stone-700">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M20 21a8 8 0 0 0-16 0" />
-                          <circle cx="12" cy="7" r="4" />
-                        </svg>
-                      </span>
-                      <span className="text-sm sm:text-base text-stone-800 font-medium font-['Arimo']">File access</span>
-                    </div>
-
-                    <select
-                      value={shareScope}
-                      onChange={(e) => {
-                        const next = e.target.value;
-                        setShareScope(next);
-                        if (next === "individual") {
-                          setSelectedProject("");
-                        }
-                      }}
-                      className="w-full sm:w-64 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+                <div className="mb-6 flex items-center justify-end" ref={accessMenuRef}>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setAccessMenuOpen((prev) => !prev)}
+                      className="w-12 h-12 rounded-xl border border-stone-300 bg-[#eceff3] text-[#4a5565] flex items-center justify-center shadow-sm hover:bg-[#e3e8ee]"
+                      title="File access"
+                      aria-label="File access"
                     >
-                      <option value="individual">Individual (only me)</option>
-                      <option value="project">Project (all members)</option>
-                    </select>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M20 21a8 8 0 0 0-16 0" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </button>
 
-                    {shareScope === "project" && (
-                      <select
-                        value={selectedProject}
-                        onChange={(e) => setSelectedProject(e.target.value)}
-                        className="w-full sm:w-72 rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
-                      >
-                        <option value="">Choose project...</option>
-                        {projects.map((project) => (
-                          <option key={project.id} value={project.id}>
-                            {project.title || project.name || "Untitled project"}
-                          </option>
-                        ))}
-                      </select>
+                    {accessMenuOpen && (
+                      <div className="absolute right-0 mt-2 w-[280px] rounded-xl border border-stone-300 bg-white p-3 shadow-xl z-20">
+                        <div className="text-sm font-semibold text-stone-800 mb-2 font-['Arimo']">Upload access</div>
+                        <select
+                          value={shareScope}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            setShareScope(next);
+                            if (next === "individual") {
+                              setSelectedProject("");
+                            }
+                          }}
+                          className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+                        >
+                          <option value="individual">Individual (only me)</option>
+                          <option value="project">Project (all members)</option>
+                        </select>
+
+                        {shareScope === "project" && (
+                          <select
+                            value={selectedProject}
+                            onChange={(e) => setSelectedProject(e.target.value)}
+                            className="mt-2 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900"
+                          >
+                            <option value="">Choose project...</option>
+                            {projects.map((project) => (
+                              <option key={project.id} value={project.id}>
+                                {project.title || project.name || "Untitled project"}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+
+                        <p className="mt-2 text-xs text-stone-600 font-['Arimo']">
+                          Individual keeps file private. Project shares file with all project members.
+                        </p>
+                      </div>
                     )}
                   </div>
-                  <p className="mt-2 text-xs sm:text-sm text-stone-600 font-['Arimo']">
-                    Individual keeps file private to uploader. Project shares file with every member of that project.
-                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 sm:gap-x-6 lg:gap-x-8 gap-y-6 sm:gap-y-10 lg:gap-y-12 items-start">
