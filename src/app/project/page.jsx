@@ -36,6 +36,21 @@ export default function ProjectPage() {
   const [projectToEdit, setProjectToEdit] = useState(null);
   const [projectColor, setProjectColor] = useState(PROJECT_COLORS[0]);
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
+  const [showManagerDeadlineModal, setShowManagerDeadlineModal] = useState(false);
+  const [managerProject, setManagerProject] = useState(null);
+  const [managerWorkflows, setManagerWorkflows] = useState([]);
+  const [managerMembers, setManagerMembers] = useState([]);
+  const [managerDeadlines, setManagerDeadlines] = useState([]);
+  const [managerLoading, setManagerLoading] = useState(false);
+  const [managerError, setManagerError] = useState("");
+  const [deadlineTitle, setDeadlineTitle] = useState("");
+  const [deadlineDate, setDeadlineDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [deadlineAssignee, setDeadlineAssignee] = useState("");
+  const [deadlineWorkflowId, setDeadlineWorkflowId] = useState("");
+  const [creatingDeadline, setCreatingDeadline] = useState(false);
+  const [updatingDeadlineId, setUpdatingDeadlineId] = useState("");
+  const [deletingDeadlineId, setDeletingDeadlineId] = useState("");
+  const [deadlineDrafts, setDeadlineDrafts] = useState({});
 
   const router = useRouter();
   useEffect(() => {
@@ -191,6 +206,272 @@ export default function ProjectPage() {
     }
   };
 
+  const loadDeadlinesForWorkflows = async (workflows) => {
+    if (!Array.isArray(workflows) || workflows.length === 0) {
+      setManagerDeadlines([]);
+      return;
+    }
+
+    const workflowById = workflows.reduce((acc, ws) => {
+      acc[ws.id] = ws;
+      return acc;
+    }, {});
+
+    const allDeadlines = await Promise.all(
+      workflows.map(async (ws) => {
+        const response = await fetch(`/api/workflows/${ws.id}/deadlines`, { credentials: "include" });
+        if (!response.ok) {
+          return [];
+        }
+        const data = await response.json().catch(() => []);
+        return Array.isArray(data)
+          ? data.map((deadline) => ({ ...deadline, workflow: workflowById[ws.id] }))
+          : [];
+      })
+    );
+
+    const sorted = allDeadlines
+      .flat()
+      .sort((a, b) => new Date(a.due_date || 0).getTime() - new Date(b.due_date || 0).getTime());
+
+    setManagerDeadlines(sorted);
+  };
+
+  const openManagerDeadlineModal = async (project) => {
+    setManagerProject(project);
+    setShowManagerDeadlineModal(true);
+    setManagerLoading(true);
+    setManagerError("");
+    setDeadlineTitle("");
+    setDeadlineDate(new Date().toISOString().slice(0, 10));
+
+    try {
+      const [workflowRes, memberRes] = await Promise.all([
+        fetch(`/api/projects/${project.id}/workflows`, { credentials: "include" }),
+        fetch(`/api/projects/${project.id}/members`, { credentials: "include" }),
+      ]);
+
+      if (!workflowRes.ok) {
+        const data = await workflowRes.json().catch(() => ({}));
+        throw new Error(data.detail || "Failed to load workflows");
+      }
+      if (!memberRes.ok) {
+        const data = await memberRes.json().catch(() => ({}));
+        throw new Error(data.detail || "Failed to load members");
+      }
+
+      const workflows = await workflowRes.json();
+      const members = await memberRes.json();
+
+      const safeWorkflows = Array.isArray(workflows) ? workflows : [];
+      const safeMembers = Array.isArray(members) ? members : [];
+
+      setManagerWorkflows(safeWorkflows);
+      setManagerMembers(safeMembers);
+      setDeadlineWorkflowId(safeWorkflows[0]?.id || "");
+      setDeadlineAssignee(safeMembers[0]?.username || "");
+
+      await loadDeadlinesForWorkflows(safeWorkflows);
+    } catch (error) {
+      setManagerError(error.message || "Failed to load manager deadlines");
+      setManagerWorkflows([]);
+      setManagerMembers([]);
+      setManagerDeadlines([]);
+    } finally {
+      setManagerLoading(false);
+    }
+  };
+
+  const handleCreateManagerDeadline = async (e) => {
+    e.preventDefault();
+    if (!managerProject || !deadlineWorkflowId || !deadlineAssignee || !deadlineDate || !deadlineTitle.trim()) {
+      setManagerError("Please fill all deadline fields.");
+      return;
+    }
+
+    setCreatingDeadline(true);
+    setManagerError("");
+    try {
+      const response = await fetch(`/api/workflows/${deadlineWorkflowId}/deadlines`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: deadlineTitle.trim(),
+          due_date: deadlineDate,
+          assigned_to: deadlineAssignee,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || "Failed to create deadline");
+      }
+
+      setDeadlineTitle("");
+      await loadDeadlinesForWorkflows(managerWorkflows);
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.id === managerProject.id
+            ? { ...p, deadline_count: (Number(p.deadline_count) || 0) + 1 }
+            : p
+        )
+      );
+    } catch (error) {
+      setManagerError(error.message || "Failed to create deadline");
+    } finally {
+      setCreatingDeadline(false);
+    }
+  };
+
+  const handleUpdateDeadlineStatus = async (deadline, status) => {
+    if (!deadline?.id || !deadline?.workflow?.id) {
+      return;
+    }
+
+    setUpdatingDeadlineId(deadline.id);
+    setManagerError("");
+    try {
+      const response = await fetch(`/api/workflows/${deadline.workflow.id}/deadlines/${deadline.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || "Failed to update deadline status");
+      }
+
+      const updated = await response.json();
+      setManagerDeadlines((prev) => prev.map((item) => (item.id === deadline.id ? { ...item, ...updated } : item)));
+    } catch (error) {
+      setManagerError(error.message || "Failed to update deadline status");
+    } finally {
+      setUpdatingDeadlineId("");
+    }
+  };
+
+  const handleDeleteDeadline = async (deadline) => {
+    if (!deadline?.id || !deadline?.workflow?.id) {
+      return;
+    }
+    if (!confirm("Delete this deadline?")) {
+      return;
+    }
+
+    setDeletingDeadlineId(deadline.id);
+    setManagerError("");
+    try {
+      const response = await fetch(`/api/workflows/${deadline.workflow.id}/deadlines/${deadline.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || "Failed to delete deadline");
+      }
+
+      setManagerDeadlines((prev) => prev.filter((item) => item.id !== deadline.id));
+      setDeadlineDrafts((prev) => {
+        const next = { ...prev };
+        delete next[deadline.id];
+        return next;
+      });
+      if (managerProject) {
+        setProjects((prev) =>
+          prev.map((p) =>
+            p.id === managerProject.id
+              ? { ...p, deadline_count: Math.max((Number(p.deadline_count) || 1) - 1, 0) }
+              : p
+          )
+        );
+      }
+    } catch (error) {
+      setManagerError(error.message || "Failed to delete deadline");
+    } finally {
+      setDeletingDeadlineId("");
+    }
+  };
+
+  const updateDeadlineDraft = (deadlineId, patch) => {
+    setDeadlineDrafts((prev) => ({
+      ...prev,
+      [deadlineId]: {
+        ...(prev[deadlineId] || {}),
+        ...patch,
+      },
+    }));
+  };
+
+  const getDefaultDeadlineDraft = (deadline) => ({
+    title: deadline.title || "",
+    due_date: (deadline.due_date || "").slice(0, 10),
+    assigned_to: managerMemberById[deadline.assigned_to]?.username || "",
+  });
+
+  const getDeadlineDraft = (deadline) => {
+    const defaultDraft = getDefaultDeadlineDraft(deadline);
+    const currentDraft = deadlineDrafts[deadline.id] || {};
+    return {
+      ...defaultDraft,
+      ...currentDraft,
+    };
+  };
+
+  const handleSaveDeadlineEdits = async (deadline) => {
+    if (!deadline?.id || !deadline?.workflow?.id) {
+      return;
+    }
+
+    const draft = getDeadlineDraft(deadline);
+    if (!draft.title?.trim() || !draft.due_date || !draft.assigned_to) {
+      setManagerError("Title, assignee, and due date are required.");
+      return;
+    }
+
+    setUpdatingDeadlineId(deadline.id);
+    setManagerError("");
+    try {
+      const response = await fetch(`/api/workflows/${deadline.workflow.id}/deadlines/${deadline.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: draft.title.trim(),
+          due_date: draft.due_date,
+          assigned_to: draft.assigned_to,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || "Failed to save deadline changes");
+      }
+
+      const updated = await response.json();
+      setManagerDeadlines((prev) => prev.map((item) => (item.id === deadline.id ? { ...item, ...updated } : item)));
+      setDeadlineDrafts((prev) => {
+        const next = { ...prev };
+        delete next[deadline.id];
+        return next;
+      });
+    } catch (error) {
+      setManagerError(error.message || "Failed to save deadline changes");
+    } finally {
+      setUpdatingDeadlineId("");
+    }
+  };
+
+  const isCurrentUserProjectLead = managerMembers.some(
+    (member) => member.id === currentUser?.id && member.role === "lead"
+  );
+  const managerMemberById = managerMembers.reduce((acc, member) => {
+    acc[member.id] = member;
+    return acc;
+  }, {});
+
   // Filter and sort projects based on search query
   const filteredProjects = React.useMemo(() => {
     if (!projectSearchQuery.trim()) return projects;
@@ -271,7 +552,10 @@ export default function ProjectPage() {
                   </div>
                   <div className="col-span-2 text-left md:text-center text-base sm:text-lg md:text-2xl font-normal font-['Habibi']">{project.deadline_count || 0}</div>
                   <div className="col-span-2 flex justify-start md:justify-end items-center gap-3 sm:gap-4">
-                    <button className="px-3.5 py-1.5 bg-black rounded-md text-white text-xs font-normal font-['Arimo'] hover:bg-gray-800">
+                    <button
+                      className="px-3.5 py-1.5 bg-black rounded-md text-white text-xs font-normal font-['Arimo'] hover:bg-gray-800"
+                      onClick={() => openManagerDeadlineModal(project)}
+                    >
                       Manager Deadline
                     </button>
                     <div className="relative">
@@ -455,6 +739,183 @@ export default function ProjectPage() {
       )}
 
       {/* Edit Project Modal */}
+      {showManagerDeadlineModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Manager Deadlines</h2>
+                <p className="text-sm text-gray-500">{managerProject?.title || "Project"}</p>
+              </div>
+              <button
+                className="text-2xl text-gray-400 hover:text-gray-700"
+                onClick={() => setShowManagerDeadlineModal(false)}
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 max-h-[80vh] overflow-y-auto">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900 mb-3">Create Deadline</h3>
+                {!isCurrentUserProjectLead && !managerLoading && (
+                  <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                    Only the project lead can create deadlines.
+                  </div>
+                )}
+                <form className="space-y-3" onSubmit={handleCreateManagerDeadline}>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <input
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
+                      value={deadlineTitle}
+                      onChange={(e) => setDeadlineTitle(e.target.value)}
+                      placeholder="Release candidate"
+                      disabled={!isCurrentUserProjectLead || managerLoading || creatingDeadline}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Workflow</label>
+                    <select
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
+                      value={deadlineWorkflowId}
+                      onChange={(e) => setDeadlineWorkflowId(e.target.value)}
+                      disabled={!isCurrentUserProjectLead || managerLoading || creatingDeadline}
+                    >
+                      <option value="">Select workflow...</option>
+                      {managerWorkflows.map((workflow) => (
+                        <option key={workflow.id} value={workflow.id}>
+                          {workflow.name || workflow.title || "Untitled workflow"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Assign to</label>
+                    <select
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
+                      value={deadlineAssignee}
+                      onChange={(e) => setDeadlineAssignee(e.target.value)}
+                      disabled={!isCurrentUserProjectLead || managerLoading || creatingDeadline}
+                    >
+                      <option value="">Select member...</option>
+                      {managerMembers.map((member) => (
+                        <option key={member.id} value={member.username}>
+                          {member.full_name || member.username} ({member.username})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Due date</label>
+                    <input
+                      type="date"
+                      min={new Date().toISOString().slice(0, 10)}
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
+                      value={deadlineDate}
+                      onChange={(e) => setDeadlineDate(e.target.value)}
+                      disabled={!isCurrentUserProjectLead || managerLoading || creatingDeadline}
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={!isCurrentUserProjectLead || managerLoading || creatingDeadline}
+                    className="w-full mt-1 bg-black text-white rounded-md px-3 py-2 text-sm font-medium hover:bg-gray-800 disabled:opacity-60"
+                  >
+                    {creatingDeadline ? "Creating..." : "Create Deadline"}
+                  </button>
+                </form>
+              </div>
+
+              <div>
+                <h3 className="text-base font-semibold text-gray-900 mb-3">Existing Deadlines</h3>
+                {managerLoading ? (
+                  <div className="text-sm text-gray-500">Loading deadlines...</div>
+                ) : managerDeadlines.length === 0 ? (
+                  <div className="text-sm text-gray-500">No deadlines found for this project.</div>
+                ) : (
+                  <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                    {managerDeadlines.map((deadline) => {
+                      const draft = getDeadlineDraft(deadline);
+                      return (
+                      <div key={deadline.id} className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                        <input
+                          className="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-sm font-semibold text-gray-900"
+                          value={draft.title}
+                          onChange={(e) => updateDeadlineDraft(deadline.id, { title: e.target.value })}
+                          disabled={!isCurrentUserProjectLead || updatingDeadlineId === deadline.id || deletingDeadlineId === deadline.id}
+                        />
+                        <div className="text-xs text-gray-600 mt-1">
+                          Workflow: {deadline.workflow?.name || deadline.workflow?.title || "Untitled"}
+                        </div>
+                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <input
+                            type="date"
+                            min={new Date().toISOString().slice(0, 10)}
+                            className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-black"
+                            value={draft.due_date}
+                            onChange={(e) => updateDeadlineDraft(deadline.id, { due_date: e.target.value })}
+                            disabled={!isCurrentUserProjectLead || updatingDeadlineId === deadline.id || deletingDeadlineId === deadline.id}
+                          />
+                          <select
+                            className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-black"
+                            value={draft.assigned_to}
+                            onChange={(e) => updateDeadlineDraft(deadline.id, { assigned_to: e.target.value })}
+                            disabled={!isCurrentUserProjectLead || updatingDeadlineId === deadline.id || deletingDeadlineId === deadline.id}
+                          >
+                            <option value="">Select member...</option>
+                            {managerMembers.map((member) => (
+                              <option key={member.id} value={member.username}>
+                                {member.full_name || member.username}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2 flex-wrap">
+                          <select
+                            className="rounded-md border border-gray-300 px-2 py-1 text-xs text-black bg-white"
+                            value={deadline.status || "pending"}
+                            onChange={(e) => handleUpdateDeadlineStatus(deadline, e.target.value)}
+                            disabled={!isCurrentUserProjectLead || updatingDeadlineId === deadline.id || deletingDeadlineId === deadline.id}
+                          >
+                            <option value="pending">pending</option>
+                            <option value="in_progress">in_progress</option>
+                            <option value="completed">completed</option>
+                          </select>
+                          <button
+                            type="button"
+                            className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 hover:bg-gray-100 disabled:opacity-60"
+                            onClick={() => handleSaveDeadlineEdits(deadline)}
+                            disabled={!isCurrentUserProjectLead || updatingDeadlineId === deadline.id || deletingDeadlineId === deadline.id}
+                          >
+                            {updatingDeadlineId === deadline.id ? "Saving..." : "Save"}
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700 hover:bg-red-100 disabled:opacity-60"
+                            onClick={() => handleDeleteDeadline(deadline)}
+                            disabled={!isCurrentUserProjectLead || updatingDeadlineId === deadline.id || deletingDeadlineId === deadline.id}
+                          >
+                            {deletingDeadlineId === deadline.id ? "Deleting..." : "Delete"}
+                          </button>
+                        </div>
+                      </div>
+                    )})}
+                  </div>
+                )}
+              </div>
+
+              {managerError && (
+                <div className="lg:col-span-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {managerError}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showEditModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-lg bg-white rounded-xl shadow-2xl overflow-hidden p-8">

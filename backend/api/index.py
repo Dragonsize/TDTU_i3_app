@@ -329,6 +329,46 @@ class CreateDeadlineRequest(BaseModel):
         return value
 
 
+class UpdateDeadlineRequest(BaseModel):
+    title: Optional[str] = None
+    due_date: Optional[str] = None
+    assigned_to: Optional[str] = None
+    status: Optional[str] = None
+
+    @field_validator("assigned_to")
+    def validate_assigned_to_safe_optional(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if contains_control_chars(value) or contains_emoji(value):
+            raise ValueError("Username contains invalid characters")
+        if contains_disallowed_username_chars(value):
+            raise ValueError("Username contains invalid characters")
+        return value
+
+    @field_validator("due_date")
+    def validate_due_date_optional(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        try:
+            normalized = normalize_deadline_due_date(value)
+            due = date.fromisoformat(normalized)
+            if due < datetime.now(timezone.utc).date():
+                raise ValueError("Deadline date cannot be in the past")
+        except ValueError:
+            raise ValueError("Invalid due_date; use YYYY-MM-DD and not in the past")
+        return value
+
+    @field_validator("status")
+    def validate_status_optional(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        allowed = {"pending", "in_progress", "completed"}
+        normalized = value.strip().lower()
+        if normalized not in allowed:
+            raise ValueError("Invalid status; use pending, in_progress, or completed")
+        return normalized
+
+
 class AddBusyTimeRequest(BaseModel):
     start_time: str = Field(..., min_length=1)
     end_time: str = Field(..., min_length=1)
@@ -1836,6 +1876,97 @@ def get_workflow_deadlines(workflow_id: str, user=Depends(get_current_user)):
     if getattr(response, "error", None):
         raise HTTPException(status_code=500, detail=f"Failed to fetch deadlines: {response.error}")
     return response.data or []
+
+
+@app.patch("/api/workflows/{workflow_id}/deadlines/{deadline_id}")
+def update_deadline(
+    workflow_id: str,
+    deadline_id: str,
+    request: UpdateDeadlineRequest,
+    user=Depends(get_current_user),
+):
+    db = require_db_client()
+    workflow = db.table("workspaces").select("project_id").eq("id", workflow_id).limit(1).execute()
+    if getattr(workflow, "error", None):
+        raise HTTPException(status_code=500, detail=f"Failed to load workflow: {workflow.error}")
+    if not workflow.data:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    require_project_lead(user.get("sub"), workflow.data[0]["project_id"])
+
+    existing = (
+        db.table("workspace_deadlines")
+        .select("*")
+        .eq("id", deadline_id)
+        .eq("workspace_id", workflow_id)
+        .limit(1)
+        .execute()
+    )
+    if getattr(existing, "error", None):
+        raise HTTPException(status_code=500, detail=f"Failed to load deadline: {existing.error}")
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Deadline not found")
+
+    payload: Dict[str, Any] = {}
+
+    if request.title is not None:
+        title = request.title.strip()
+        if not title:
+            raise HTTPException(status_code=400, detail="Deadline title cannot be empty")
+        payload["title"] = title
+
+    if request.due_date is not None:
+        payload["due_date"] = normalize_deadline_due_date(request.due_date)
+
+    if request.status is not None:
+        payload["status"] = request.status
+
+    if request.assigned_to is not None:
+        profile_response = db.table("profiles").select("id").eq("username", request.assigned_to).limit(1).execute()
+        if getattr(profile_response, "error", None):
+            raise HTTPException(status_code=500, detail=f"Failed to resolve assignee: {profile_response.error}")
+        if not profile_response.data:
+            raise HTTPException(status_code=404, detail="Assignee not found")
+        payload["assigned_to"] = profile_response.data[0]["id"]
+
+    if not payload:
+        return existing.data[0]
+
+    response = (
+        db.table("workspace_deadlines")
+        .update(payload)
+        .eq("id", deadline_id)
+        .eq("workspace_id", workflow_id)
+        .execute()
+    )
+    if getattr(response, "error", None):
+        raise HTTPException(status_code=500, detail=f"Failed to update deadline: {response.error}")
+    if not response.data:
+        raise HTTPException(status_code=500, detail="Failed to update deadline")
+    return response.data[0]
+
+
+@app.delete("/api/workflows/{workflow_id}/deadlines/{deadline_id}")
+def delete_deadline(workflow_id: str, deadline_id: str, user=Depends(get_current_user)):
+    db = require_db_client()
+    workflow = db.table("workspaces").select("project_id").eq("id", workflow_id).limit(1).execute()
+    if getattr(workflow, "error", None):
+        raise HTTPException(status_code=500, detail=f"Failed to load workflow: {workflow.error}")
+    if not workflow.data:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    require_project_lead(user.get("sub"), workflow.data[0]["project_id"])
+
+    response = (
+        db.table("workspace_deadlines")
+        .delete()
+        .eq("id", deadline_id)
+        .eq("workspace_id", workflow_id)
+        .execute()
+    )
+    if getattr(response, "error", None):
+        raise HTTPException(status_code=500, detail=f"Failed to delete deadline: {response.error}")
+    return {"success": True}
 
 
 @app.get("/api/deadlines")
