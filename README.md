@@ -180,66 +180,7 @@ A comprehensive web application for managing projects, workflows, team schedules
 
 See [supabase_setup.sql](./supabase_setup.sql) for complete schema with SQL commands.
 
-## Setup Instructions
 
-### 1. Clone Repository
-```bash
-git clone "https://github.com/Dragonsize/TDTU_i3_app"
-cd TDTU_i3_app
-```
-
-### 2. Install Frontend Dependencies
-```bash
-npm install
-```
-
-### 3. Install Backend Dependencies
-```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cd ..
-```
-
-### 4. Configure Environment Variables
-
-Use the provided environment templates:
-
-- `.env.development.example`
-- `.env.test.example`
-- `.env.production.example`
-
-Create your active local env file as `.env.local` in the project root and copy values from the right template.
-
-Minimum required values:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-JWT_SECRET_KEY=your_jwt_secret_key
-FRONTEND_ORIGIN=http://localhost:3000
-ENVIRONMENT=development
-```
-
-### 5. Setup Supabase Database
-1. Create a new Supabase project at [supabase.com](https://supabase.com)
-2. Go to SQL Editor in your Supabase dashboard
-3. Run the SQL commands from `supabase_setup.sql`
-4. Configure Row Level Security (RLS) policies as needed
-5. Create a storage bucket named "documents" for file uploads
-
-### 6. Run Development Server
-```bash
-npm run dev
-```
-
-Visit `http://localhost:3000`
-
-### 7. Run Testing Checks
 
 Run frontend + backend test checks:
 
