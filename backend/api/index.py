@@ -46,6 +46,7 @@ FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "").strip()
 CHATBOT_API_BASE = os.getenv("CHATBOT_API_BASE", "https://api.openai.com/v1").strip().rstrip("/")
 CHATBOT_MODEL = os.getenv("CHATBOT_MODEL", "gpt-4o-mini").strip()
 CHATBOT_API_KEY = os.getenv("CHATBOT_API_KEY", "").strip()
+GOOGLE_AI_STUDIO_API_KEY = os.getenv("GOOGLE_AI_STUDIO_API_KEY", "").strip()
 CHATBOT_SYSTEM_PROMPT = os.getenv(
     "CHATBOT_SYSTEM_PROMPT",
     "You are a helpful assistant for project management tasks. Keep responses concise and actionable.",
@@ -2366,7 +2367,8 @@ def chatbot(
     x_chatbot_api_key: Optional[str] = Header(default=None, alias="x-chatbot-api-key"),
 ):
     question = sanitize_chat_input(request.question)
-    api_key = (x_chatbot_api_key or CHATBOT_API_KEY or "").strip()
+    # Priority: user-provided key (Settings) > server default key > Google AI Studio default key.
+    api_key = (x_chatbot_api_key or CHATBOT_API_KEY or GOOGLE_AI_STUDIO_API_KEY or "").strip()
     api_base = (request.api_base or CHATBOT_API_BASE).strip().rstrip("/")
     model = (request.model or CHATBOT_MODEL).strip()
 

@@ -138,6 +138,9 @@ export default function SettingsPage() {
               placeholder="Paste your API key"
               className="border rounded px-3 py-2 text-sm"
             />
+            <p className="text-xs text-gray-500">
+              Leave blank to use the default server key. If you enter a key here, it overrides the default for your browser.
+            </p>
 
             <label className="text-sm font-medium text-gray-700">API Base URL</label>
             <input
