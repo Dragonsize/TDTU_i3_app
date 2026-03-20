@@ -271,7 +271,8 @@ export default function ProjectDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: newFlowName,
-          description: newFlowDesc
+          description: newFlowDesc,
+          member_ids: selectedFlowMembers,
         }),
       });
 

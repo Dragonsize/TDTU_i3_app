@@ -289,6 +289,7 @@ class AddMemberRequest(BaseModel):
 class CreateWorkflowRequest(BaseModel):
     title: str = Field(..., min_length=1)
     description: Optional[str] = ""
+    member_ids: Optional[List[str]] = None
 
 
 class AssignWorkflowMemberRequest(BaseModel):
@@ -1728,18 +1729,109 @@ def get_workflows(project_id: str, user=Depends(get_current_user)):
 def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depends(get_current_user)):
     db = require_db_client()
     require_project_lead(user.get("sub"), project_id)
+    creator_id = user.get("sub")
+    member_ids: List[str] = []
+
+    if isinstance(request.member_ids, list):
+        for member_id in request.member_ids:
+            if isinstance(member_id, str) and member_id.strip():
+                member_ids.append(member_id.strip())
+
+    if creator_id and creator_id not in member_ids:
+        member_ids.insert(0, creator_id)
+
     payload_variants = [
         {
             "project_id": project_id,
-            "name": request.title,
+            "title": request.title,
             "description": request.description or "",
-            "creator_id": user.get("sub"),
+            "creator_id": creator_id,
+            "members": member_ids,
+        },
+        {
+            "project_id": project_id,
+            "title": request.title,
+            "description": request.description or "",
+            "creator_id": creator_id,
+            "status": "in_process",
+            "members": member_ids,
+        },
+        {
+            "project_id": project_id,
+            "title": request.title,
+            "description": request.description or "",
+            "status": "active",
+            "members": member_ids,
+        },
+        {
+            "project_id": project_id,
+            "title": request.title,
+            "description": request.description or "",
+            "members": member_ids,
         },
         {
             "project_id": project_id,
             "name": request.title,
             "description": request.description or "",
-            "creator_id": user.get("sub"),
+            "creator_id": creator_id,
+            "members": member_ids,
+        },
+        {
+            "project_id": project_id,
+            "name": request.title,
+            "description": request.description or "",
+            "creator_id": creator_id,
+            "status": "in_process",
+            "members": member_ids,
+        },
+        {
+            "project_id": project_id,
+            "name": request.title,
+            "description": request.description or "",
+            "status": "active",
+            "members": member_ids,
+        },
+        {
+            "project_id": project_id,
+            "name": request.title,
+            "description": request.description or "",
+            "members": member_ids,
+        },
+        {
+            "project_id": project_id,
+            "title": request.title,
+            "description": request.description or "",
+            "creator_id": creator_id,
+        },
+        {
+            "project_id": project_id,
+            "title": request.title,
+            "description": request.description or "",
+            "creator_id": creator_id,
+            "status": "in_process",
+        },
+        {
+            "project_id": project_id,
+            "title": request.title,
+            "description": request.description or "",
+            "status": "active",
+        },
+        {
+            "project_id": project_id,
+            "title": request.title,
+            "description": request.description or "",
+        },
+        {
+            "project_id": project_id,
+            "name": request.title,
+            "description": request.description or "",
+            "creator_id": creator_id,
+        },
+        {
+            "project_id": project_id,
+            "name": request.title,
+            "description": request.description or "",
+            "creator_id": creator_id,
             "status": "in_process",
         },
         {
@@ -1771,6 +1863,9 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
 
             if error_code == "42501" or "permission denied" in error_text or "row-level security" in error_text:
                 raise HTTPException(status_code=403, detail="Not authorized to create workflows")
+
+            if error_code == "P0001" and "at least one assigned member" in error_text:
+                raise HTTPException(status_code=400, detail="Workspace must include at least one member")
 
             # Try next variant for likely schema mismatch issues.
             if (
