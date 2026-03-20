@@ -165,7 +165,7 @@ CREATE TABLE public.workspaces (
   position integer DEFAULT 0,
   created_at timestamp with time zone DEFAULT now(),
   description text,
-  members ARRAY,
+  members uuid[] DEFAULT '{}'::uuid[],
   creator_id uuid NOT NULL,
   CONSTRAINT workspaces_pkey PRIMARY KEY (id),
   CONSTRAINT workspaces_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),

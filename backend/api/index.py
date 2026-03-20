@@ -5,6 +5,7 @@ import os
 import re
 import hashlib
 import json
+import ast
 import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
@@ -1743,34 +1744,6 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
     payload_variants = [
         {
             "project_id": project_id,
-            "title": request.title,
-            "description": request.description or "",
-            "creator_id": creator_id,
-            "members": member_ids,
-        },
-        {
-            "project_id": project_id,
-            "title": request.title,
-            "description": request.description or "",
-            "creator_id": creator_id,
-            "status": "in_process",
-            "members": member_ids,
-        },
-        {
-            "project_id": project_id,
-            "title": request.title,
-            "description": request.description or "",
-            "status": "active",
-            "members": member_ids,
-        },
-        {
-            "project_id": project_id,
-            "title": request.title,
-            "description": request.description or "",
-            "members": member_ids,
-        },
-        {
-            "project_id": project_id,
             "name": request.title,
             "description": request.description or "",
             "creator_id": creator_id,
@@ -1794,6 +1767,34 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
         {
             "project_id": project_id,
             "name": request.title,
+            "description": request.description or "",
+            "members": member_ids,
+        },
+        {
+            "project_id": project_id,
+            "title": request.title,
+            "description": request.description or "",
+            "creator_id": creator_id,
+            "members": member_ids,
+        },
+        {
+            "project_id": project_id,
+            "title": request.title,
+            "description": request.description or "",
+            "creator_id": creator_id,
+            "status": "in_process",
+            "members": member_ids,
+        },
+        {
+            "project_id": project_id,
+            "title": request.title,
+            "description": request.description or "",
+            "status": "active",
+            "members": member_ids,
+        },
+        {
+            "project_id": project_id,
+            "title": request.title,
             "description": request.description or "",
             "members": member_ids,
         },
@@ -1849,7 +1850,45 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
 
     last_error = None
     for workflow_data in payload_variants:
-        response = db.table("workspaces").insert(workflow_data).execute()
+        try:
+            response = db.table("workspaces").insert(workflow_data).execute()
+        except Exception as exc:
+            payload = None
+            first_arg = exc.args[0] if getattr(exc, "args", None) else None
+            if isinstance(first_arg, dict):
+                payload = first_arg
+            elif isinstance(first_arg, str) and first_arg.strip():
+                raw = first_arg.strip()
+                try:
+                    payload = json.loads(raw)
+                except Exception:
+                    try:
+                        payload = ast.literal_eval(raw)
+                    except Exception:
+                        payload = None
+
+            error_code = str((payload or {}).get("code", "") or "")
+            error_message = str((payload or {}).get("message", "") or str(exc))
+            error_text = f"{error_code} {error_message}".lower()
+            last_error = payload or str(exc)
+
+            if error_code == "42501" or "permission denied" in error_text or "row-level security" in error_text:
+                raise HTTPException(status_code=403, detail="Not authorized to create workflows")
+
+            if error_code == "P0001" and "at least one assigned member" in error_text:
+                raise HTTPException(status_code=400, detail="Workspace must include at least one member")
+
+            if (
+                error_code in {"42703", "23502", "23514", "PGRST204"}
+                or "column" in error_text
+                or "not-null" in error_text
+                or "violates check constraint" in error_text
+                or "schema cache" in error_text
+            ):
+                continue
+
+            raise HTTPException(status_code=500, detail=f"Failed to create workflow: {error_message}")
+
         error = getattr(response, "error", None)
         if not error and response.data:
             workflow = response.data[0]
