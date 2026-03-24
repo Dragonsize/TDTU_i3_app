@@ -1108,7 +1108,7 @@ export default function CalendarPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={submitting}
+                    disabled={submitting || (startTime && endTime && new Date(endTime) <= new Date(startTime))}
                     className="px-5 py-2 rounded-full bg-white text-[#202124] font-semibold text-sm disabled:opacity-60"
                   >
                     {submitting ? "Saving..." : "Save"}
@@ -1157,6 +1157,15 @@ export default function CalendarPage() {
                         />
                       </div>
                     </div>
+                  </div>
+                  
+                  {startTime && endTime && new Date(endTime) <= new Date(startTime) && (
+                    <div className="mt-2 text-red-500 text-sm font-semibold">
+                      ⚠️ End time must be strictly after start time.
+                    </div>
+                  )}
+
+                  <div className="mt-5">
                     <select
                       value={projectId}
                       onChange={(e) => setProjectId(e.target.value)}

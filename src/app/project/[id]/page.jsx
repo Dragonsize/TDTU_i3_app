@@ -677,25 +677,28 @@ export default function ProjectDetailPage() {
     if (children.length === 0) return null;
     return children.map((ws, idx) => (
       <div key={ws.id} className="w-full flex flex-col mb-3">
-        <div className="w-full h-14 bg-stone-500 rounded-[14px] flex items-center px-4 relative" style={{ marginLeft: `${level * 24}px`, width: `calc(100% - ${level * 24}px)` }}>
-          <div className="flex-1 flex flex-row items-center gap-4">
-            <div className="w-7 h-7 bg-zinc-300 rounded-[14px] flex items-center justify-center text-black text-base font-['Habibi']">{idx + 1}</div>
-            <div className="text-white text-base font-normal font-['Habibi'] truncate max-w-[120px]" title={ws.name}>Flow: {ws.name}</div>
-            <div className="text-white text-[13px] font-normal font-['Habibi']">{ws.created_at ? new Date(ws.created_at).toLocaleDateString("en-GB") : "-"}</div>
+        <div 
+          className="w-full min-h-[56px] py-2 bg-stone-500 rounded-[14px] flex flex-wrap sm:flex-nowrap items-center justify-between px-3 sm:px-4 gap-3 relative" 
+          style={{ marginLeft: `${level * 24}px`, width: `calc(100% - ${level * 24}px)` }}
+        >
+          <div className="flex items-center gap-2 sm:gap-4 overflow-hidden min-w-[40%]">
+            <div className="shrink-0 w-7 h-7 bg-zinc-300 rounded-[14px] flex items-center justify-center text-black text-base font-['Habibi']">{idx + 1}</div>
+            <div className="text-white text-sm sm:text-base font-normal font-['Habibi'] truncate" title={ws.name}>Flow: {ws.name}</div>
+            <div className="hidden md:block text-white text-[13px] font-normal font-['Habibi'] shrink-0">{ws.created_at ? new Date(ws.created_at).toLocaleDateString("en-GB") : "-"}</div>
+          </div>
+          <div className="flex items-center justify-end gap-2 shrink-0 flex-wrap">
             <select
               value={ws.status || "in_process"}
               onChange={(e) => handleWorkspaceStatusChange(ws.id, e.target.value)}
-              className="bg-stone-600 text-white text-[13px] rounded px-2 py-1 outline-none border border-stone-400"
+              className="bg-stone-600 text-white text-[12px] sm:text-[13px] rounded px-1 sm:px-2 py-1 outline-none border border-stone-400 max-w-[100px] sm:max-w-none"
             >
               <option value="in_process">In process</option>
               <option value="pause">Pause</option>
               <option value="completed">Completed</option>
             </select>
-          </div>
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
             {level < 5 && (
               <button
-                className="px-2 h-6 bg-zinc-200 rounded-md flex items-center justify-center text-black text-xs font-bold hover:bg-zinc-100"
+                className="px-2 h-6 bg-zinc-200 rounded-md flex items-center justify-center text-black text-[11px] sm:text-xs font-bold hover:bg-zinc-100 whitespace-nowrap"
                 onClick={() => {
                   setNewFlowParentId(ws.id);
                   if (!newFlowDeadline) setNewFlowDeadline(formatDateKey(new Date()));
@@ -707,7 +710,7 @@ export default function ProjectDetailPage() {
                 + Sub-flow
               </button>
             )}
-            <button className="w-6 h-6 bg-zinc-300 rounded-full flex items-center justify-center text-black text-lg font-['Habibi']">...</button>
+            <button className="shrink-0 w-6 h-6 bg-zinc-300 rounded-full flex items-center justify-center text-black text-lg font-['Habibi']">...</button>
           </div>
         </div>
         {renderWorkflowTree(ws.id, level + 1)}
