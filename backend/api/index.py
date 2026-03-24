@@ -6,10 +6,13 @@ import re
 import hashlib
 import json
 import ast
+import time
 import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
+from collections import defaultdict, deque
+from threading import Lock
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, UploadFile, Form, Request, Query, WebSocket, WebSocketDisconnect, BackgroundTasks, Header
 import asyncio
@@ -98,6 +101,25 @@ EMOJI_PATTERN = re.compile(
 
 DISALLOWED_USERNAME_CHARS = re.compile(r"[<>\"'`;]|--|/\*|\*/", flags=re.UNICODE)
 
+MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+ALLOWED_UPLOAD_MIME_TYPES = {
+    "application/pdf",
+    "text/plain",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel",
+}
+ALLOWED_UPLOAD_EXTENSIONS = {
+    ".pdf", ".txt", ".jpg", ".jpeg", ".png", ".webp", ".doc", ".docx", ".xls", ".xlsx"
+}
+
+RATE_LIMIT_BUCKETS: Dict[str, deque] = defaultdict(deque)
+RATE_LIMIT_LOCK = Lock()
+
 
 def contains_emoji(value: str) -> bool:
     return bool(EMOJI_PATTERN.search(value))
@@ -109,6 +131,32 @@ def contains_disallowed_username_chars(value: str) -> bool:
 
 def contains_control_chars(value: str) -> bool:
     return any(not ch.isprintable() for ch in value)
+
+
+def client_ip(http_request: Request) -> str:
+    if http_request.client and http_request.client.host:
+        return http_request.client.host
+    forwarded = http_request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    return forwarded or "unknown"
+
+
+def enforce_rate_limit(identifier: str, scope: str, max_requests: int, window_seconds: int) -> None:
+    now = time.time()
+    bucket_key = f"{scope}:{identifier}"
+    cutoff = now - window_seconds
+
+    with RATE_LIMIT_LOCK:
+        bucket = RATE_LIMIT_BUCKETS[bucket_key]
+        while bucket and bucket[0] < cutoff:
+            bucket.popleft()
+        if len(bucket) >= max_requests:
+            raise HTTPException(status_code=429, detail="Too many requests. Please try again later.")
+        bucket.append(now)
+
+
+def sanitize_filename(name: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", (name or "").strip())
+    return cleaned[:180] or f"file_{int(time.time())}.bin"
 
 
 def require_supabase() -> Client:
@@ -291,6 +339,12 @@ class CreateWorkflowRequest(BaseModel):
     title: str = Field(..., min_length=1)
     description: Optional[str] = ""
     member_ids: Optional[List[str]] = None
+    parent_id: Optional[str] = None
+
+class UpdateWorkflowRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
 
 
 class AssignWorkflowMemberRequest(BaseModel):
@@ -385,6 +439,7 @@ class CreateCalendarEventRequest(BaseModel):
     description: Optional[str] = None
     event_type: Optional[str] = "meeting"
     color: Optional[str] = None
+    status: Optional[str] = "pending"
 
 
 class UpdateCalendarEventRequest(BaseModel):
@@ -394,6 +449,7 @@ class UpdateCalendarEventRequest(BaseModel):
     description: Optional[str] = None
     event_type: Optional[str] = None
     color: Optional[str] = None
+    status: Optional[str] = None
 
 
 class FindMeetingSlotsRequest(BaseModel):
@@ -472,8 +528,12 @@ CHATBOT_KNOWLEDGE = {
         "response": "To create a new project: open Dashboard, click Create Project, fill in title and description, then submit. You will become the project lead automatically."
     },
     "create_workflow": {
-        "keywords": ["create workflow", "tạo workflow", "task breakdown"],
-        "response": "To create a workflow: open a project, select Add Workflow, provide title and description, then assign members and deadlines."
+        "keywords": ["create workflow", "tạo workflow", "task breakdown", "sub process", "sub-process", "chia nhỏ"],
+        "response": "To create a workflow: open a project, select Add Workflow, provide title and description, then assign members. You can also create nested sub-processes up to 5 levels deep by clicking '+ Sub-flow' on an existing workflow."
+    },
+    "workflow_status": {
+        "keywords": ["workflow status", "trạng thái", "in progress", "pause", "completed", "tạm dừng"],
+        "response": "You can change a workflow's status directly from the dropdown next to the workflow name in the project's workspace modal. Options include In process, Pause, and Completed."
     },
     "add_members": {
         "keywords": ["add member", "thêm thành viên", "invite"],
@@ -482,6 +542,10 @@ CHATBOT_KNOWLEDGE = {
     "schedule": {
         "keywords": ["calendar", "schedule", "busy time", "lịch"],
         "response": "To manage schedule: open Calendar, add busy time with start and end time, and save. Conflicts are detected automatically when scheduling meetings."
+    },
+    "calendar_status": {
+        "keywords": ["calendar status", "event status", "inprocess", "in-progress", "pending"],
+        "response": "When creating or editing a calendar event, you can set its status to Pending, In Progress, or Completed using the dropdown menu. This status will be visible on the calendar."
     },
     "documents": {
         "keywords": ["document", "upload", "tài liệu", "file"],
@@ -1283,6 +1347,7 @@ class RegisterDirectRequest(BaseModel):
 @app.post("/api/auth/register-direct")
 def register_direct(request: RegisterDirectRequest, response: Response, http_request: Request):
     """Register a new user directly with email/password and create backend session"""
+    enforce_rate_limit(client_ip(http_request), "auth_register_direct", 10, 300)
     try:
         db = require_supabase()
         # Use regular client to sign up the user
@@ -1356,6 +1421,7 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
 @app.post("/api/auth/register")
 def register(request: RegisterRequest, response: Response, http_request: Request):
     """Register a new user and create backend session from Supabase token"""
+    enforce_rate_limit(client_ip(http_request), "auth_register", 20, 300)
     try:
         db = require_supabase()
         # Verify the Supabase access token
@@ -1416,6 +1482,7 @@ def register(request: RegisterRequest, response: Response, http_request: Request
 @app.post("/api/auth/session")
 def create_session(request: AuthSessionRequest, response: Response, http_request: Request):
     """Create backend session from Supabase access token"""
+    enforce_rate_limit(client_ip(http_request), "auth_session", 30, 300)
     try:
         db = require_supabase()
         user_response = db.auth.get_user(request.access_token)
@@ -1460,6 +1527,7 @@ def create_session(request: AuthSessionRequest, response: Response, http_request
 
 @app.post("/api/auth/refresh")
 def refresh_session(response: Response, http_request: Request, refresh_token: Optional[str] = Cookie(None)):
+    enforce_rate_limit(client_ip(http_request), "auth_refresh", 60, 300)
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token")
     payload = verify_token(refresh_token)
@@ -1850,6 +1918,8 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
 
     last_error = None
     for workflow_data in payload_variants:
+        if getattr(request, "parent_id", None):
+            workflow_data["parent_id"] = request.parent_id
         try:
             response = db.table("workspaces").insert(workflow_data).execute()
         except Exception as exc:
@@ -1929,6 +1999,38 @@ def normalize_deadline_due_date(due_date: str) -> str:
         return trimmed
     parsed = datetime.fromisoformat(trimmed.replace("Z", "+00:00"))
     return parsed.date().isoformat()
+
+
+@app.patch("/api/workflows/{workflow_id}")
+def update_workflow(workflow_id: str, request: UpdateWorkflowRequest, user=Depends(get_current_user)):
+    db = require_db_client()
+    # Basic check
+    workspace_resp = db.table("workspaces").select("*").eq("id", workflow_id).limit(1).execute()
+    if not workspace_resp.data:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    
+    workspace = workspace_resp.data[0]
+    project_id = workspace.get("project_id")
+    require_project_member(user.get("sub"), project_id)
+
+    updates = {}
+    if request.title is not None:
+        updates["name"] = sanitize_chat_input(request.title)
+    if request.description is not None:
+        updates["description"] = sanitize_chat_input(request.description)
+    if request.status is not None:
+        allowed_status = {"in_progress", "pause", "completed", "active"}
+        status_val = request.status.lower()
+        if status_val in allowed_status:
+            updates["status"] = status_val
+
+    if not updates:
+        return workspace
+
+    response = db.table("workspaces").update(updates).eq("id", workflow_id).execute()
+    if not response.data:
+        raise HTTPException(status_code=500, detail="Failed to update workflow")
+    return response.data[0]
 
 
 @app.post("/api/workflows/{workflow_id}/members")
@@ -2172,6 +2274,7 @@ def create_calendar_event(request: CreateCalendarEventRequest, user=Depends(get_
         "end_time": request.end_time,
         "event_type": request.event_type or "meeting",
         "color": request.color,
+        "status": request.status or "pending",
     }).execute()
     if not response.data:
         raise HTTPException(status_code=500, detail="Failed to create calendar event")
@@ -2205,6 +2308,8 @@ def update_calendar_event(event_id: str, request: UpdateCalendarEventRequest, us
         updates["event_type"] = request.event_type
     if request.color is not None:
         updates["color"] = request.color
+    if request.status is not None:
+        updates["status"] = request.status
 
     start_value = request.start_time if request.start_time is not None else event.get("start_time")
     end_value = request.end_time if request.end_time is not None else event.get("end_time")
@@ -2562,19 +2667,37 @@ def update_document_access(document_id: str, request: UpdateDocumentAccessReques
 
 @app.post("/api/documents/upload")
 async def upload_document_file(
+    http_request: Request,
     file: UploadFile = File(...),
     project_id: Optional[str] = Form(None),
-    user=Depends(get_current_user)
+    user=Depends(get_current_user),
 ):
     db = require_db_client()
     user_id = user.get("sub")
+    request_ip = client_ip(http_request) if http_request else user_id
+    enforce_rate_limit(f"{user_id}:{request_ip}", "documents_upload", 30, 300)
+
     if project_id:
         require_project_member(user_id, project_id)
     
     try:
-        file_content = await file.read()
+        original_name = file.filename or "file.bin"
+        safe_name = sanitize_filename(original_name)
+        lowered_name = safe_name.lower()
+        ext = os.path.splitext(lowered_name)[1]
+        mime_type = (file.content_type or "application/octet-stream").lower()
+
+        if ext not in ALLOWED_UPLOAD_EXTENSIONS:
+            raise HTTPException(status_code=400, detail="Unsupported file extension")
+        if mime_type not in ALLOWED_UPLOAD_MIME_TYPES:
+            raise HTTPException(status_code=400, detail="Unsupported file type")
+
+        file_content = await file.read(MAX_UPLOAD_SIZE_BYTES + 1)
+        if len(file_content) > MAX_UPLOAD_SIZE_BYTES:
+            raise HTTPException(status_code=413, detail="File too large (max 10MB)")
+
         folder = project_id or f"private/{user_id}"
-        file_path = f"{folder}/{datetime.now().timestamp()}-{file.filename}"
+        file_path = f"{folder}/{datetime.now().timestamp()}-{safe_name}"
 
         upload_response = db.storage.from_("documents").upload(
             path=file_path,
@@ -2588,7 +2711,7 @@ async def upload_document_file(
 
         doc_response = db.table("documents").insert({
             "project_id": project_id,
-            "filename": file.filename,
+            "filename": safe_name,
             "file_url": file_path,
             "file_type": file_type,
             "file_size": file_size,
@@ -2599,8 +2722,10 @@ async def upload_document_file(
             raise HTTPException(status_code=500, detail="Failed to save document metadata")
 
         return doc_response.data[0]
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to upload file") from e
 
 
 @app.get("/api/documents/{document_id}/download")
@@ -2643,6 +2768,8 @@ def get_document_download_url(document_id: str, user=Depends(get_current_user)):
 @app.post("/api/notifications/create")
 def create_notification(request: CreateNotificationRequest, user=Depends(get_current_user)):
     db = require_db_client()
+    if request.user_id != user.get("sub"):
+        raise HTTPException(status_code=403, detail="Cannot create notifications for other users")
     response = db.table("notifications").insert({
         "user_id": request.user_id,
         "type": request.type,
@@ -2672,9 +2799,11 @@ def mark_notification_read(notification_id: str, user=Depends(get_current_user))
 @app.post("/api/chatbot")
 def chatbot(
     request: ChatbotRequest,
+    http_request: Request,
     user=Depends(get_current_user),
     x_chatbot_api_key: Optional[str] = Header(default=None, alias="x-chatbot-api-key"),
 ):
+    enforce_rate_limit(f"{user.get('sub')}:{client_ip(http_request)}", "chatbot", 50, 300)
     question = sanitize_chat_input(request.question)
     # Priority: user-provided key (Settings) > server default key > Google AI Studio default key.
     api_key = (x_chatbot_api_key or CHATBOT_API_KEY or GOOGLE_AI_STUDIO_API_KEY or "").strip()

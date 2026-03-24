@@ -249,6 +249,7 @@ export default function ProjectDetailPage() {
   const [newFlowDeadline, setNewFlowDeadline] = useState("");
   const [newFlowDeadlineTime, setNewFlowDeadlineTime] = useState("09:00");
   const [selectedFlowMembers, setSelectedFlowMembers] = useState([]);
+  const [newFlowParentId, setNewFlowParentId] = useState(null);
 
   const handleFlowMemberToggle = (memberId, checked) => {
     if (checked) {
@@ -273,6 +274,7 @@ export default function ProjectDetailPage() {
           title: newFlowName,
           description: newFlowDesc,
           member_ids: selectedFlowMembers,
+          parent_id: newFlowParentId,
         }),
       });
 
@@ -317,6 +319,7 @@ export default function ProjectDetailPage() {
       setNewFlowDeadline("");
       setNewFlowDeadlineTime("09:00");
       setSelectedFlowMembers([]);
+      setNewFlowParentId(null);
       // Optionally, refetch workspaces
       setWorkspaceLoading(true);
       setWorkspaceError("");
@@ -654,6 +657,64 @@ export default function ProjectDetailPage() {
     fetchData();
   }, [id]);
 
+  const handleWorkspaceStatusChange = async (workspaceId, newStatus) => {
+    try {
+      const res = await fetch(`/api/workflows/${workspaceId}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error("Failed to update status");
+      setWorkspaces(prev => prev.map(ws => ws.id === workspaceId ? { ...ws, status: newStatus } : ws));
+    } catch (err) {
+      alert("Error updating status: " + err.message);
+    }
+  };
+
+  const renderWorkflowTree = (parentId = null, level = 0) => {
+    const children = workspaces.filter(ws => (ws.parent_id || null) === parentId);
+    if (children.length === 0) return null;
+    return children.map((ws, idx) => (
+      <div key={ws.id} className="w-full flex flex-col mb-3">
+        <div className="w-full h-14 bg-stone-500 rounded-[14px] flex items-center px-4 relative" style={{ marginLeft: `${level * 24}px`, width: `calc(100% - ${level * 24}px)` }}>
+          <div className="flex-1 flex flex-row items-center gap-4">
+            <div className="w-7 h-7 bg-zinc-300 rounded-[14px] flex items-center justify-center text-black text-base font-['Habibi']">{idx + 1}</div>
+            <div className="text-white text-base font-normal font-['Habibi'] truncate max-w-[120px]" title={ws.name}>Flow: {ws.name}</div>
+            <div className="text-white text-[13px] font-normal font-['Habibi']">{ws.created_at ? new Date(ws.created_at).toLocaleDateString("en-GB") : "-"}</div>
+            <select
+              value={ws.status || "in_process"}
+              onChange={(e) => handleWorkspaceStatusChange(ws.id, e.target.value)}
+              className="bg-stone-600 text-white text-[13px] rounded px-2 py-1 outline-none border border-stone-400"
+            >
+              <option value="in_process">In process</option>
+              <option value="pause">Pause</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+            {level < 5 && (
+              <button
+                className="px-2 h-6 bg-zinc-200 rounded-md flex items-center justify-center text-black text-xs font-bold hover:bg-zinc-100"
+                onClick={() => {
+                  setNewFlowParentId(ws.id);
+                  if (!newFlowDeadline) setNewFlowDeadline(formatDateKey(new Date()));
+                  setNewFlowDeadlineTime(prev => prev || "09:00");
+                  setShowCreateFlowModal(true);
+                }}
+                title="Create Sub-Flow"
+              >
+                + Sub-flow
+              </button>
+            )}
+            <button className="w-6 h-6 bg-zinc-300 rounded-full flex items-center justify-center text-black text-lg font-['Habibi']">...</button>
+          </div>
+        </div>
+        {renderWorkflowTree(ws.id, level + 1)}
+      </div>
+    ));
+  };
+
   if (loading || userLoading) {
     return (
       <AppShell user={currentUser} activePath="/project" contentClassName="flex-1">
@@ -974,24 +1035,13 @@ export default function ProjectDetailPage() {
                   ) : workspaces.length === 0 ? (
                     <div className="text-center text-gray-500 text-base mt-16">No workspace flows found.</div>
                   ) : (
-                    workspaces.map((ws, idx) => (
-                      <div key={ws.id} className="w-full h-14 mb-3 bg-stone-500 rounded-[14px] flex items-center px-4 relative">
-                        <div className="flex-1 flex flex-row items-center gap-4">
-                          <div className="w-7 h-7 bg-zinc-300 rounded-[14px] flex items-center justify-center text-black text-base font-['Habibi']">{idx + 1}</div>
-                          <div className="text-white text-base font-normal font-['Habibi'] truncate max-w-[120px]">Flow: {ws.name}</div>
-                          <div className="text-white text-base font-normal font-['Habibi']">{ws.created_at ? new Date(ws.created_at).toLocaleDateString("en-GB") : "-"}</div>
-                          <div className="text-white text-base font-normal font-['Habibi']">{ws.status || "In process"}</div>
-                        </div>
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                          <button className="w-6 h-6 bg-zinc-300 rounded-full flex items-center justify-center text-black text-lg font-['Habibi']">...</button>
-                        </div>
-                      </div>
-                    ))
+                    renderWorkflowTree(null, 0)
                   )}
                   {/* Create Flow Button */}
                   <button
                     className="mt-6 w-full h-12 bg-stone-400 rounded-[14px] flex items-center justify-center text-white text-base font-normal font-['Habibi'] hover:bg-stone-500 transition"
                     onClick={() => {
+                      setNewFlowParentId(null);
                       if (!newFlowDeadline) {
                         setNewFlowDeadline(formatDateKey(new Date()));
                       }

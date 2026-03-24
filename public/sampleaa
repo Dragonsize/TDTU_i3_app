@@ -1,52 +1,63 @@
-<div class="w-[1440px] h-[900px] relative bg-white overflow-hidden">
-    <div class="w-96 h-[906px] left-[-35px] top-[55px] absolute bg-neutral-500 rounded-[20px]"></div>
-    <div class="w-[1152px] h-[906px] left-[306px] top-[55px] absolute bg-zinc-300"></div>
-    <div class="w-[1438.96px] h-16 px-32 pb-px left-[1.02px] top-0 absolute bg-white/60 border-b border-black/10 inline-flex flex-col justify-between items-center">
-        <div class="w-[1387px] h-9 inline-flex justify-between items-start">
-            <div class="w-[589px] h-7 flex justify-between items-center">
-                <div class="w-24 h-7 flex justify-start items-center gap-1.5">
-                    <div class="w-7 h-7 relative bg-gray-950 rounded-lg"></div>
-                    <div class="flex-1 h-5 relative">
-                        <div class="left-0 top-[-1px] absolute justify-start text-neutral-950 text-xl font-bold font-['Arimo'] leading-5">A+ Flow</div>
-                    </div>
-                </div>
-                <div class="w-96 h-5 flex justify-start items-center gap-5">
-                    <div class="w-24 inline-flex flex-col justify-center items-center gap-2.5">
-                        <div class="justify-start text-gray-500 text-base font-normal font-['Inter'] leading-5">Project</div>
-                    </div>
-                    <div class="w-24 self-stretch inline-flex flex-col justify-center items-center gap-2.5">
-                        <div class="justify-start text-gray-500 text-base font-normal font-['Arimo'] leading-5">ChatBot</div>
-                    </div>
-                    <div class="w-24 self-stretch inline-flex flex-col justify-center items-center gap-2.5">
-                        <div class="justify-start text-gray-500 text-base font-normal font-['Arimo'] leading-5">Chat</div>
-                    </div>
-                    <div class="w-24 inline-flex flex-col justify-center items-center gap-2.5">
-                        <div class="justify-start text-gray-500 text-base font-normal font-['Arimo'] leading-5">File </div>
-                    </div>
-                </div>
-            </div>
-            <div class="w-20 h-8 flex justify-start items-center gap-3.5">
-                <div class="w-16 h-8 px-3.5 py-1.5 rounded-md flex justify-center items-center gap-1.5">
-                    <img class="w-10 h-10" src="https://placehold.co/41x41" />
-                    <div class="text-center justify-start text-neutral-950 text-xs font-normal font-['Arimo'] leading-4">User</div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="w-80 h-16 left-0 top-[59px] absolute opacity-80 bg-neutral-700 rounded-md"></div>
-    <div class="w-60 h-9 left-[29px] top-[66px] absolute text-center justify-start text-black text-4xl font-normal font-['Instrument_Sans']">Chat team</div>
-    <div class="w-[1047px] h-16 left-[341px] top-[805px] absolute opacity-75 bg-neutral-700 rounded-3xl"></div>
-    <div class="w-64 h-11 left-[10px] top-[142px] absolute opacity-75 bg-neutral-700 rounded-[200px]"></div>
-    <div class="w-64 h-11 left-[10px] top-[205px] absolute opacity-75 bg-neutral-700 rounded-[19px]"></div>
-    <div class="w-44 h-7 left-[52px] top-[212px] absolute text-center justify-start text-black text-2xl font-normal font-['Instrument_Sans']">Chat 2</div>
-    <div class="w-44 h-7 left-[52px] top-[149px] absolute text-center justify-start text-black text-2xl font-normal font-['Instrument_Sans']">Chat 1</div>
-    <img class="w-16 h-16 left-[341px] top-[84px] absolute rounded-2xl" src="https://placehold.co/65x65" />
-    <div class="w-96 h-11 left-[426px] top-[105px] absolute opacity-75 bg-neutral-500 rounded-[19px]"></div>
-    <div class="w-36 h-7 left-[426px] top-[75px] absolute justify-start text-black text-2xl font-normal font-['Instrument_Sans']">Ai đó</div>
-    <div class="w-[462px] h-7 left-[434px] top-[113px] absolute justify-start text-zinc-800 text-2xl font-normal font-['Instrument_Sans']">Hey, file của t đâu</div>
-    <div class="w-[819px] h-12 left-[486px] top-[814px] absolute opacity-60 bg-zinc-800 rounded-[31px]"></div>
-    <div class="w-52 h-11 left-[500px] top-[824px] absolute justify-start text-white text-2xl font-normal font-['Instrument_Sans']">/Type</div>
-    <div class="w-12 h-10 left-[1316px] top-[817px] absolute opacity-40 bg-black rounded-3xl"></div>
-    <div class="w-12 h-10 left-[356px] top-[817px] absolute opacity-40 bg-black rounded-3xl"></div>
-    <div class="w-12 h-10 left-[421px] top-[817px] absolute opacity-40 bg-black rounded-3xl"></div>
-</div>
+Kịch bản thuyết trình: Phần Kỹ thuật (Technical Architecture) sau prototype
+1. Dẫn dắt vào phần
+Kính thưa Ban giám khảo, để hiện thực hóa trải nghiệm mà quý vị vừa xem, A+ Flow được xây dựng theo hướng sản phẩm thật: có khả năng mở rộng, dễ bảo trì và ưu tiên bảo mật ngay từ đầu.
+
+2. Trình bày Tech Stack (Lựa chọn có chủ đích)
+Cốt lõi của hệ thống là mô hình Decoupled Architecture (kiến trúc tách rời):
+Frontend: Next.js App Router
+
+
+Backend: FastAPI
+
+
+Data layer: Supabase (PostgreSQL + Auth + Storage)
+
+
+Gọi là “tách rời” vì giao diện và xử lý nghiệp vụ không phụ thuộc chặt vào nhau mà giao tiếp thông qua API. Điều này giúp nhóm có thể nâng cấp từng phần mà không làm ảnh hưởng toàn bộ hệ thống.
+Về Frontend, chúng em chọn Next.js App Router để tổ chức route rõ ràng, mở rộng tính năng dễ hơn và tối ưu luồng điều hướng.
+Về hiệu năng, hệ thống đi theo hướng hybrid rendering:
+Các màn hình tương tác cao như dashboard, chat, files, settings ưu tiên client rendering để người dùng thao tác mượt.
+
+
+Một số phần có thể render phía server như layout, shell hoặc dữ liệu cần tải trước để cải thiện tốc độ tải ban đầu.
+
+
+Nghĩa là chúng em không phải tất cả đều SSR, mà chọn đúng kỹ thuật cho từng loại màn hình để cân bằng giữa tốc độ, trải nghiệm người dùng và độ phức tạp khi phát triển.
+Về giao diện, Tailwind CSS giúp nhóm giữ được tính đồng nhất về style, đảm bảo responsive trên desktop và mobile, đồng thời tăng tốc độ chỉnh sửa và phát triển UI.
+Về Backend, FastAPI đảm nhiệm logic nghiệp vụ và các API endpoint. Điểm mạnh của FastAPI là cấu trúc rõ ràng, dễ mở rộng endpoint và xử lý tốt các bài toán như lịch bận, deadline và phân quyền thành viên.
+Về dữ liệu, Supabase được chọn vì tính thực dụng:
+PostgreSQL để lưu trữ dữ liệu quan hệ
+
+Auth để quản lý người dùng
+
+Storage để quản lý tệp tài liệu
+
+Sự kết hợp này giúp giảm đáng kể thời gian thiết lập ban đầu so với việc ghép nhiều dịch vụ rời rạc.
+
+3. Những tính năng kỹ thuật “đắt giá”
+Ba trụ cột kỹ thuật tạo nên sự khác biệt của A+ Flow:
+Trụ cột 1 – Automatic Conflict Detection
+ Hệ thống không chỉ lưu lịch bận mà còn tự động đối chiếu lịch giữa các thành viên để cảnh báo xung đột khi sắp lịch hoặc giao việc.
+Trụ cột 2 – Bảo mật nhiều lớp
+ Hệ thống sử dụng JWT kết hợp httpOnly cookie cho phiên đăng nhập. Cách này giúp giảm rủi ro lộ token qua JavaScript phía trình duyệt.
+Trụ cột 3 – Chatbot hỗ trợ sử dụng
+ Một trợ lý chatbot được tích hợp để hướng dẫn thao tác và giải đáp nhanh, giúp người dùng mới tiếp cận hệ thống dễ dàng hơn.
+
+4. Chiến lược triển khai (Deployment)
+Hệ thống được triển khai thực tế trên cloud:
+Frontend: Vercel
+
+
+Backend API: Render
+
+
+Database / Auth / Storage: Supabase Cloud
+
+
+Kiến trúc này cho phép mỗi thành phần scale độc lập, dễ vận hành và dễ theo dõi lỗi theo từng lớp của hệ thống.
+
+5. Kết thúc
+Tóm lại, A+ Flow không chỉ là một prototype giao diện mà là một nền tảng được thiết kế theo hướng sản phẩm thực tế: kiến trúc rõ ràng, có lộ trình mở rộng và ưu tiên bảo mật.
+Chúng em tin rằng với cách tiếp cận này, A+ Flow có thể trở thành công cụ hỗ trợ nguoiwfchia nhỏ công việc hiệu quả và giảm áp lực trong các đồ án lớn.
+
+

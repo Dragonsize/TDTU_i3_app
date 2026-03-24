@@ -335,6 +335,7 @@ export default function CalendarPage() {
   const [endTime, setEndTime] = useState("");
   const [projectId, setProjectId] = useState("");
   const [eventType, setEventType] = useState("meeting");
+  const [status, setStatus] = useState("pending");
   const [color, setColor] = useState("#111827");
 
   const [teamProjectId, setTeamProjectId] = useState("");
@@ -570,6 +571,7 @@ export default function CalendarPage() {
     setEndTime("");
     setProjectId("");
     setEventType("meeting");
+    setStatus("pending");
     setColor("#111827");
   };
 
@@ -596,6 +598,7 @@ export default function CalendarPage() {
         end_time: toIsoFromLocal(endTime),
         project_id: projectId || null,
         event_type: eventType,
+        status,
         color,
       };
 
@@ -632,6 +635,7 @@ export default function CalendarPage() {
     setEndTime(toInputDateTime(ev.end_time));
     setProjectId(ev.project_id || "");
     setEventType(ev.event_type || "meeting");
+    setStatus(ev.status || "pending");
     setColor(ev.color || "#111827");
     setShowEventModal(true);
   };
@@ -981,6 +985,8 @@ export default function CalendarPage() {
                                 title={viewMode === "team" && memberName ? `${ev.title} (${memberName})` : ev.title}
                               >
                                 {viewMode === "team" && memberName ? `${memberName}: ${ev.title}` : ev.title}
+                                {ev.status === "in_progress" && " ⏳"}
+                                {ev.status === "completed" && " ✅"}
                               </button>
                             );
                           })}
@@ -1070,6 +1076,8 @@ export default function CalendarPage() {
                                 title={viewMode === "team" && memberName ? `${ev.title} (${memberName})` : ev.title}
                               >
                                 {viewMode === "team" && memberName ? `${memberName}: ${ev.title}` : ev.title}
+                                {ev.status === "in_progress" && " ⏳"}
+                                {ev.status === "completed" && " ✅"}
                               </button>
                             );
                           })}
@@ -1179,6 +1187,15 @@ export default function CalendarPage() {
                         className="h-[40px] border border-[#3c4043] bg-[#2d2f31] rounded-md px-1"
                       />
                     </div>
+                    <select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                      className="w-full border border-[#3c4043] bg-[#2d2f31] rounded-md px-3 py-2 text-sm text-white mt-1"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                    </select>
                   </div>
 
                   <div className="mt-5">
