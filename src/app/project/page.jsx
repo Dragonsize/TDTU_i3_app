@@ -542,7 +542,7 @@ export default function ProjectPage() {
           <div className="w-full h-px bg-black mb-6 hidden md:block"></div>
 
           {/* Rows */}
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[65dvh] overflow-y-auto pr-2">
             {loading ? (
               <div className="text-center text-gray-500 py-10">Loading projects...</div>
             ) : projects.length === 0 ? (

@@ -710,7 +710,6 @@ export default function ProjectDetailPage() {
                 + Sub-flow
               </button>
             )}
-            <button className="shrink-0 w-6 h-6 bg-zinc-300 rounded-full flex items-center justify-center text-black text-lg font-['Habibi']">...</button>
           </div>
         </div>
         {renderWorkflowTree(ws.id, level + 1)}
@@ -1018,7 +1017,7 @@ export default function ProjectDetailPage() {
       {/* Manage Workspace Modal */}
       {showWorkspaceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-3 sm:p-4">
-          <div className="relative w-full max-w-[540px] h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+          <div className="relative w-full max-w-4xl h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
             {/* Header */}
             <div className="w-full h-14 px-6 bg-white/60 border-b border-black/10 flex items-center justify-between">
               <span className="text-neutral-950 text-lg font-bold font-['Arimo']">Workspace</span>
@@ -1027,7 +1026,7 @@ export default function ProjectDetailPage() {
             {/* Modal Content */}
             <div className="flex-1 bg-white flex flex-col items-center pt-6">
               <div className="w-full flex flex-col items-center">
-                <div className="w-full max-w-[420px] min-h-[240px] max-h-[56dvh] bg-zinc-300 rounded-[16px] mx-auto relative p-4 overflow-y-auto">
+                <div className="w-full max-w-3xl min-h-[240px] max-h-[56dvh] bg-zinc-300 rounded-[16px] mx-auto relative p-4 overflow-y-auto">
                   {workspaceError && (
                     <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                       {workspaceError}
@@ -1101,7 +1100,7 @@ export default function ProjectDetailPage() {
                         </div>
                       )}
                 </div>
-                <button className="mt-8 w-40 h-10 bg-gray-950 rounded-md flex items-center justify-center">
+                <button type="button" onClick={() => setShowWorkspaceModal(false)} className="mt-8 mb-6 w-40 h-10 bg-gray-950 rounded-md flex items-center justify-center hover:bg-gray-800 transition">
                   <span className="text-white text-base font-normal font-['Arimo']">Finish</span>
                 </button>
               </div>
@@ -1113,7 +1112,7 @@ export default function ProjectDetailPage() {
         {/* Member List */}
         <div className="bg-zinc-300 rounded-2xl p-4 sm:p-6 min-h-[320px]">
           <div className="text-white text-2xl font-bold mb-6 px-2">Members</div>
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 max-h-[50dvh] overflow-y-auto pr-2">
             {members.length === 0 ? (
               <div className="text-center text-gray-500 mt-10">No members found</div>
             ) : (
