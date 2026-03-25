@@ -403,6 +403,7 @@ export default function ChatRoom({ user }) {
                 <div className={`w-10 h-10 shrink-0 flex items-end justify-center ${isLastInGroup ? "opacity-100" : "opacity-0"}`}>
                    <div className="w-10 h-10 rounded-2xl bg-gray-100 border border-gray-200 flex items-center justify-center text-xs font-black text-gray-600 overflow-hidden">
                       {msg.profiles?.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={msg.profiles.avatar_url} alt="Profile" className="w-full h-full object-cover" />
                       ) : (msg.profiles?.username?.[0] || "U").toUpperCase()}
                    </div>
@@ -573,7 +574,10 @@ export default function ChatRoom({ user }) {
                   <div key={m.id} className="flex items-center justify-between p-4 rounded-3xl bg-gray-50/50 border border-gray-100/50">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-sm font-black text-gray-900 overflow-hidden border border-gray-100">
-                        {m.avatar_url ? <img src={m.avatar_url} alt="Av" className="w-full h-full object-cover" /> : (m.username?.[0] || "U").toUpperCase()}
+                        {m.avatar_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={m.avatar_url} alt="Av" className="w-full h-full object-cover" />
+                        ) : (m.username?.[0] || "U").toUpperCase()}
                       </div>
                       <div>
                         <div className="font-bold text-sm text-gray-900 flex items-center gap-2">

@@ -384,7 +384,7 @@ export default function ProjectDetailPage() {
         const safeWorkflows = Array.isArray(workflows) ? workflows : [];
         setDeadlineWorkflows(safeWorkflows);
 
-        let safeMembers = Array.isArray(members) ? members : [];
+        let safeMembers = [];
         if (memberRes.ok) {
           const memberData = await memberRes.json();
           safeMembers = Array.isArray(memberData) ? memberData : [];
@@ -404,9 +404,7 @@ export default function ProjectDetailPage() {
             : safeMembers[0]?.username || ""
         );
 
-        if (!deadlineDueDate) {
-          setDeadlineDueDate(formatDateKey(new Date()));
-        }
+        setDeadlineDueDate((prev) => prev || formatDateKey(new Date()));
 
         await loadDeadlinesForWorkflows(safeWorkflows);
       } catch (error) {
@@ -656,8 +654,7 @@ export default function ProjectDetailPage() {
       }
     };
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, router]);
 
   const handleWorkspaceStatusChange = async (workspaceId, newStatus) => {
     try {

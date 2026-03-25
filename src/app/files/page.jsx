@@ -34,6 +34,8 @@ function FileImagePreview({ file }) {
   if (loading) return <div className="flex items-center gap-2 text-gray-400 text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div>;
   if (error) return <span className="text-red-500 text-sm">{error}</span>;
   if (!imgUrl) return <span className="text-gray-400 text-sm">No image</span>;
+  // Blob/object URLs are generated at runtime, so native img is intentional here.
+  // eslint-disable-next-line @next/next/no-img-element
   return <img src={imgUrl} alt={file.filename || "Preview"} className="max-h-80 max-w-full rounded-xl shadow border border-gray-100 object-contain" />;
 }
 
@@ -104,7 +106,7 @@ export default function FilesPage() {
 
   const canManageSelectedAccess = Boolean(selectedFile && currentUser && selectedFile.uploaded_by === currentUser.id);
 
-  const router = typeof window !== "undefined" ? require("next/navigation").useRouter() : null;
+  const router = useRouter();
 
   const fetchFiles = async () => {
     try {
@@ -139,8 +141,7 @@ export default function FilesPage() {
         else if (router) router.push("/login");
       })
       .catch(() => { if (router) router.push("/login"); });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (!selectedFile) { setAccessError(""); return; }

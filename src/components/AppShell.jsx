@@ -136,6 +136,7 @@ export default function AppShell({ user, activePath, contentClassName = "", full
               <div className="px-2 sm:px-3.5 py-1.5 rounded-xl flex justify-center items-center gap-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-all duration-200">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-sm font-bold text-white shadow-sm overflow-hidden group-hover:shadow-md transition-all">
                   {user?.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                     <img src={user.avatar_url} alt="User" className="w-full h-full object-cover" />
                   ) : (
                     avatarInitial.toUpperCase()

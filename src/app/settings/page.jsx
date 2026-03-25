@@ -107,6 +107,7 @@ export default function SettingsPage() {
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 flex flex-col items-center text-center transition-all hover:shadow-md">
               <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-blue-100 to-indigo-100 flex items-center justify-center text-5xl font-bold text-blue-600 border-4 border-white shadow-xl overflow-hidden mb-5">
                 {profile.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
                 ) : (
                   <span>{profile.full_name ? profile.full_name[0].toUpperCase() : "U"}</span>
