@@ -705,6 +705,8 @@ export default function CalendarPage() {
           end_time: toIsoFromLocal(meetingWindowEnd),
           duration_minutes: Number(meetingDuration),
           member_ids: selectedMemberIds,
+          working_hours_start: "00:00",
+          working_hours_end: "23:59",
         }),
       });
       if (!res.ok) {
