@@ -684,12 +684,83 @@ def find_best_match(question: str) -> str:
     return CHATBOT_KNOWLEDGE["general"]["response"]
 
 
-def call_external_chatbot(question: str, api_key: str, api_base: str, model: str) -> str:
+def get_team_schedule_context(user_id: str, db) -> str:
+    try:
+        now = datetime.now(timezone.utc)
+        in_7_days = now + timedelta(days=7)
+        now_iso = now.isoformat()
+        in_7_iso = in_7_days.isoformat()
+
+        # Get projects user is in
+        pm_resp = db.table("project_members").select("project_id").eq("user_id", user_id).execute()
+        project_ids = [pm["project_id"] for pm in pm_resp.data] if (pm_resp.data if hasattr(pm_resp, 'data') else None) else []
+
+        relevant_user_ids = {user_id}
+        project_to_users = defaultdict(list)
+        project_names = {}
+        
+        if project_ids:
+            # Fetch project names
+            proj_resp = db.table("projects").select("id, name").in_("id", project_ids).execute()
+            if hasattr(proj_resp, 'data') and proj_resp.data:
+                for p in proj_resp.data:
+                    project_names[p["id"]] = p["name"]
+            
+            # Fetch all members
+            all_pm_resp = db.table("project_members").select("user_id, project_id").in_("project_id", project_ids).execute()
+            if hasattr(all_pm_resp, 'data') and all_pm_resp.data:
+                for pm in all_pm_resp.data:
+                    relevant_user_ids.add(pm["user_id"])
+                    project_to_users[pm["project_id"]].append(pm["user_id"])
+
+        user_ids_list = list(relevant_user_ids)
+        profiles_resp = db.table("profiles").select("id, full_name, username, email").in_("id", user_ids_list).execute()
+        profiles = {p["id"]: (p.get("full_name") or p.get("username") or p.get("email") or "User") for p in (profiles_resp.data if hasattr(profiles_resp, 'data') and profiles_resp.data else [])}
+
+        busy_resp = db.table("busy_times").select("*").in_("user_id", user_ids_list).gte("end_time", now_iso).lte("start_time", in_7_iso).execute()
+        events_resp = db.table("calendar_events").select("*").in_("user_id", user_ids_list).gte("end_time", now_iso).lte("start_time", in_7_iso).execute()
+
+        schedule_by_user = defaultdict(list)
+        if hasattr(busy_resp, 'data') and busy_resp.data:
+            for b in busy_resp.data:
+                schedule_by_user[b["user_id"]].append(f"Busy: {b['start_time']} to {b['end_time']} ({b.get('description') or 'No description'})")
+        
+        if hasattr(events_resp, 'data') and events_resp.data:
+            for e in events_resp.data:
+                schedule_by_user[e["user_id"]].append(f"Meeting/Event: {e['start_time']} to {e['end_time']} ({e.get('title') or 'Event'})")
+
+        if not schedule_by_user:
+            return "\n\nContext: No team members have any busy times scheduled for the next 7 days. Everyone is completely free."
+
+        context = "\n\nContext - Team Schedules for the next 7 days:\n"
+        context += f"Current Time: {now_iso}\n\n"
+        
+        context += "Projects and their Members:\n"
+        for pid, uids in project_to_users.items():
+            pname = project_names.get(pid, "Unknown Project")
+            member_names = [profiles.get(uid, "Unknown User") for uid in uids]
+            context += f"- {pname}: {', '.join(member_names)}\n"
+            
+        context += "\nSchedules:\n"
+        for uid, events in schedule_by_user.items():
+            name = profiles.get(uid, "Unknown User")
+            context += f"\n{name}:\n"
+            for ev in sorted(events):
+                context += f" - {ev}\n"
+        
+        context += "\nDirective: Based on the team schedules, recommend optimal 30-60 minute meeting times during standard working hours (9 AM - 5 PM). If the user targets a specific project, only consider the availability of members in that specific project. If they ask about a specific person, only consider that person's availability."
+        return context
+    except Exception as e:
+        print(f"Error fetching schedule context: {e}")
+        return ""
+
+def call_external_chatbot(question: str, api_key: str, api_base: str, model: str, custom_context: str = "") -> str:
     url = f"{api_base.rstrip('/')}/chat/completions"
+    system_prompt = CHATBOT_SYSTEM_PROMPT + custom_context
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": CHATBOT_SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": question},
         ],
         "temperature": 0.3,
@@ -3014,6 +3085,12 @@ def chatbot(
     x_chatbot_api_key: Optional[str] = Header(default=None, alias="x-chatbot-api-key"),
 ):
     question = sanitize_chat_input(body.question)
+    
+    question_lower = question.lower()
+    schedule_context = ""
+    if any(kw in question_lower for kw in ["schedule", "meeting", "time", "busy", "available", "when"]):
+        schedule_context = get_team_schedule_context(user.get("sub"), require_db_client())
+        
     # Priority: user-provided key (Settings) > server default key > Google AI Studio default key.
     api_key = (x_chatbot_api_key or CHATBOT_API_KEY or GOOGLE_AI_STUDIO_API_KEY or "").strip()
     api_base = (body.api_base or CHATBOT_API_BASE).strip().rstrip("/")
@@ -3021,7 +3098,7 @@ def chatbot(
 
     if api_key:
         try:
-            answer = call_external_chatbot(question, api_key, api_base, model)
+            answer = call_external_chatbot(question, api_key, api_base, model, schedule_context)
             return {
                 "question": question,
                 "answer": answer,
