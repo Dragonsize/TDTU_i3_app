@@ -16,14 +16,6 @@ from threading import Lock
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, UploadFile, Form, Request, Query, WebSocket, WebSocketDisconnect, BackgroundTasks, Header
 import asyncio
-
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
-
 def sanitize_chat_input(text: str) -> str:
     # Remove dangerous SQL/meta chars and trim
     if not isinstance(text, str):
@@ -129,20 +121,6 @@ RATE_LIMIT_BUCKETS: Dict[str, deque] = defaultdict(deque)
 RATE_LIMIT_LOCK = Lock()
 
 
-def enforce_rate_limit(ip: str, key: str, limit: int, window_seconds: int) -> None:
-    """Sliding-window rate limiter. Raises HTTP 429 if limit exceeded."""
-    bucket_key = f"{ip}:{key}"
-    now = time.time()
-    with RATE_LIMIT_LOCK:
-        bucket = RATE_LIMIT_BUCKETS[bucket_key]
-        # Remove timestamps outside the current window
-        while bucket and bucket[0] < now - window_seconds:
-            bucket.popleft()
-        if len(bucket) >= limit:
-            raise HTTPException(status_code=429, detail="Too many requests. Please try again later.")
-        bucket.append(now)
-
-
 def contains_emoji(value: str) -> bool:
     return bool(EMOJI_PATTERN.search(value))
 
@@ -162,6 +140,18 @@ def client_ip(http_request: Request) -> str:
     return forwarded or "unknown"
 
 
+def enforce_rate_limit(identifier: str, scope: str, max_requests: int, window_seconds: int) -> None:
+    now = time.time()
+    bucket_key = f"{scope}:{identifier}"
+    cutoff = now - window_seconds
+
+    with RATE_LIMIT_LOCK:
+        bucket = RATE_LIMIT_BUCKETS[bucket_key]
+        while bucket and bucket[0] < cutoff:
+            bucket.popleft()
+        if len(bucket) >= max_requests:
+            raise HTTPException(status_code=429, detail="Too many requests. Please try again later.")
+        bucket.append(now)
 
 
 def sanitize_filename(name: str) -> str:
@@ -332,13 +322,6 @@ class CreateProjectRequest(BaseModel):
     color: Optional[str] = "#78716c"
 
 
-class UpdateProjectRequest(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    color: Optional[str] = None
-    status: Optional[str] = None
-
-
 class AddMemberRequest(BaseModel):
     member_username: str = Field(..., min_length=1)
     role: str = "member"
@@ -356,12 +339,6 @@ class CreateWorkflowRequest(BaseModel):
     title: str = Field(..., min_length=1)
     description: Optional[str] = ""
     member_ids: Optional[List[str]] = None
-    parent_id: Optional[str] = None
-
-class UpdateWorkflowRequest(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    status: Optional[str] = None
 
 
 class AssignWorkflowMemberRequest(BaseModel):
@@ -456,7 +433,6 @@ class CreateCalendarEventRequest(BaseModel):
     description: Optional[str] = None
     event_type: Optional[str] = "meeting"
     color: Optional[str] = None
-    status: Optional[str] = "pending"
 
 
 class UpdateCalendarEventRequest(BaseModel):
@@ -466,7 +442,6 @@ class UpdateCalendarEventRequest(BaseModel):
     description: Optional[str] = None
     event_type: Optional[str] = None
     color: Optional[str] = None
-    status: Optional[str] = None
 
 
 class FindMeetingSlotsRequest(BaseModel):
@@ -522,119 +497,9 @@ class CreateNotificationRequest(BaseModel):
     message: Optional[str] = None
     related_id: Optional[str] = None
 
-import resend
 
-RESEND_API_KEY = "re_bNGRWtr5_EYfp5PPvmfzXY1xaFM45Z8me"
-if RESEND_API_KEY:
-    resend.api_key = RESEND_API_KEY
-
-NOTIFIED_DEADLINES_FILE = os.path.join(os.path.dirname(__file__), ".notified_deadlines.json")
-
-def get_notified_deadlines() -> set:
-    if os.path.exists(NOTIFIED_DEADLINES_FILE):
-        try:
-            with open(NOTIFIED_DEADLINES_FILE, "r") as f:
-                return set(json.load(f))
-        except Exception:
-            return set()
-    return set()
-
-def save_notified_deadlines(notified_set: set):
-    try:
-        with open(NOTIFIED_DEADLINES_FILE, "w") as f:
-            json.dump(list(notified_set), f)
-    except Exception as e:
-        print(f"Error saving notified deadlines: {e}")
-
-async def check_deadlines_loop():
-    while True:
-        try:
-            if not supabase_admin or not RESEND_API_KEY:
-                await asyncio.sleep(3600)
-                continue
-                
-            now = datetime.now(timezone.utc)
-            in_48_hours = now + timedelta(hours=48)
-            
-            dl_resp = (
-                supabase_admin.table("workspace_deadlines")
-                .select("id, title, due_date, assigned_to, workspaces(name, project_id)")
-                .gte("due_date", now.isoformat())
-                .lte("due_date", in_48_hours.isoformat())
-                .eq("status", "pending")
-                .execute()
-            )
-            
-            deadlines = dl_resp.data or []
-            if deadlines:
-                notified = get_notified_deadlines()
-                newly_notified = False
-                
-                for dl in deadlines:
-                    dl_id = dl["id"]
-                    if dl_id in notified:
-                        continue
-                        
-                    assignee_id = dl.get("assigned_to")
-                    if not assignee_id:
-                        continue
-                        
-                    prof_resp = supabase_admin.table("profiles").select("email, full_name, username").eq("id", assignee_id).execute()
-                    if not prof_resp.data:
-                        continue
-                        
-                    profile = prof_resp.data[0]
-                    email = profile.get("email")
-                    name = profile.get("full_name") or profile.get("username") or "User"
-                    
-                    if not email:
-                        continue
-                    
-                    workflow_name = dl.get("workspaces", {}).get("name") or "Unknown Task"
-                    
-                    try:
-                        resend.Emails.send({
-                            "from": "TDTU i3 App Notifications <onboarding@resend.dev>",
-                            "to": email,
-                            "subject": f"Approaching Deadline: {dl.get('title')}",
-                            "html": f"<h3>Hi {name},</h3><p>This is a reminder that your deadline for <strong>{dl.get('title')}</strong> in workflow <em>{workflow_name}</em> is approaching!</p><p>Due Date: {dl.get('due_date')}</p><p>Please log in to your board to review and complete the task.</p>"
-                        })
-                        notified.add(dl_id)
-                        newly_notified = True
-                        print(f"Sent deadline reminder to {email} for deadline {dl_id}")
-                    except Exception as e:
-                        print(f"Resend Error for {email}: {e}")
-                        
-                if newly_notified:
-                    save_notified_deadlines(notified)
-                    
-        except Exception as e:
-            print(f"Background Loop Error: {e}")
-            
-        await asyncio.sleep(3600)  # check every hour
-
-limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response: Response = await call_next(request)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        return response
-
-app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(SlowAPIMiddleware)
-app.add_middleware(GZipMiddleware, minimum_size=1000)
-
-@app.on_event("startup")
-async def startup_event():
-    if RESEND_API_KEY:
-        asyncio.create_task(check_deadlines_loop())
 # Configure CORS origins
 allowed_origins = ["http://localhost:3000", "http://localhost:3001"]
 if FRONTEND_ORIGIN:
@@ -655,12 +520,8 @@ CHATBOT_KNOWLEDGE = {
         "response": "To create a new project: open Dashboard, click Create Project, fill in title and description, then submit. You will become the project lead automatically."
     },
     "create_workflow": {
-        "keywords": ["create workflow", "tạo workflow", "task breakdown", "sub process", "sub-process", "chia nhỏ"],
-        "response": "To create a workflow: open a project, select Add Workflow, provide title and description, then assign members. You can also create nested sub-processes up to 5 levels deep by clicking '+ Sub-flow' on an existing workflow."
-    },
-    "workflow_status": {
-        "keywords": ["workflow status", "trạng thái", "in progress", "pause", "completed", "tạm dừng"],
-        "response": "You can change a workflow's status directly from the dropdown next to the workflow name in the project's workspace modal. Options include In process, Pause, and Completed."
+        "keywords": ["create workflow", "tạo workflow", "task breakdown"],
+        "response": "To create a workflow: open a project, select Add Workflow, provide title and description, then assign members and deadlines."
     },
     "add_members": {
         "keywords": ["add member", "thêm thành viên", "invite"],
@@ -669,10 +530,6 @@ CHATBOT_KNOWLEDGE = {
     "schedule": {
         "keywords": ["calendar", "schedule", "busy time", "lịch"],
         "response": "To manage schedule: open Calendar, add busy time with start and end time, and save. Conflicts are detected automatically when scheduling meetings."
-    },
-    "calendar_status": {
-        "keywords": ["calendar status", "event status", "inprocess", "in-progress", "pending"],
-        "response": "When creating or editing a calendar event, you can set its status to Pending, In Progress, or Completed using the dropdown menu. This status will be visible on the calendar."
     },
     "documents": {
         "keywords": ["document", "upload", "tài liệu", "file"],
@@ -698,83 +555,12 @@ def find_best_match(question: str) -> str:
     return CHATBOT_KNOWLEDGE["general"]["response"]
 
 
-def get_team_schedule_context(user_id: str, db) -> str:
-    try:
-        now = datetime.now(timezone.utc)
-        in_7_days = now + timedelta(days=7)
-        now_iso = now.isoformat()
-        in_7_iso = in_7_days.isoformat()
-
-        # Get projects user is in
-        pm_resp = db.table("project_members").select("project_id").eq("user_id", user_id).execute()
-        project_ids = [pm["project_id"] for pm in pm_resp.data] if (pm_resp.data if hasattr(pm_resp, 'data') else None) else []
-
-        relevant_user_ids = {user_id}
-        project_to_users = defaultdict(list)
-        project_names = {}
-        
-        if project_ids:
-            # Fetch project names
-            proj_resp = db.table("projects").select("id, name").in_("id", project_ids).execute()
-            if hasattr(proj_resp, 'data') and proj_resp.data:
-                for p in proj_resp.data:
-                    project_names[p["id"]] = p["name"]
-            
-            # Fetch all members
-            all_pm_resp = db.table("project_members").select("user_id, project_id").in_("project_id", project_ids).execute()
-            if hasattr(all_pm_resp, 'data') and all_pm_resp.data:
-                for pm in all_pm_resp.data:
-                    relevant_user_ids.add(pm["user_id"])
-                    project_to_users[pm["project_id"]].append(pm["user_id"])
-
-        user_ids_list = list(relevant_user_ids)
-        profiles_resp = db.table("profiles").select("id, full_name, username, email").in_("id", user_ids_list).execute()
-        profiles = {p["id"]: (p.get("full_name") or p.get("username") or p.get("email") or "User") for p in (profiles_resp.data if hasattr(profiles_resp, 'data') and profiles_resp.data else [])}
-
-        busy_resp = db.table("busy_times").select("*").in_("user_id", user_ids_list).gte("end_time", now_iso).lte("start_time", in_7_iso).execute()
-        events_resp = db.table("calendar_events").select("*").in_("user_id", user_ids_list).gte("end_time", now_iso).lte("start_time", in_7_iso).execute()
-
-        schedule_by_user = defaultdict(list)
-        if hasattr(busy_resp, 'data') and busy_resp.data:
-            for b in busy_resp.data:
-                schedule_by_user[b["user_id"]].append(f"Busy: {b['start_time']} to {b['end_time']} ({b.get('description') or 'No description'})")
-        
-        if hasattr(events_resp, 'data') and events_resp.data:
-            for e in events_resp.data:
-                schedule_by_user[e["user_id"]].append(f"Meeting/Event: {e['start_time']} to {e['end_time']} ({e.get('title') or 'Event'})")
-
-        if not schedule_by_user:
-            return "\n\nContext: No team members have any busy times scheduled for the next 7 days. Everyone is completely free."
-
-        context = "\n\nContext - Team Schedules for the next 7 days:\n"
-        context += f"Current Time: {now_iso}\n\n"
-        
-        context += "Projects and their Members:\n"
-        for pid, uids in project_to_users.items():
-            pname = project_names.get(pid, "Unknown Project")
-            member_names = [profiles.get(uid, "Unknown User") for uid in uids]
-            context += f"- {pname}: {', '.join(member_names)}\n"
-            
-        context += "\nSchedules:\n"
-        for uid, events in schedule_by_user.items():
-            name = profiles.get(uid, "Unknown User")
-            context += f"\n{name}:\n"
-            for ev in sorted(events):
-                context += f" - {ev}\n"
-        
-        context += "\nDirective: Based on the team schedules, recommend optimal 30-60 minute meeting times during standard working hours (9 AM - 5 PM). If the user targets a specific project, only consider the availability of members in that specific project. If they ask about a specific person, only consider that person's availability."
-        return context
-    except Exception as e:
-        print(f"Error fetching schedule context: {e}")
-        return ""
-
-def call_external_chatbot(question: str, api_key: str, api_base: str, model: str, custom_context: str = "") -> str:
+def call_external_chatbot(question: str, api_key: str, api_base: str, model: str) -> str:
     url = f"{api_base.rstrip('/')}/chat/completions"
-    system_prompt = CHATBOT_SYSTEM_PROMPT + custom_context
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": CHATBOT_SYSTEM_PROMPT},
             {"role": "user", "content": question},
         ],
         "temperature": 0.3,
@@ -857,18 +643,8 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str) 
 
 
 def clear_auth_cookies(response: Response) -> None:
-    response.delete_cookie(
-        key="access_token",
-        path="/",
-        secure=IS_PRODUCTION,
-        samesite="lax"
-    )
-    response.delete_cookie(
-        key="refresh_token",
-        path="/",
-        secure=IS_PRODUCTION,
-        samesite="lax"
-    )
+    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/")
 
 
 def get_current_user(access_token: Optional[str] = Cookie(None)) -> Dict[str, Any]:
@@ -1584,7 +1360,7 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
         set_auth_cookies(response, access_token, refresh_token)
 
         # Create/update profile in database using admin client (bypasses RLS)
-        full_name = body.fullname or user.email
+        full_name = request.fullname or user.email
         db_client = supabase_admin if supabase_admin else db
         profile_response = db_client.table("profiles").upsert({
             "id": user.id,
@@ -1598,8 +1374,8 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
         store_refresh_token(
             user.id,
             refresh_token,
-            request.headers.get("user-agent"),
-            request.client.host if request.client else None,
+            http_request.headers.get("user-agent"),
+            http_request.client.host if http_request.client else None,
         )
 
         return {"status": "success", "user": {"id": user.id, "email": user.email, "full_name": full_name}}
@@ -1627,13 +1403,13 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
 
 
 @app.post("/api/auth/register")
-@limiter.limit("20/5minutes")
-def register(request: Request, body: RegisterRequest, response: Response):
+def register(request: RegisterRequest, response: Response, http_request: Request):
     """Register a new user and create backend session from Supabase token"""
+    enforce_rate_limit(client_ip(http_request), "auth_register", 20, 300)
     try:
         db = require_supabase()
         # Verify the Supabase access token
-        user_response = db.auth.get_user(body.access_token)
+        user_response = db.auth.get_user(request.access_token)
         user = getattr(user_response, "user", None)
         if not user:
             raise HTTPException(status_code=401, detail="Invalid Supabase token")
@@ -1659,7 +1435,7 @@ def register(request: Request, body: RegisterRequest, response: Response):
         set_auth_cookies(response, access_token, refresh_token)
 
         # Create/update profile in database using admin client (bypasses RLS)
-        full_name = body.fullname or (user.user_metadata or {}).get("full_name") or user.email
+        full_name = request.fullname or (user.user_metadata or {}).get("full_name") or user.email
         db_client = supabase_admin if supabase_admin else db
         profile_response = db_client.table("profiles").upsert({
             "id": user.id,
@@ -1673,8 +1449,8 @@ def register(request: Request, body: RegisterRequest, response: Response):
         store_refresh_token(
             user.id,
             refresh_token,
-            request.headers.get("user-agent"),
-            request.client.host if request.client else None,
+            http_request.headers.get("user-agent"),
+            http_request.client.host if http_request.client else None,
         )
 
         return {"status": "success", "user": {"id": user.id, "email": user.email, "full_name": full_name}}
@@ -1835,33 +1611,12 @@ def get_projects(user=Depends(get_current_user)):
     db = require_db_client()
     user_id = user.get("sub")
     response = db.table("project_members").select("*, projects(*)").eq("user_id", user_id).execute()
-    
-    project_ids = []
-    for item in response.data:
-        if item.get("projects"):
-            project_ids.append(item["projects"]["id"])
-
-    deadline_counts = {}
-    if project_ids:
-        workspaces_resp = db.table("workspaces").select("id, project_id").in_("project_id", project_ids).execute()
-        if workspaces_resp.data:
-            ws_to_proj = {w["id"]: w["project_id"] for w in workspaces_resp.data}
-            workspace_ids = list(ws_to_proj.keys())
-            
-            if workspace_ids:
-                deadlines_resp = db.table("workspace_deadlines").select("workspace_id").in_("workspace_id", workspace_ids).execute()
-                for dl in (deadlines_resp.data or []):
-                    pid = ws_to_proj.get(dl["workspace_id"])
-                    if pid:
-                        deadline_counts[pid] = deadline_counts.get(pid, 0) + 1
-
     projects = []
     for item in response.data:
         if item.get("projects"):
             p = item["projects"]
             # Map DB 'name' to API 'title' for frontend compatibility
             p["title"] = p.get("name", p.get("title"))
-            p["deadline_count"] = deadline_counts.get(p["id"], 0)
             projects.append(p)
     return projects
 
@@ -1886,23 +1641,16 @@ def get_project_details(project_id: str, user=Depends(get_current_user)):
     return project
 
 @app.put("/api/projects/{project_id}")
-def update_project(project_id: str, request: UpdateProjectRequest, user=Depends(get_current_user)):
+def update_project(project_id: str, request: CreateProjectRequest, user=Depends(get_current_user)):
     db = require_db_client()
     require_project_lead(user.get("sub"), project_id)
     
-    updates = {}
-    if request.title is not None:
-        updates["name"] = request.title
-    if request.description is not None:
-        updates["description"] = request.description
-    if request.color is not None:
-        updates["color"] = request.color
-    if request.status is not None:
-        updates["status"] = request.status
-        
-    if not updates:
-        raise HTTPException(status_code=400, detail="No fields to update")
-        
+    updates = {
+        "name": request.title,
+        "description": request.description or "",
+        "color": request.color
+    }
+    
     response = db.table("projects").update(updates).eq("id", project_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -2154,8 +1902,6 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
 
     last_error = None
     for workflow_data in payload_variants:
-        if getattr(request, "parent_id", None):
-            workflow_data["parent_id"] = request.parent_id
         try:
             response = db.table("workspaces").insert(workflow_data).execute()
         except Exception as exc:
@@ -2235,38 +1981,6 @@ def normalize_deadline_due_date(due_date: str) -> str:
         return trimmed
     parsed = datetime.fromisoformat(trimmed.replace("Z", "+00:00"))
     return parsed.date().isoformat()
-
-
-@app.patch("/api/workflows/{workflow_id}")
-def update_workflow(workflow_id: str, request: UpdateWorkflowRequest, user=Depends(get_current_user)):
-    db = require_db_client()
-    # Basic check
-    workspace_resp = db.table("workspaces").select("*").eq("id", workflow_id).limit(1).execute()
-    if not workspace_resp.data:
-        raise HTTPException(status_code=404, detail="Workflow not found")
-    
-    workspace = workspace_resp.data[0]
-    project_id = workspace.get("project_id")
-    require_project_member(user.get("sub"), project_id)
-
-    updates = {}
-    if request.title is not None:
-        updates["name"] = sanitize_chat_input(request.title)
-    if request.description is not None:
-        updates["description"] = sanitize_chat_input(request.description)
-    if request.status is not None:
-        allowed_status = {"in_progress", "pause", "completed", "active"}
-        status_val = request.status.lower()
-        if status_val in allowed_status:
-            updates["status"] = status_val
-
-    if not updates:
-        return workspace
-
-    response = db.table("workspaces").update(updates).eq("id", workflow_id).execute()
-    if not response.data:
-        raise HTTPException(status_code=500, detail="Failed to update workflow")
-    return response.data[0]
 
 
 @app.post("/api/workflows/{workflow_id}/members")
@@ -2445,14 +2159,9 @@ def delete_deadline(workflow_id: str, deadline_id: str, user=Depends(get_current
 def get_deadlines(days: int = 7, user=Depends(get_current_user)):
     db = require_db_client()
     user_id = user.get("sub")
-    
     max_date = datetime.now(timezone.utc) + timedelta(days=days)
-    
-    query = db.table("workspace_deadlines").select("*, workspaces(name, project_id)")
-    query = query.eq("assigned_to", user_id)
-        
-    response = query.lte("due_date", max_date.isoformat()).execute()
-    data = response.data or []
+    response = db.table("workspace_deadlines").select("*, workspaces(name, project_id)").eq("assigned_to", user_id).execute()
+    data = response.data
     for item in data:
         if item.get("workspaces"):
             item["workflows"] = item["workspaces"]
@@ -2489,33 +2198,7 @@ def get_calendar_events(
         query = query.lt("start_time", end)
 
     response = query.order("start_time", desc=False).execute()
-    events = response.data or []
-
-    # Merge deadlines as events
-    dl_query = db.table("workspace_deadlines").select("*, workspaces(name, project_id)")
-    dl_query = dl_query.eq("assigned_to", user_id)
-        
-    if start:
-        dl_query = dl_query.gte("due_date", start)
-    if end:
-        dl_query = dl_query.lt("due_date", end)
-        
-    dl_resp = dl_query.execute()
-    for dl in dl_resp.data or []:
-        events.append({
-            "id": f"dl-{dl['id']}",
-            "title": f"[Deadline] {dl.get('title')}",
-            "description": f"Workflow: {dl.get('workspaces', {}).get('name')}",
-            "start_time": dl.get("due_date"),
-            "end_time": dl.get("due_date"),
-            "user_id": user_id,
-            "project_id": dl.get("workspaces", {}).get("project_id"),
-            "event_type": "deadline",
-            "color": "#dc2626",
-            "status": dl.get("status", "pending")
-        })
-
-    return events
+    return response.data or []
 
 
 @app.post("/api/calendar/events")
@@ -2541,7 +2224,6 @@ def create_calendar_event(request: CreateCalendarEventRequest, user=Depends(get_
         "end_time": request.end_time,
         "event_type": request.event_type or "meeting",
         "color": request.color,
-        "status": request.status or "pending",
     }).execute()
     if not response.data:
         raise HTTPException(status_code=500, detail="Failed to create calendar event")
@@ -2575,8 +2257,6 @@ def update_calendar_event(event_id: str, request: UpdateCalendarEventRequest, us
         updates["event_type"] = request.event_type
     if request.color is not None:
         updates["color"] = request.color
-    if request.status is not None:
-        updates["status"] = request.status
 
     start_value = request.start_time if request.start_time is not None else event.get("start_time")
     end_value = request.end_time if request.end_time is not None else event.get("end_time")
@@ -2678,47 +2358,9 @@ def get_project_team_calendar(
         .execute()
     )
 
-    # Also fetch project deadlines for assigned team members
-    workflows_resp = db.table("workspaces").select("id").eq("project_id", project_id).execute()
-    workflow_ids = [w["id"] for w in workflows_resp.data or []]
-    
-    deadlines = []
-    if workflow_ids and member_ids:
-        # assigned_to is a UUID column, pass only member_ids to avoid PostgREST cast errors
-        dl_resp = (
-            db.table("workspace_deadlines")
-            .select("*, workspaces(name, project_id)")
-            .in_("workspace_id", workflow_ids)
-            .in_("assigned_to", member_ids)
-            .gte("due_date", start_dt.isoformat()[:10]) # use slice to just get YYYY-MM-DD for direct string comparison
-            .lt("due_date", end_dt.isoformat()[:10] + "Z")
-            .execute()
-        )
-        
-        for dl in dl_resp.data or []:
-            assignee = dl.get("assigned_to")
-            matched_user_id = assignee
-            for m in members:
-                if m.get("username") == assignee or m.get("id") == assignee:
-                    matched_user_id = m.get("id")
-                    break
-                    
-            deadlines.append({
-                "id": f"dl-{dl['id']}",
-                "title": f"[Deadline] {dl.get('title')}",
-                "description": f"Workflow: {dl.get('workspaces', {}).get('name')}",
-                "start_time": dl.get("due_date"),
-                "end_time": dl.get("due_date"),
-                "user_id": matched_user_id,
-                "project_id": project_id,
-                "event_type": "deadline",
-                "color": "#dc2626",
-                "status": dl.get("status", "pending")
-            })
-
     return {
         "members": members,
-        "events": (events_resp.data or []) + deadlines,
+        "events": events_resp.data or [],
         "busy_times": busy_resp.data or [],
     }
 
@@ -2971,15 +2613,16 @@ def update_document_access(document_id: str, request: UpdateDocumentAccessReques
 
 
 @app.post("/api/documents/upload")
-@limiter.limit("30/5minutes")
 async def upload_document_file(
-    request: Request,
+    http_request: Request,
     file: UploadFile = File(...),
     project_id: Optional[str] = Form(None),
     user=Depends(get_current_user),
 ):
     db = require_db_client()
     user_id = user.get("sub")
+    request_ip = client_ip(http_request) if http_request else user_id
+    enforce_rate_limit(f"{user_id}:{request_ip}", "documents_upload", 30, 300)
 
     if project_id:
         require_project_member(user_id, project_id)
@@ -3101,28 +2744,22 @@ def mark_notification_read(notification_id: str, user=Depends(get_current_user))
     return {"status": "success"}
 
 @app.post("/api/chatbot")
-@limiter.limit("50/5minutes")
 def chatbot(
-    request: Request,
-    body: ChatbotRequest,
+    request: ChatbotRequest,
+    http_request: Request,
     user=Depends(get_current_user),
     x_chatbot_api_key: Optional[str] = Header(default=None, alias="x-chatbot-api-key"),
 ):
-    question = sanitize_chat_input(body.question)
-    
-    question_lower = question.lower()
-    schedule_context = ""
-    if any(kw in question_lower for kw in ["schedule", "meeting", "time", "busy", "available", "when"]):
-        schedule_context = get_team_schedule_context(user.get("sub"), require_db_client())
-        
+    enforce_rate_limit(f"{user.get('sub')}:{client_ip(http_request)}", "chatbot", 50, 300)
+    question = sanitize_chat_input(request.question)
     # Priority: user-provided key (Settings) > server default key > Google AI Studio default key.
     api_key = (x_chatbot_api_key or CHATBOT_API_KEY or GOOGLE_AI_STUDIO_API_KEY or "").strip()
-    api_base = (body.api_base or CHATBOT_API_BASE).strip().rstrip("/")
-    model = (body.model or CHATBOT_MODEL).strip()
+    api_base = (request.api_base or CHATBOT_API_BASE).strip().rstrip("/")
+    model = (request.model or CHATBOT_MODEL).strip()
 
     if api_key:
         try:
-            answer = call_external_chatbot(question, api_key, api_base, model, schedule_context)
+            answer = call_external_chatbot(question, api_key, api_base, model)
             return {
                 "question": question,
                 "answer": answer,

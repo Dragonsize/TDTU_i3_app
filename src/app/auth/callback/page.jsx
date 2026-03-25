@@ -12,17 +12,34 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Supabase auth listener will handle the hash automatically
-        // Just wait a moment for it to process
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const { data, error: authError } = await supabase.auth.getSession();
+        const queryParams = new URLSearchParams(window.location.search);
+        const authCode = queryParams.get('code');
 
-        if (authError) {
-          throw new Error(authError.message);
+        if (authCode) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(authCode);
+          if (exchangeError) {
+            throw new Error(exchangeError.message);
+          }
         }
 
-        if (!data.session?.access_token) {
+        // Retry briefly because auth state can lag after redirect.
+        let authSessionData = null;
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          const { data, error: authError } = await supabase.auth.getSession();
+
+          if (authError) {
+            throw new Error(authError.message);
+          }
+
+          if (data.session?.access_token) {
+            authSessionData = data;
+            break;
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+
+        if (!authSessionData?.session?.access_token) {
           throw new Error('No session found');
         }
 
@@ -32,7 +49,7 @@ export default function AuthCallback() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ access_token: data.session.access_token }),
+          body: JSON.stringify({ access_token: authSessionData.session.access_token }),
           credentials: 'include',
         });
 

@@ -11,6 +11,14 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorFromQuery = params.get('error');
+    if (errorFromQuery) {
+      setError(errorFromQuery);
+    }
+  }, []);
+
   const handleGoogleSignIn = async () => {
     try {
       setError('');
@@ -35,9 +43,11 @@ export default function Login() {
     setError('');
     
     try {
+      const normalizedEmail = email.trim();
+
       // Sign in with Supabase
       const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       });
 
@@ -48,9 +58,13 @@ export default function Login() {
       if (data.session?.access_token) {
         // Complete login with backend session
         await completeLogin(data.session.access_token);
+        return;
       }
+
+      throw new Error('Sign in succeeded but no session token was returned. Please try again.');
     } catch (err) {
       setError(err.message || 'An error occurred');
+    } finally {
       setLoading(false);
     }
   };
@@ -69,8 +83,8 @@ export default function Login() {
       });
 
       if (!sessionResponse.ok) {
-        const errorData = await sessionResponse.json().catch(() => ({}));
-        throw new Error(errorData.detail || `Failed to create backend session (${sessionResponse.status})`);
+        const errorData = await sessionResponse.json().catch(() => null);
+        throw new Error(errorData?.detail || `Failed to create backend session (${sessionResponse.status})`);
       }
 
       const sessionData = await sessionResponse.json();

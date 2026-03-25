@@ -54,6 +54,9 @@ export default function SignUp() {
     }
 
     try {
+      const normalizedEmail = email.trim();
+      const normalizedFullName = fullName.trim();
+
       // Call backend register endpoint with email/password
       // Backend will create user in Supabase, auto-confirm, and create JWT session
       const registerResponse = await fetch('/api/auth/register-direct', {
@@ -62,26 +65,76 @@ export default function SignUp() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          email,
+          email: normalizedEmail,
           password,
-          fullname: fullName,
+          fullname: normalizedFullName,
         }),
         credentials: 'include',
       });
 
-      if (!registerResponse.ok) {
-        const errorData = await registerResponse.json();
-        throw new Error(errorData.detail || 'Failed to create account');
+      if (registerResponse.ok) {
+        // Store user profile in localStorage
+        const sessionResult = await registerResponse.json();
+        localStorage.setItem('userProfile', JSON.stringify(sessionResult.user));
+
+        setSuccess('Account created successfully! Redirecting...');
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 1200);
+        return;
       }
 
-      // Store user profile in localStorage
-      const sessionResult = await registerResponse.json();
-      localStorage.setItem('userProfile', JSON.stringify(sessionResult.user));
+      const backendError = await registerResponse.json().catch(() => null);
+      const shouldFallback = [404, 405, 500, 502, 503, 504].includes(registerResponse.status);
+      if (!shouldFallback) {
+        throw new Error(backendError?.detail || 'Failed to create account');
+      }
 
-      setSuccess('Account created successfully! Redirecting...');
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 1500);
+      // Fallback: sign up via Supabase, then create backend session/profile.
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+        options: {
+          data: {
+            full_name: normalizedFullName,
+          },
+        },
+      });
+
+      if (signUpError) {
+        throw new Error(signUpError.message);
+      }
+
+      if (signUpData.session?.access_token) {
+        const token = signUpData.session.access_token;
+        const registerViaTokenResponse = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            access_token: token,
+            fullname: normalizedFullName,
+          }),
+          credentials: 'include',
+        });
+
+        if (!registerViaTokenResponse.ok) {
+          const registerViaTokenError = await registerViaTokenResponse.json().catch(() => null);
+          throw new Error(registerViaTokenError?.detail || 'Could not initialize your account session');
+        }
+
+        const registerViaTokenResult = await registerViaTokenResponse.json();
+        localStorage.setItem('userProfile', JSON.stringify(registerViaTokenResult.user));
+
+        setSuccess('Account created successfully! Redirecting...');
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 1200);
+        return;
+      }
+
+      setSuccess('Account created. Please check your email to confirm, then sign in.');
     } catch (err) {
       setError(err.message || 'An error occurred');
     } finally {

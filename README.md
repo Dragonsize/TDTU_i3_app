@@ -5,6 +5,19 @@ Current production website [https://aflows.vercel.app/](https://aflows.vercel.ap
 
 A comprehensive web application for managing projects, workflows, team schedules, and collaboration. Built with Next.js, FastAPI, and Supabase.
 
+## Runtime Requirements
+
+- Node.js 20.x (project targets Node 20)
+- npm 10+
+- Python 3.10+ (for backend scripts/tests)
+
+Quick setup:
+
+```bash
+nvm use
+npm install
+```
+
 ## Features
 
 ### 1. **User Authentication**
