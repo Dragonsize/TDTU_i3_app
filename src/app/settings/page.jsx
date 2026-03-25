@@ -56,11 +56,24 @@ export default function SettingsPage() {
 
   const handleLogout = async () => {
     try {
+      // 1. Backend logout
       await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      
+      // 2. Supabase logout
+      const { supabase } = await import("@/lib/supabaseClient");
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+
+      // 3. Clear local cache
       localStorage.removeItem("userProfile");
+      
+      // 4. Redirect
       router.push("/login");
     } catch (err) {
-      setError("Logout failed");
+      console.error("Logout failed:", err);
+      setError("Logout failed, but you are being redirected");
+      router.push("/login");
     }
   };
 

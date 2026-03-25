@@ -857,8 +857,18 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str) 
 
 
 def clear_auth_cookies(response: Response) -> None:
-    response.delete_cookie(key="access_token", path="/")
-    response.delete_cookie(key="refresh_token", path="/")
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        secure=IS_PRODUCTION,
+        samesite="lax"
+    )
+    response.delete_cookie(
+        key="refresh_token",
+        path="/",
+        secure=IS_PRODUCTION,
+        samesite="lax"
+    )
 
 
 def get_current_user(access_token: Optional[str] = Cookie(None)) -> Dict[str, Any]:
