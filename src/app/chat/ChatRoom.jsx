@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -22,7 +23,8 @@ import {
   Paperclip,
   PlusCircle,
   MoreHorizontal,
-  Info
+  Info,
+  CheckCircle2
 } from "lucide-react";
 
 export default function ChatRoom({ user }) {

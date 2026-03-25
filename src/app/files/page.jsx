@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import AppShell from "@/components/AppShell";
@@ -138,6 +139,7 @@ export default function FilesPage() {
         else if (router) router.push("/login");
       })
       .catch(() => { if (router) router.push("/login"); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
