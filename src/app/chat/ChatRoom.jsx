@@ -311,12 +311,15 @@ export default function ChatRoom({ user }) {
     return colors[name.length % colors.length];
   };
 
-  // Fetch projects for assign dropdown
+  // Fetch projects for assign dropdown and quick-create
   useEffect(() => {
-    if (showAssignProjectModal) {
-      fetch("/api/projects").then(res => res.json()).then(setProjects);
+    if (showAssignProjectModal || showNewChannelModal) {
+      fetch("/api/projects", { credentials: "include" })
+        .then(res => res.json())
+        .then(data => setProjects(Array.isArray(data) ? data : []))
+        .catch(console.error);
     }
-  }, [showAssignProjectModal]);
+  }, [showAssignProjectModal, showNewChannelModal]);
 
   // --- Handlers for channel actions ---
   const handleRenameChannel = async (e) => {
@@ -414,6 +417,35 @@ export default function ChatRoom({ user }) {
               </button>
               <h3 className="font-bold text-lg mb-4 text-gray-900 dark:text-white">Start a new chat</h3>
               <form onSubmit={handleCreateChannel}>
+                <div className="mb-4 space-y-3 p-3 bg-gray-50 dark:bg-zinc-800 rounded-lg border border-gray-100 dark:border-zinc-700">
+                  <div className="text-xs font-bold text-gray-500 uppercase">Quick Sync</div>
+                  <select 
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-950 dark:focus:ring-white transition"
+                    onChange={async (e) => {
+                      if (!e.target.value) return;
+                      const projId = e.target.value;
+                      const proj = projects.find(p => p.id === projId);
+                      if (proj) {
+                        setNewChannelName(proj.title || proj.name || "Project Chat");
+                        try {
+                          const res = await fetch(`/api/projects/${projId}/members`, { credentials: "include" });
+                          if (res.ok) {
+                            const members = await res.json();
+                            const toAdd = (Array.isArray(members) ? members : []).filter(m => !selectedUsers.find(u => u.id === m.id) && m.id !== user?.id);
+                            if (toAdd.length > 0) {
+                              setSelectedUsers(prev => [...prev, ...toAdd]);
+                            }
+                          }
+                        } catch (err) { console.error(err); }
+                      }
+                      e.target.value = "";
+                    }}
+                  >
+                    <option value="">Load members from Project...</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.title || p.name}</option>)}
+                  </select>
+                </div>
+                
                 <div className="flex flex-wrap gap-2 mb-3">
                   {selectedUsers.map(u => (
                     <div key={u.id} className="flex items-center gap-1 bg-gray-200 dark:bg-zinc-700 px-3 py-1.5 rounded-full text-sm">

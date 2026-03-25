@@ -2209,9 +2209,14 @@ def delete_deadline(workflow_id: str, deadline_id: str, user=Depends(get_current
 def get_deadlines(days: int = 7, user=Depends(get_current_user)):
     db = require_db_client()
     user_id = user.get("sub")
+    
     max_date = datetime.now(timezone.utc) + timedelta(days=days)
-    response = db.table("workspace_deadlines").select("*, workspaces(name, project_id)").eq("assigned_to", user_id).execute()
-    data = response.data
+    
+    query = db.table("workspace_deadlines").select("*, workspaces(name, project_id)")
+    query = query.eq("assigned_to", user_id)
+        
+    response = query.lte("due_date", max_date.isoformat()).execute()
+    data = response.data or []
     for item in data:
         if item.get("workspaces"):
             item["workflows"] = item["workspaces"]
@@ -2248,7 +2253,33 @@ def get_calendar_events(
         query = query.lt("start_time", end)
 
     response = query.order("start_time", desc=False).execute()
-    return response.data or []
+    events = response.data or []
+
+    # Merge deadlines as events
+    dl_query = db.table("workspace_deadlines").select("*, workspaces(name, project_id)")
+    dl_query = dl_query.eq("assigned_to", user_id)
+        
+    if start:
+        dl_query = dl_query.gte("due_date", start)
+    if end:
+        dl_query = dl_query.lt("due_date", end)
+        
+    dl_resp = dl_query.execute()
+    for dl in dl_resp.data or []:
+        events.append({
+            "id": f"dl-{dl['id']}",
+            "title": f"[Deadline] {dl.get('title')}",
+            "description": f"Workflow: {dl.get('workspaces', {}).get('name')}",
+            "start_time": dl.get("due_date"),
+            "end_time": dl.get("due_date"),
+            "user_id": user_id,
+            "project_id": dl.get("workspaces", {}).get("project_id"),
+            "event_type": "deadline",
+            "color": "#dc2626",
+            "status": dl.get("status", "pending")
+        })
+
+    return events
 
 
 @app.post("/api/calendar/events")
@@ -2411,9 +2442,47 @@ def get_project_team_calendar(
         .execute()
     )
 
+    # Also fetch project deadlines for assigned team members
+    workflows_resp = db.table("workspaces").select("id").eq("project_id", project_id).execute()
+    workflow_ids = [w["id"] for w in workflows_resp.data or []]
+    
+    deadlines = []
+    if workflow_ids and member_ids:
+        # assigned_to is a UUID column, pass only member_ids to avoid PostgREST cast errors
+        dl_resp = (
+            db.table("workspace_deadlines")
+            .select("*, workspaces(name, project_id)")
+            .in_("workspace_id", workflow_ids)
+            .in_("assigned_to", member_ids)
+            .gte("due_date", start_dt.isoformat()[:10]) # use slice to just get YYYY-MM-DD for direct string comparison
+            .lt("due_date", end_dt.isoformat()[:10] + "Z")
+            .execute()
+        )
+        
+        for dl in dl_resp.data or []:
+            assignee = dl.get("assigned_to")
+            matched_user_id = assignee
+            for m in members:
+                if m.get("username") == assignee or m.get("id") == assignee:
+                    matched_user_id = m.get("id")
+                    break
+                    
+            deadlines.append({
+                "id": f"dl-{dl['id']}",
+                "title": f"[Deadline] {dl.get('title')}",
+                "description": f"Workflow: {dl.get('workspaces', {}).get('name')}",
+                "start_time": dl.get("due_date"),
+                "end_time": dl.get("due_date"),
+                "user_id": matched_user_id,
+                "project_id": project_id,
+                "event_type": "deadline",
+                "color": "#dc2626",
+                "status": dl.get("status", "pending")
+            })
+
     return {
         "members": members,
-        "events": events_resp.data or [],
+        "events": (events_resp.data or []) + deadlines,
         "busy_times": busy_resp.data or [],
     }
 
