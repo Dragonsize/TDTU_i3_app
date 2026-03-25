@@ -14,8 +14,11 @@ from typing import Optional, Dict, Any, List
 from collections import defaultdict, deque
 from threading import Lock
 from dotenv import load_dotenv
+import httpx
 from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, UploadFile, Form, Request, Query, WebSocket, WebSocketDisconnect, BackgroundTasks, Header
 import asyncio
+import traceback
+import sys
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -41,7 +44,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field, field_validator, constr
 try:
-    from supabase import create_client, Client
+    from supabase import create_client, Client, ClientOptions
     SUPABASE_IMPORT_ERROR: Optional[str] = None
 except Exception as exc:  # pragma: no cover - runtime environment issue
     create_client = None
@@ -76,15 +79,21 @@ if SUPABASE_IMPORT_ERROR:
 elif not SUPABASE_URL or not SUPABASE_ANON_KEY:
     SUPABASE_CONFIG_ERROR = "Missing Supabase credentials"
 
+# Add global timeout and retry options
+SUPABASE_OPTIONS = ClientOptions(
+    postgrest_client_timeout=45,
+    storage_client_timeout=45
+) if create_client else None
+
 supabase: Optional[Client] = (
-    create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+    create_client(SUPABASE_URL, SUPABASE_ANON_KEY, options=SUPABASE_OPTIONS)
     if create_client and not SUPABASE_CONFIG_ERROR
     else None
 )
 
 # Admin client for confirming users and other admin operations
 supabase_admin: Optional[Client] = (
-    create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, options=SUPABASE_OPTIONS)
     if create_client and SUPABASE_SERVICE_ROLE_KEY and SUPABASE_URL
     else None
 )
@@ -177,6 +186,29 @@ def require_supabase() -> Client:
 
 def require_db_client() -> Client:
     return supabase_admin if supabase_admin else require_supabase()
+
+
+def execute_with_retry(query_builder, max_retries=3):
+    """Executes a Supabase query with retries for network-related errors."""
+    import time
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            return query_builder.execute()
+        except (httpx.ConnectError, httpx.RemoteProtocolError, httpx.ConnectTimeout, httpx.ReadTimeout) as e:
+            last_error = e
+            print(f"Network error on attempt {attempt + 1}: {e}. Retrying...", file=sys.stderr)
+            time.sleep(1.5 * (attempt + 1))  # Progressive backoff
+        except Exception as e:
+            # For other exceptions, if it looks like a connection error, retry
+            msg = str(e).lower()
+            if "connection" in msg or "disconnected" in msg or "dns" in msg or "resolution" in msg:
+                last_error = e
+                print(f"Likely network error on attempt {attempt + 1}: {e}. Retrying...", file=sys.stderr)
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            raise e
+    raise last_error
 
 
 def ensure_profile_upsert(response, fallback_message: str) -> None:
@@ -616,7 +648,7 @@ async def check_deadlines_loop():
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+@app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -1045,14 +1077,15 @@ def list_chat_channels(project_id: Optional[str] = Query(None), user=Depends(get
     # Only channels user has access to (by project membership)
     if project_id:
         require_project_member(user_id, project_id)
-        channels = db.table("chat_channels").select("*").eq("project_id", project_id).eq("is_archived", False).order("created_at").execute()
+        response = execute_with_retry(db.table("chat_channels").select("*").eq("project_id", project_id).eq("is_archived", False).order("created_at"))
+        channels = response.data
     else:
         # 1. Get project IDs user is part of
-        memberships = db.table("project_members").select("project_id").eq("user_id", user_id).execute()
+        memberships = execute_with_retry(db.table("project_members").select("project_id").eq("user_id", user_id))
         project_ids = [m["project_id"] for m in memberships.data]
         
         # 2. Get direct/group channels user is explicitly a member of
-        direct_memberships = db.table("chat_channel_members").select("channel_id").eq("user_id", user_id).execute()
+        direct_memberships = execute_with_retry(db.table("chat_channel_members").select("channel_id").eq("user_id", user_id))
         direct_channel_ids = [m["channel_id"] for m in direct_memberships.data]
         
         # 3. Build query: Channels in my projects OR Channels I am a member of
@@ -1066,7 +1099,7 @@ def list_chat_channels(project_id: Optional[str] = Query(None), user=Depends(get
             return []
             
         query_str = ",".join(or_conditions)
-        channels_resp = db.table("chat_channels").select("*").or_(query_str).eq("is_archived", False).order("last_message_at", desc=True).execute()
+        channels_resp = execute_with_retry(db.table("chat_channels").select("*").or_(query_str).eq("is_archived", False).order("last_message_at", desc=True))
         channels = channels_resp.data
 
     return channels
@@ -1793,7 +1826,7 @@ def logout(response: Response, refresh_token: Optional[str] = Cookie(None)):
 @app.get("/api/profile")
 def get_profile(user=Depends(get_current_user)):
     db = require_db_client()
-    response = db.table("profiles").select("*").eq("id", user.get("sub")).execute()
+    response = execute_with_retry(db.table("profiles").select("*").eq("id", user.get("sub")))
     if not response.data:
         raise HTTPException(status_code=404, detail="Profile not found")
     return {"profile": response.data[0]}
@@ -1834,7 +1867,7 @@ def search_users(q: str, user=Depends(get_current_user)):
 def get_projects(user=Depends(get_current_user)):
     db = require_db_client()
     user_id = user.get("sub")
-    response = db.table("project_members").select("*, projects(*)").eq("user_id", user_id).execute()
+    response = execute_with_retry(db.table("project_members").select("*, projects(*)").eq("user_id", user_id))
     
     project_ids = []
     for item in response.data:
@@ -2451,7 +2484,7 @@ def get_deadlines(days: int = 7, user=Depends(get_current_user)):
     query = db.table("workspace_deadlines").select("*, workspaces(name, project_id)")
     query = query.eq("assigned_to", user_id)
         
-    response = query.lte("due_date", max_date.isoformat()).execute()
+    response = execute_with_retry(query.lte("due_date", max_date.isoformat()))
     data = response.data or []
     for item in data:
         if item.get("workspaces"):
@@ -2933,17 +2966,17 @@ def get_documents(project_id: Optional[str] = None, user=Depends(get_current_use
     user_id = user.get("sub")
     if project_id:
         require_project_member(user_id, project_id)
-        response = db.table("documents").select("*, profiles!uploaded_by(username)").eq("project_id", project_id).execute()
+        response = execute_with_retry(db.table("documents").select("*, profiles!uploaded_by(username)").eq("project_id", project_id))
         return response.data
 
-    memberships = db.table("project_members").select("project_id").eq("user_id", user_id).execute()
+    memberships = execute_with_retry(db.table("project_members").select("project_id").eq("user_id", user_id))
     project_ids = [item["project_id"] for item in memberships.data]
     if project_ids:
-        response = db.table("documents").select("*, profiles!uploaded_by(username)").or_(
+        response = execute_with_retry(db.table("documents").select("*, profiles!uploaded_by(username)").or_(
             f"uploaded_by.eq.{user_id},project_id.in.({','.join(project_ids)})"
-        ).execute()
+        ))
     else:
-        response = db.table("documents").select("*, profiles!uploaded_by(username)").eq("uploaded_by", user_id).execute()
+        response = execute_with_retry(db.table("documents").select("*, profiles!uploaded_by(username)").eq("uploaded_by", user_id))
     return response.data
 
 
