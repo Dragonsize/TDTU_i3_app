@@ -745,7 +745,7 @@ export default function ProjectDetailPage() {
             <div className="flex flex-col gap-2">
               <span className="text-black text-2xl font-normal font-['Habibi']">Status</span>
               <span className="text-black text-xl font-normal font-['Habibi'] text-gray-600">
-                {project.status === "active" ? "In process" : project.status}
+                {project.status === "active" ? "In process" : (project.status === "pause" ? "Pause" : (project.status === "completed" ? "Completed" : project.status))}
               </span>
             </div>
 

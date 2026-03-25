@@ -36,6 +36,7 @@ export default function ProjectPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState(null);
   const [projectColor, setProjectColor] = useState(PROJECT_COLORS[0]);
+  const [projectStatus, setProjectStatus] = useState("active");
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [showManagerDeadlineModal, setShowManagerDeadlineModal] = useState(false);
   const [managerProject, setManagerProject] = useState(null);
@@ -191,16 +192,17 @@ export default function ProjectPage() {
       const res = await fetch(`/api/projects/${projectToEdit.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: projectName, color: projectColor }),
+        body: JSON.stringify({ title: projectName, color: projectColor, status: projectStatus }),
         credentials: "include",
       });
 
       if (res.ok) {
         const updatedProject = await res.json();
-        setProjects(projects.map(p => p.id === updatedProject.id ? { ...p, title: updatedProject.title, color: updatedProject.color } : p));
+        setProjects(projects.map(p => p.id === updatedProject.id ? { ...p, title: updatedProject.title, color: updatedProject.color, status: updatedProject.status } : p));
         setShowEditModal(false);
         setProjectToEdit(null);
         setProjectName("");
+        setProjectStatus("active");
       }
     } catch (error) {
       console.error("Failed to update project", error);
@@ -563,7 +565,7 @@ export default function ProjectPage() {
                     {new Date(project.created_at || Date.now()).toLocaleDateString("en-GB")}
                   </div>
                   <div className="col-span-2 text-left md:text-center text-base sm:text-lg md:text-2xl font-normal font-['Habibi']">
-                    {project.status === "active" ? "In process" : project.status}
+                    {project.status === "active" ? "In process" : (project.status === "pause" ? "Pause" : (project.status === "completed" ? "Completed" : project.status))}
                   </div>
                   <div className="col-span-2 text-left md:text-center text-base sm:text-lg md:text-2xl font-normal font-['Habibi']">{project.deadline_count || 0}</div>
                   <div className="col-span-2 flex justify-start md:justify-end items-center gap-3 sm:gap-4">
@@ -587,6 +589,7 @@ export default function ProjectPage() {
                               setProjectToEdit(project);
                               setProjectName(project.title);
                               setProjectColor(project.color || PROJECT_COLORS[0]);
+                              setProjectStatus(project.status || "active");
                               setShowEditModal(true);
                               setActiveMenu(null);
                             }}
@@ -944,6 +947,18 @@ export default function ProjectPage() {
                   onChange={(e) => setProjectName(e.target.value)}
                   autoFocus
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Project Status</label>
+                <select
+                  className="w-full h-12 bg-zinc-100 rounded-lg px-4 text-lg border border-gray-300 text-black focus:outline-none focus:ring-2 focus:ring-black mb-6"
+                  value={projectStatus}
+                  onChange={(e) => setProjectStatus(e.target.value)}
+                >
+                  <option value="active">In process</option>
+                  <option value="pause">Pause</option>
+                  <option value="completed">Completed</option>
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Project Color</label>

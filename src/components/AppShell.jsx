@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import React from "react";
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 const NAV_ITEMS = [
   { href: "/project", label: "Project" },
@@ -17,6 +18,23 @@ function isActiveNav(activePath, href) {
 }
 
 export default function AppShell({ user, activePath, contentClassName = "", fullHeight = false, children }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const response = await originalFetch(...args);
+      if (response.status === 401 && !window.location.pathname.startsWith('/login')) {
+        router.push('/login');
+      }
+      return response;
+    };
+
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, [router]);
+
   const displayName = user?.full_name || user?.fullname || "";
   const avatarInitial =
     (displayName && displayName.trim()[0]) ||

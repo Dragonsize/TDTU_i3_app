@@ -322,6 +322,13 @@ class CreateProjectRequest(BaseModel):
     color: Optional[str] = "#78716c"
 
 
+class UpdateProjectRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    color: Optional[str] = None
+    status: Optional[str] = None
+
+
 class AddMemberRequest(BaseModel):
     member_username: str = Field(..., min_length=1)
     role: str = "member"
@@ -1751,16 +1758,23 @@ def get_project_details(project_id: str, user=Depends(get_current_user)):
     return project
 
 @app.put("/api/projects/{project_id}")
-def update_project(project_id: str, request: CreateProjectRequest, user=Depends(get_current_user)):
+def update_project(project_id: str, request: UpdateProjectRequest, user=Depends(get_current_user)):
     db = require_db_client()
     require_project_lead(user.get("sub"), project_id)
     
-    updates = {
-        "name": request.title,
-        "description": request.description or "",
-        "color": request.color
-    }
-    
+    updates = {}
+    if request.title is not None:
+        updates["name"] = request.title
+    if request.description is not None:
+        updates["description"] = request.description
+    if request.color is not None:
+        updates["color"] = request.color
+    if request.status is not None:
+        updates["status"] = request.status
+        
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+        
     response = db.table("projects").update(updates).eq("id", project_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Project not found")
