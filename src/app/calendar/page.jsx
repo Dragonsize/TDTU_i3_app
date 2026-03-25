@@ -43,7 +43,11 @@ function formatTimeLabel(timeValue) {
 
   const period = hours >= 12 ? "PM" : "AM";
   const twelveHour = hours % 12 || 12;
-  return `${twelveHour}:${String(minutes).padStart(2, "0")} ${period}`;
+  const baseTimeStr = `${twelveHour}:${String(minutes).padStart(2, "0")} ${period}`;
+  
+  if (hours === 0 && minutes === 0) return `${baseTimeStr} (Midnight)`;
+  if (hours === 12 && minutes === 0) return `${baseTimeStr} (Noon)`;
+  return baseTimeStr;
 }
 
 function TimeDropdown({ value, onChange, dark = false }) {
@@ -716,34 +720,14 @@ export default function CalendarPage() {
     }
   };
 
-  const scheduleMeetingAtSlot = async (slot) => {
+  const scheduleMeetingAtSlot = (slot) => {
     if (!teamProjectId) return;
-    try {
-      const meetingTitle = prompt("Meeting title", "Project sync");
-      if (!meetingTitle) return;
-      const res = await fetch(`/api/projects/${teamProjectId}/calendar/meetings`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          title: meetingTitle,
-          start_time: slot.start_time,
-          end_time: slot.end_time,
-          member_ids: selectedMemberIds,
-          event_type: "meeting",
-          color: "#1a73e8",
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || "Failed to schedule meeting");
-      }
-      await fetchEventsForView(calendarView, currentMonth, selectedDay);
-      await fetchTeamCalendar();
-      setMeetingSlots([]);
-    } catch (err) {
-      setError(err.message || "Failed to schedule meeting.");
-    }
+    setStartTime(slot.start_time.slice(0, 16));
+    setEndTime(slot.end_time.slice(0, 16));
+    setEventProjectId(teamProjectId);
+    setTitle("Project sync");
+    setShowEventModal(true);
+    setMeetingSlots([]);
   };
 
   if (loading) {
@@ -870,10 +854,10 @@ export default function CalendarPage() {
                   ))}
                 </div>
 
-                <div className="grid grid-cols-1 gap-2 mb-2">
+                <div className="grid grid-cols-2 gap-2 mb-2">
                   <div className="rounded-md border border-slate-300 p-2 bg-white">
                     <div className="text-[11px] font-semibold text-slate-500 mb-1">Window start</div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 gap-2">
                       <DateDropdown
                         value={windowStartParts.date}
                         onChange={(nextDate) => setMeetingWindowStart(mergeDateTime(nextDate, windowStartParts.time || "09:00"))}
@@ -888,7 +872,7 @@ export default function CalendarPage() {
                   </div>
                   <div className="rounded-md border border-slate-300 p-2 bg-white">
                     <div className="text-[11px] font-semibold text-slate-500 mb-1">Window end</div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 gap-2">
                       <DateDropdown
                         value={windowEndParts.date}
                         onChange={(nextDate) => setMeetingWindowEnd(mergeDateTime(nextDate, windowEndParts.time || "18:00"))}
@@ -904,13 +888,14 @@ export default function CalendarPage() {
                 </div>
 
                 <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-semibold text-slate-500">Duration (mins):</span>
                   <input
                     type="number"
                     min={15}
                     step={15}
                     value={meetingDuration}
                     onChange={(e) => setMeetingDuration(Number(e.target.value))}
-                    className="w-24 border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900"
+                    className="w-20 border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-900"
                   />
                   <button
                     onClick={findMeetingSlots}
@@ -1196,15 +1181,6 @@ export default function CalendarPage() {
                         className="h-[40px] border border-[#3c4043] bg-[#2d2f31] rounded-md px-1"
                       />
                     </div>
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
-                      className="w-full border border-[#3c4043] bg-[#2d2f31] rounded-md px-3 py-2 text-sm text-white mt-1"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                    </select>
                   </div>
 
                   <div className="mt-5">
