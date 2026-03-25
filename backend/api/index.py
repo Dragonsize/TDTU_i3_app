@@ -1,18 +1,12 @@
-
-
-
 import os
 import re
 import hashlib
 import json
 import ast
-import time
 import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
-from collections import defaultdict, deque
-from threading import Lock
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, UploadFile, Form, Request, Query, WebSocket, WebSocketDisconnect, BackgroundTasks, Header
 import asyncio
@@ -101,25 +95,6 @@ EMOJI_PATTERN = re.compile(
 
 DISALLOWED_USERNAME_CHARS = re.compile(r"[<>\"'`;]|--|/\*|\*/", flags=re.UNICODE)
 
-MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
-ALLOWED_UPLOAD_MIME_TYPES = {
-    "application/pdf",
-    "text/plain",
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/vnd.ms-excel",
-}
-ALLOWED_UPLOAD_EXTENSIONS = {
-    ".pdf", ".txt", ".jpg", ".jpeg", ".png", ".webp", ".doc", ".docx", ".xls", ".xlsx"
-}
-
-RATE_LIMIT_BUCKETS: Dict[str, deque] = defaultdict(deque)
-RATE_LIMIT_LOCK = Lock()
-
 
 def contains_emoji(value: str) -> bool:
     return bool(EMOJI_PATTERN.search(value))
@@ -131,32 +106,6 @@ def contains_disallowed_username_chars(value: str) -> bool:
 
 def contains_control_chars(value: str) -> bool:
     return any(not ch.isprintable() for ch in value)
-
-
-def client_ip(http_request: Request) -> str:
-    if http_request.client and http_request.client.host:
-        return http_request.client.host
-    forwarded = http_request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-    return forwarded or "unknown"
-
-
-def enforce_rate_limit(identifier: str, scope: str, max_requests: int, window_seconds: int) -> None:
-    now = time.time()
-    bucket_key = f"{scope}:{identifier}"
-    cutoff = now - window_seconds
-
-    with RATE_LIMIT_LOCK:
-        bucket = RATE_LIMIT_BUCKETS[bucket_key]
-        while bucket and bucket[0] < cutoff:
-            bucket.popleft()
-        if len(bucket) >= max_requests:
-            raise HTTPException(status_code=429, detail="Too many requests. Please try again later.")
-        bucket.append(now)
-
-
-def sanitize_filename(name: str) -> str:
-    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", (name or "").strip())
-    return cleaned[:180] or f"file_{int(time.time())}.bin"
 
 
 def require_supabase() -> Client:
@@ -484,6 +433,7 @@ class UpdateDocumentAccessRequest(BaseModel):
 class ChatbotRequest(BaseModel):
     question: str = Field(..., min_length=1)
     api_base: Optional[str] = None
+    api_key: Optional[str] = None
     model: Optional[str] = None
 
 
@@ -515,34 +465,297 @@ app.add_middleware(
 
 
 CHATBOT_KNOWLEDGE = {
+    # ── Dự án ──────────────────────────────────────────────────────────────
     "create_project": {
-        "keywords": ["create project", "new project", "tạo dự án", "tạo project"],
-        "response": "To create a new project: open Dashboard, click Create Project, fill in title and description, then submit. You will become the project lead automatically."
+        "keywords": [
+            "create project", "new project", "tạo dự án", "tạo project",
+            "tao du an", "them du an", "thêm dự án", "bắt đầu dự án",
+        ],
+        "response": (
+            "Để tạo dự án mới, bạn vào Dashboard rồi nhấn nút **Tạo dự án**. "
+            "Điền tiêu đề và mô tả, sau đó nhấn Xác nhận. "
+            "Bạn sẽ tự động trở thành trưởng nhóm (Project Lead) của dự án đó."
+        ),
     },
-    "create_workflow": {
-        "keywords": ["create workflow", "tạo workflow", "task breakdown"],
-        "response": "To create a workflow: open a project, select Add Workflow, provide title and description, then assign members and deadlines."
+    "delete_project": {
+        "keywords": [
+            "delete project", "xóa dự án", "xoa du an", "remove project",
+            "hủy dự án", "xóa project",
+        ],
+        "response": (
+            "Chỉ trưởng nhóm mới có thể xóa dự án. "
+            "Vào **Cài đặt dự án → Xóa dự án**, nhập lại tên dự án để xác nhận. "
+            "Lưu ý: toàn bộ dữ liệu liên quan (workflow, deadline, tài liệu) sẽ bị xóa vĩnh viễn."
+        ),
     },
+    "edit_project": {
+        "keywords": [
+            "edit project", "update project", "sửa dự án", "chỉnh sửa dự án",
+            "cập nhật dự án", "doi ten du an", "đổi tên dự án",
+        ],
+        "response": (
+            "Để chỉnh sửa dự án, mở dự án rồi vào **Cài đặt dự án**. "
+            "Bạn có thể thay tiêu đề, mô tả hoặc màu sắc, sau đó nhấn Lưu. "
+            "Chỉ trưởng nhóm mới có quyền chỉnh sửa thông tin dự án."
+        ),
+    },
+
+    # ── Thành viên ─────────────────────────────────────────────────────────
     "add_members": {
-        "keywords": ["add member", "thêm thành viên", "invite"],
-        "response": "To add members: open project settings, choose Add Member, enter a username or email, select role, and confirm. Only project leads can add members."
+        "keywords": [
+            "add member", "thêm thành viên", "invite", "them thanh vien",
+            "mời thành viên", "them nguoi", "thêm người", "add user",
+        ],
+        "response": (
+            "Để thêm thành viên: mở dự án, vào **Quản lý thành viên → Thêm thành viên**, "
+            "nhập tên đăng nhập (username) của người dùng, chọn vai trò (Member hoặc Lead), "
+            "rồi nhấn Xác nhận. Chỉ trưởng nhóm mới có thể thêm thành viên."
+        ),
     },
-    "schedule": {
-        "keywords": ["calendar", "schedule", "busy time", "lịch"],
-        "response": "To manage schedule: open Calendar, add busy time with start and end time, and save. Conflicts are detected automatically when scheduling meetings."
+    "remove_member": {
+        "keywords": [
+            "remove member", "kick member", "xóa thành viên", "xoa thanh vien",
+            "mời ra", "loại thành viên", "remove user",
+        ],
+        "response": (
+            "Trưởng nhóm có thể xóa thành viên bằng cách vào **Quản lý thành viên**, "
+            "nhấn vào biểu tượng xóa bên cạnh tên thành viên, rồi xác nhận. "
+            "Thành viên bị xóa sẽ không còn truy cập được dự án."
+        ),
     },
-    "documents": {
-        "keywords": ["document", "upload", "tài liệu", "file"],
-        "response": "To upload documents: open a project or workflow, choose Upload Document, select the file, and confirm. All project members can access shared files."
+    "change_role": {
+        "keywords": [
+            "change role", "update role", "thay đổi vai trò", "thay doi vai tro",
+            "phân quyền", "nâng quyền", "hạ quyền", "promote", "demote",
+        ],
+        "response": (
+            "Để thay đổi vai trò thành viên, vào **Quản lý thành viên**, "
+            "nhấn vào tên thành viên và chọn vai trò mới (Member / Lead). "
+            "Chỉ trưởng nhóm hiện tại mới có quyền thực hiện thao tác này."
+        ),
     },
+
+    # ── Workflow ────────────────────────────────────────────────────────────
+    "create_workflow": {
+        "keywords": [
+            "create workflow", "tạo workflow", "task breakdown", "them workflow",
+            "thêm workflow", "tạo công việc", "tao cong viec",
+        ],
+        "response": (
+            "Để tạo workflow: mở dự án, nhấn **Thêm Workflow**, điền tiêu đề và mô tả, "
+            "sau đó phân công thành viên và đặt deadline. "
+            "Workflow giúp chia nhỏ công việc trong dự án thành các phần dễ quản lý hơn."
+        ),
+    },
+    "update_workflow": {
+        "keywords": [
+            "update workflow", "edit workflow", "sửa workflow", "cập nhật workflow",
+            "sua workflow", "cap nhat workflow", "doi trang thai workflow",
+            "đổi trạng thái workflow",
+        ],
+        "response": (
+            "Để cập nhật workflow, mở workflow cần sửa rồi nhấn **Chỉnh sửa**. "
+            "Bạn có thể thay tiêu đề, mô tả hoặc trạng thái (Đang chờ / Đang làm / Hoàn thành). "
+            "Lưu lại sau khi chỉnh xong."
+        ),
+    },
+
+    # ── Deadline ────────────────────────────────────────────────────────────
     "deadline": {
-        "keywords": ["deadline", "due date", "hạn chót"],
-        "response": "To add a deadline: open a workflow, choose Add Deadline, set due date, and assign a member. Notifications appear as due dates approach."
+        "keywords": [
+            "deadline", "due date", "hạn chót", "han chot", "ngày hết hạn",
+            "ngay het han", "thêm deadline", "đặt deadline",
+        ],
+        "response": (
+            "Để thêm deadline: mở workflow, nhấn **Thêm Deadline**, đặt tiêu đề, "
+            "chọn ngày hết hạn và phân công cho một thành viên. "
+            "Hệ thống sẽ gửi thông báo tự động khi deadline đến gần. "
+            "Lưu ý: ngày hết hạn không được đặt trong quá khứ."
+        ),
     },
+    "update_deadline_status": {
+        "keywords": [
+            "complete deadline", "hoàn thành deadline", "hoan thanh deadline",
+            "đánh dấu hoàn thành", "danh dau hoan thanh", "cập nhật deadline",
+            "cap nhat deadline", "trạng thái deadline",
+        ],
+        "response": (
+            "Để cập nhật trạng thái deadline, mở deadline cần thay đổi và chọn trạng thái mới: "
+            "**Đang chờ (pending)**, **Đang làm (in_progress)** hoặc **Hoàn thành (completed)**. "
+            "Chỉ thành viên được phân công hoặc trưởng nhóm mới có thể cập nhật."
+        ),
+    },
+
+    # ── Lịch & Họp ─────────────────────────────────────────────────────────
+    "schedule": {
+        "keywords": [
+            "calendar", "schedule", "busy time", "lịch", "lich",
+            "thêm lịch", "them lich", "xem lịch", "quản lý lịch",
+        ],
+        "response": (
+            "Để quản lý lịch, mở mục **Lịch (Calendar)**, nhấn **Thêm thời gian bận** "
+            "và điền thời gian bắt đầu, kết thúc. "
+            "Khi đặt cuộc họp, hệ thống tự động phát hiện xung đột lịch giữa các thành viên."
+        ),
+    },
+    "schedule_meeting": {
+        "keywords": [
+            "schedule meeting", "tạo cuộc họp", "dat cuoc hop", "đặt cuộc họp",
+            "book meeting", "meeting", "cuộc họp", "cuoc hop", "họp nhóm",
+        ],
+        "response": (
+            "Để tạo cuộc họp: vào **Lịch**, nhấn **Tạo cuộc họp**, điền tiêu đề, "
+            "chọn thời gian bắt đầu/kết thúc và chọn thành viên tham dự. "
+            "Hệ thống sẽ kiểm tra xung đột lịch và gợi ý khung giờ phù hợp cho cả nhóm."
+        ),
+    },
+    "find_free_slot": {
+        "keywords": [
+            "find slot", "free time", "thời gian rảnh", "thoi gian ranh",
+            "khung giờ trống", "gợi ý lịch họp", "goi y lich hop",
+        ],
+        "response": (
+            "Tính năng **Tìm khung giờ trống** tự động so sánh lịch bận của tất cả thành viên "
+            "và gợi ý các khung giờ phù hợp. "
+            "Vào **Lịch → Tìm khung giờ**, chọn khoảng ngày, thời lượng và thành viên cần tham dự."
+        ),
+    },
+
+    # ── Tài liệu ────────────────────────────────────────────────────────────
+    "documents": {
+        "keywords": [
+            "document", "upload", "tài liệu", "tai lieu", "file",
+            "tải lên", "tai len", "đính kèm", "dinh kem",
+        ],
+        "response": (
+            "Để tải tài liệu lên: mở dự án hoặc workflow, nhấn **Tải lên tài liệu**, "
+            "chọn file từ máy tính rồi xác nhận. "
+            "Tất cả thành viên trong dự án đều có thể xem và tải xuống tài liệu dùng chung."
+        ),
+    },
+    "download_document": {
+        "keywords": [
+            "download document", "tải xuống", "tai xuong", "download file",
+            "xem tài liệu", "xem tai lieu",
+        ],
+        "response": (
+            "Để tải xuống tài liệu: mở mục **Tài liệu** trong dự án hoặc workflow, "
+            "tìm file cần tải và nhấn biểu tượng **Tải xuống**. "
+            "Link tải sẽ hết hạn sau 15 phút vì lý do bảo mật."
+        ),
+    },
+    "delete_document": {
+        "keywords": [
+            "delete document", "xóa tài liệu", "xoa tai lieu", "remove file",
+            "xóa file",
+        ],
+        "response": (
+            "Để xóa tài liệu: mở mục **Tài liệu**, nhấn vào biểu tượng xóa bên cạnh file. "
+            "Chỉ người đã tải lên hoặc trưởng nhóm mới có thể xóa. "
+            "Tài liệu bị xóa sẽ không thể khôi phục."
+        ),
+    },
+
+    # ── Tài khoản ───────────────────────────────────────────────────────────
+    "register": {
+        "keywords": [
+            "register", "sign up", "đăng ký", "dang ky", "tạo tài khoản",
+            "tao tai khoan", "tao account",
+        ],
+        "response": (
+            "Để đăng ký tài khoản, truy cập trang chủ và nhấn **Đăng ký**. "
+            "Điền email, mật khẩu và tên đầy đủ, sau đó xác nhận qua email. "
+            "Sau khi xác thực, bạn có thể đăng nhập và bắt đầu tạo dự án."
+        ),
+    },
+    "login": {
+        "keywords": [
+            "login", "sign in", "đăng nhập", "dang nhap", "log in",
+            "vao tai khoan", "vào tài khoản",
+        ],
+        "response": (
+            "Để đăng nhập, nhấn **Đăng nhập** ở trang chủ, nhập email và mật khẩu. "
+            "Nếu quên mật khẩu, nhấn **Quên mật khẩu** để đặt lại qua email."
+        ),
+    },
+    "logout": {
+        "keywords": [
+            "logout", "sign out", "đăng xuất", "dang xuat", "thoat tai khoan",
+            "thoát tài khoản",
+        ],
+        "response": (
+            "Để đăng xuất, nhấn vào **ảnh đại diện / tên tài khoản** ở góc trên bên phải "
+            "và chọn **Đăng xuất**. Phiên làm việc sẽ kết thúc ngay lập tức."
+        ),
+    },
+    "update_profile": {
+        "keywords": [
+            "update profile", "edit profile", "cập nhật hồ sơ", "cap nhat ho so",
+            "sửa thông tin", "doi ten", "đổi tên", "thay avatar", "thay anh dai dien",
+        ],
+        "response": (
+            "Để cập nhật hồ sơ, nhấn vào **ảnh đại diện → Cài đặt tài khoản**. "
+            "Bạn có thể thay tên hiển thị, username hoặc email, sau đó nhấn **Lưu thay đổi**."
+        ),
+    },
+    "forgot_password": {
+        "keywords": [
+            "forgot password", "reset password", "quên mật khẩu", "quen mat khau",
+            "lấy lại mật khẩu", "lay lai mat khau", "đổi mật khẩu",
+        ],
+        "response": (
+            "Nếu quên mật khẩu, ở trang đăng nhập nhấn **Quên mật khẩu**, "
+            "nhập địa chỉ email đã đăng ký. "
+            "Hệ thống sẽ gửi link đặt lại mật khẩu, link có hiệu lực trong 24 giờ."
+        ),
+    },
+
+    # ── Thông báo ───────────────────────────────────────────────────────────
+    "notifications": {
+        "keywords": [
+            "notification", "thông báo", "thong bao", "chuông", "alert",
+            "nhận thông báo", "nhan thong bao",
+        ],
+        "response": (
+            "Thông báo xuất hiện ở biểu tượng chuông góc trên bên phải. "
+            "Bạn sẽ nhận thông báo khi: được thêm vào dự án, có deadline sắp đến, "
+            "hoặc khi có thay đổi quan trọng trong dự án bạn tham gia. "
+            "Nhấn vào thông báo để đánh dấu đã đọc."
+        ),
+    },
+
+    # ── Vai trò & Quyền hạn ─────────────────────────────────────────────────
+    "roles_permissions": {
+        "keywords": [
+            "role", "permission", "quyền", "quyen", "vai trò", "vai tro",
+            "lead", "member", "trưởng nhóm", "truong nhom", "quyền hạn",
+        ],
+        "response": (
+            "Hệ thống có 2 vai trò chính:\n"
+            "• **Trưởng nhóm (Lead)**: tạo/xóa dự án, thêm/xóa thành viên, chỉnh sửa mọi thứ.\n"
+            "• **Thành viên (Member)**: xem dự án, tạo workflow, thêm deadline và tải tài liệu.\n"
+            "Trưởng nhóm có thể nâng/hạ vai trò thành viên bất kỳ lúc nào."
+        ),
+    },
+
+    # ── Hướng dẫn chung ─────────────────────────────────────────────────────
     "general": {
-        "keywords": ["help", "guide", "how to", "hướng dẫn"],
-        "response": "Ask about creating projects, workflows, members, schedules, documents, or deadlines."
-    }
+        "keywords": [
+            "help", "guide", "how to", "hướng dẫn", "huong dan",
+            "giúp", "giup", "cần hỗ trợ", "can ho tro", "tôi cần giúp đỡ",
+        ],
+        "response": (
+            "Xin chào! Tôi có thể hỗ trợ bạn về:\n"
+            "• Tạo / chỉnh sửa / xóa **dự án**\n"
+            "• Quản lý **thành viên** và vai trò\n"
+            "• Tạo và cập nhật **workflow**\n"
+            "• Thêm và theo dõi **deadline**\n"
+            "• Quản lý **lịch** và đặt **cuộc họp**\n"
+            "• Tải lên / tải xuống **tài liệu**\n"
+            "• Cài đặt **tài khoản** và thông báo\n\n"
+            "Hãy đặt câu hỏi cụ thể để tôi hỗ trợ bạn tốt hơn nhé!"
+        ),
+    },
 }
 
 
@@ -556,6 +769,16 @@ def find_best_match(question: str) -> str:
 
 
 def call_external_chatbot(question: str, api_key: str, api_base: str, model: str) -> str:
+    if not api_base:
+        raise HTTPException(
+            status_code=500,
+            detail="CHATBOT_API_BASE is not configured. Set it in your .env file (e.g. https://api.openai.com/v1 or https://api.featherless.ai/v1)",
+        )
+    if not api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="No API key provided. Set CHATBOT_API_KEY in your .env file.",
+        )
     url = f"{api_base.rstrip('/')}/chat/completions"
     payload = {
         "model": model,
@@ -1331,7 +1554,6 @@ class RegisterDirectRequest(BaseModel):
 @app.post("/api/auth/register-direct")
 def register_direct(request: RegisterDirectRequest, response: Response, http_request: Request):
     """Register a new user directly with email/password and create backend session"""
-    enforce_rate_limit(client_ip(http_request), "auth_register_direct", 10, 300)
     try:
         db = require_supabase()
         # Use regular client to sign up the user
@@ -1405,7 +1627,6 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
 @app.post("/api/auth/register")
 def register(request: RegisterRequest, response: Response, http_request: Request):
     """Register a new user and create backend session from Supabase token"""
-    enforce_rate_limit(client_ip(http_request), "auth_register", 20, 300)
     try:
         db = require_supabase()
         # Verify the Supabase access token
@@ -1466,7 +1687,6 @@ def register(request: RegisterRequest, response: Response, http_request: Request
 @app.post("/api/auth/session")
 def create_session(request: AuthSessionRequest, response: Response, http_request: Request):
     """Create backend session from Supabase access token"""
-    enforce_rate_limit(client_ip(http_request), "auth_session", 30, 300)
     try:
         db = require_supabase()
         user_response = db.auth.get_user(request.access_token)
@@ -1511,7 +1731,6 @@ def create_session(request: AuthSessionRequest, response: Response, http_request
 
 @app.post("/api/auth/refresh")
 def refresh_session(response: Response, http_request: Request, refresh_token: Optional[str] = Cookie(None)):
-    enforce_rate_limit(client_ip(http_request), "auth_refresh", 60, 300)
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token")
     payload = verify_token(refresh_token)
@@ -2614,37 +2833,19 @@ def update_document_access(document_id: str, request: UpdateDocumentAccessReques
 
 @app.post("/api/documents/upload")
 async def upload_document_file(
-    http_request: Request,
     file: UploadFile = File(...),
     project_id: Optional[str] = Form(None),
-    user=Depends(get_current_user),
+    user=Depends(get_current_user)
 ):
     db = require_db_client()
     user_id = user.get("sub")
-    request_ip = client_ip(http_request) if http_request else user_id
-    enforce_rate_limit(f"{user_id}:{request_ip}", "documents_upload", 30, 300)
-
     if project_id:
         require_project_member(user_id, project_id)
     
     try:
-        original_name = file.filename or "file.bin"
-        safe_name = sanitize_filename(original_name)
-        lowered_name = safe_name.lower()
-        ext = os.path.splitext(lowered_name)[1]
-        mime_type = (file.content_type or "application/octet-stream").lower()
-
-        if ext not in ALLOWED_UPLOAD_EXTENSIONS:
-            raise HTTPException(status_code=400, detail="Unsupported file extension")
-        if mime_type not in ALLOWED_UPLOAD_MIME_TYPES:
-            raise HTTPException(status_code=400, detail="Unsupported file type")
-
-        file_content = await file.read(MAX_UPLOAD_SIZE_BYTES + 1)
-        if len(file_content) > MAX_UPLOAD_SIZE_BYTES:
-            raise HTTPException(status_code=413, detail="File too large (max 10MB)")
-
+        file_content = await file.read()
         folder = project_id or f"private/{user_id}"
-        file_path = f"{folder}/{datetime.now().timestamp()}-{safe_name}"
+        file_path = f"{folder}/{datetime.now().timestamp()}-{file.filename}"
 
         upload_response = db.storage.from_("documents").upload(
             path=file_path,
@@ -2658,7 +2859,7 @@ async def upload_document_file(
 
         doc_response = db.table("documents").insert({
             "project_id": project_id,
-            "filename": safe_name,
+            "filename": file.filename,
             "file_url": file_path,
             "file_type": file_type,
             "file_size": file_size,
@@ -2669,10 +2870,8 @@ async def upload_document_file(
             raise HTTPException(status_code=500, detail="Failed to save document metadata")
 
         return doc_response.data[0]
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to upload file") from e
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/documents/{document_id}/download")
@@ -2715,8 +2914,6 @@ def get_document_download_url(document_id: str, user=Depends(get_current_user)):
 @app.post("/api/notifications/create")
 def create_notification(request: CreateNotificationRequest, user=Depends(get_current_user)):
     db = require_db_client()
-    if request.user_id != user.get("sub"):
-        raise HTTPException(status_code=403, detail="Cannot create notifications for other users")
     response = db.table("notifications").insert({
         "user_id": request.user_id,
         "type": request.type,
@@ -2746,15 +2943,14 @@ def mark_notification_read(notification_id: str, user=Depends(get_current_user))
 @app.post("/api/chatbot")
 def chatbot(
     request: ChatbotRequest,
-    http_request: Request,
     user=Depends(get_current_user),
     x_chatbot_api_key: Optional[str] = Header(default=None, alias="x-chatbot-api-key"),
 ):
-    enforce_rate_limit(f"{user.get('sub')}:{client_ip(http_request)}", "chatbot", 50, 300)
     question = sanitize_chat_input(request.question)
-    # Priority: user-provided key (Settings) > server default key > Google AI Studio default key.
-    api_key = (x_chatbot_api_key or CHATBOT_API_KEY or GOOGLE_AI_STUDIO_API_KEY or "").strip()
-    api_base = (request.api_base or CHATBOT_API_BASE).strip().rstrip("/")
+    # Priority: request body key > header key > env CHATBOT_API_KEY > env GOOGLE_AI_STUDIO_API_KEY
+    api_key = (request.api_key or x_chatbot_api_key or CHATBOT_API_KEY or GOOGLE_AI_STUDIO_API_KEY or "").strip()
+    # Priority: request body api_base > env CHATBOT_API_BASE
+    api_base = (request.api_base or CHATBOT_API_BASE or "").strip().rstrip("/")
     model = (request.model or CHATBOT_MODEL).strip()
 
     if api_key:
@@ -2779,12 +2975,14 @@ def chatbot(
                 }
             raise
 
+    # No API key configured — fall back to built-in rules matcher
     response = find_best_match(question)
     return {
         "question": question,
         "answer": response,
         "provider": "built-in",
         "model": "rules",
+        "warning": "No API key configured. Set CHATBOT_API_KEY and CHATBOT_API_BASE in your .env file to use an external provider.",
     }
 
 
