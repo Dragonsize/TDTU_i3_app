@@ -3,6 +3,65 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+import { 
+  BarChart3, 
+  Layout, 
+  Users, 
+  CalendarDays, 
+  ArrowRight, 
+  CheckCircle2, 
+  Shield, 
+  Zap,
+  LayoutGrid,
+  MessageSquare,
+  FileText,
+  Flag,
+  Gauge,
+  ChevronRight
+} from 'lucide-react';
+import AppShell from '@/components/AppShell';
+
+const FEATURE_CARDS = [
+  {
+    title: 'Project Orchestration',
+    description: 'Manage workspaces, members, and track complex progress.',
+    href: '/signup',
+    icon: LayoutGrid,
+    iconBg: 'bg-blue-100 dark:bg-blue-900/30',
+    iconColor: 'text-blue-600 dark:text-blue-400',
+    linkColor: 'text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300',
+    linkBg: 'hover:bg-blue-50 dark:hover:bg-blue-900/20',
+  },
+  {
+    title: 'Visual Scheduling',
+    description: 'Create events, schedules, and team meeting planning.',
+    href: '/signup',
+    icon: CalendarDays,
+    iconBg: 'bg-emerald-100 dark:bg-emerald-900/30',
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
+    linkColor: 'text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300',
+    linkBg: 'hover:bg-emerald-50 dark:hover:bg-emerald-900/20',
+  },
+  {
+    title: 'Unified Communication',
+    description: 'Coordinate in channels and direct messages seamlessly.',
+    href: '/signup',
+    icon: MessageSquare,
+    iconBg: 'bg-amber-100 dark:bg-amber-900/30',
+    iconColor: 'text-amber-600 dark:text-amber-400',
+    linkColor: 'text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300',
+    linkBg: 'hover:bg-amber-50 dark:hover:bg-amber-900/20',
+  },
+];
+
+const METRIC_ITEMS = [
+  { label: 'Active Teams', value: '12k+', icon: Users, color: 'text-blue-500' },
+  { label: 'Messages Synced', value: '45m+', icon: MessageSquare, color: 'text-amber-500' },
+  { label: 'Files Managed', value: '1.2m+', icon: FileText, color: 'text-sky-500' },
+  { label: 'Uptime Protocol', value: '99.9%', icon: Shield, color: 'text-emerald-500' },
+  { label: 'System Velocity', value: '+340%', icon: Zap, color: 'text-purple-500' },
+];
+
 export default function Home() {
   const router = useRouter();
   const [checkingSession, setCheckingSession] = useState(true);
@@ -27,195 +86,102 @@ export default function Home() {
 
   if (checkingSession) {
     return (
-      <div className="session-splash">
-        <div className="session-splash-card">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gray-950"></div>
-              <span className="text-lg font-bold text-neutral-950 font-['Arimo']">A+ Flow</span>
-            </div>
-            <div className="session-splash-dot"></div>
-          </div>
-          <p className="text-sm text-gray-600 font-['Arimo'] mb-4">
-            Warming up your workspace...
-          </p>
-          <div className="session-splash-bar"></div>
+      <div className="w-full min-h-screen bg-white dark:bg-neutral-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-6">
+          <div className="w-12 h-12 bg-gray-950 dark:bg-white rounded-xl animate-pulse"></div>
+          <p className="text-sm font-bold text-gray-500 uppercase tracking-widest animate-pulse">A+ Flow</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full min-h-screen bg-white">
-      {/* Header */}
-      <header className="w-full h-14 md:h-16 bg-white/60 backdrop-blur-sm border-b border-black/10 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto h-full px-4 md:px-6 lg:px-8 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-1.5 md:gap-2">
-            <div className="w-6 md:w-7 h-6 md:h-7 bg-gray-950 rounded-lg"></div>
-            <span className="text-lg md:text-xl font-bold text-neutral-950 font-['Arimo']">A+ Flow</span>
+    <AppShell contentClassName="flex-1 bg-gray-50/50 dark:bg-neutral-950/50 min-h-screen transition-colors duration-300">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 md:py-20">
+        
+        {/* Hero Area Mirroring Dashboard Header */}
+        <div className="mb-12 text-center md:text-left">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-full border border-blue-100 dark:border-blue-900/30 mb-6">
+            <span className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></span>
+            <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.2em]">Platform Evolution v2.43 Live</span>
           </div>
-
-          {/* Auth Buttons */}
-          <div className="flex items-center gap-2 md:gap-3">
-            <Link href="/login" className="px-4 md:px-6 h-9 md:h-10 bg-zinc-300 rounded-full flex items-center justify-center text-black text-sm md:text-base font-normal font-['Arimo'] hover:bg-zinc-400 transition-colors duration-200">
-              Login
-            </Link>
-            <Link href="/signup" className="px-4 md:px-6 h-9 md:h-10 bg-zinc-300 rounded-full flex items-center justify-center text-black text-sm md:text-base font-normal font-['Arimo'] hover:bg-zinc-400 transition-colors duration-200">
-              Sign up
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="w-full py-12 md:py-20 lg:py-32 px-4 md:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col items-center">
-          {/* Badge */}
-          <div className="mb-6 md:mb-8 px-3 md:px-4 py-1.5 md:py-2 bg-gray-100 rounded-full border border-black/0">
-            <span className="text-gray-950 text-xs md:text-sm font-normal font-['Arimo']">🎉 New: AI-powered features coming soon</span>
-          </div>
-
-          {/* Title */}
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-neutral-950 text-center font-['Inter'] leading-tight mb-3 md:mb-4">
-            Team Work Management System
+          <h1 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight leading-[0.9] flex flex-col md:flex-row items-center gap-4 mb-4">
+            <Gauge className="w-10 h-10 md:w-16 md:h-16 text-blue-500 animate-pulse" />
+            Workspace Precision
           </h1>
-
-          {/* Subtitle */}
-          <div className="text-3xl md:text-4xl lg:text-5xl font-semibold text-blue-600 text-center font-['Arimo'] leading-tight mb-8 md:mb-12">
-            Smart Scheduling
-          </div>
-
-          {/* Description */}
-          <p className="text-base md:text-lg text-gray-600 text-center font-['Arimo'] leading-relaxed max-w-2xl mb-10 md:mb-14">
-            Everything you need for managing projects, collaborating with teams, and organizing your workflow in one unified platform.
+          <p className="text-gray-500 dark:text-gray-400 text-base md:text-lg max-w-2xl mt-4 leading-relaxed font-medium">
+            Redefining team orchestration for high-performance units. Experience the same precision before and after you sign in.
           </p>
-
-          {/* CTA Button */}
-          <Link href="/login" className="w-full sm:w-auto px-8 md:px-12 h-12 md:h-14 lg:h-16 bg-gray-950 rounded-lg flex items-center justify-center gap-2 md:gap-3 hover:bg-gray-800 transition-colors duration-200 shadow-lg hover:shadow-xl">
-            <span className="text-white text-lg md:text-xl font-semibold font-['Arimo']">Get Started</span>
-            <svg className="w-5 md:w-6 h-5 md:h-6" fill="none" stroke="white" viewBox="0 0 24 24" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </Link>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="w-full py-16 md:py-24 lg:py-32 px-4 md:px-6 lg:px-8 bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-7xl mx-auto">
-          {/* Section Header */}
-          <div className="text-center mb-12 md:mb-16 lg:mb-20">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-neutral-950 font-['Arimo'] leading-tight mb-4 md:mb-6">
-              Everything you need for seamless teamwork
-            </h2>
-            <p className="text-base md:text-lg text-gray-600 font-['Arimo'] leading-relaxed max-w-3xl mx-auto">
-              From project planning to real-time collaboration, our platform provides all the tools you need to organize, execute, and deliver projects successfully.
-            </p>
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center md:justify-start gap-4">
+            <Link href="/signup" className="px-8 py-4 bg-gray-950 dark:bg-white text-white dark:text-black rounded-2xl text-sm font-black uppercase tracking-widest hover:scale-105 transition-all active:scale-95 shadow-xl">
+              Start Free Trial
+            </Link>
+            <Link href="/login" className="px-8 py-4 bg-white dark:bg-neutral-900 border border-gray-100 dark:border-white/10 text-gray-900 dark:text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-neutral-800 transition-all active:scale-95">
+              Sign In
+            </Link>
           </div>
+        </div>
 
-          {/* Feature Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 md:gap-6 lg:gap-8">
-            {/* Kanban Board */}
-            <div className="group bg-white rounded-2xl border border-gray-200 p-6 md:p-8 hover:shadow-lg hover:border-blue-200 transition-all duration-300">
-              <div className="flex items-start justify-between mb-4 md:mb-6">
-                <div className="w-10 md:w-12 h-10 md:h-12 border-2 border-blue-600 rounded-lg group-hover:bg-blue-50 transition-colors"></div>
-                <span className="px-2 md:px-3 py-1 md:py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs md:text-sm font-semibold font-['Arimo']">
-                  Core
-                </span>
+        {/* Marketing Metrics Row (Mirroring Stat Items) */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-12">
+          {METRIC_ITEMS.map(({ label, value, icon: Icon, color }) => (
+            <div key={label} className="bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm p-4 hover:shadow-md transition-all group">
+              <div className="flex items-center gap-2 mb-2">
+                <Icon className={`w-4 h-4 ${color} transition-transform group-hover:scale-110`} />
+                <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest truncate">{label}</span>
               </div>
-              <h3 className="text-lg md:text-xl font-bold text-neutral-950 font-['Arimo'] mb-2 md:mb-3">
-                Kanban Board
-              </h3>
-              <p className="text-sm md:text-base text-gray-600 font-['Arimo'] leading-relaxed">
-                Visualize your entire workflow with intuitive drag-and-drop task management. Move items seamlessly from &quot;To Do&quot; through &quot;In Progress&quot; to &quot;Done&quot;.
-              </p>
+              <div className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{value}</div>
             </div>
+          ))}
+        </div>
 
-            {/* Team Collaboration */}
-            <div className="group bg-white rounded-2xl border border-gray-200 p-6 md:p-8 hover:shadow-lg hover:border-purple-200 transition-all duration-300">
-              <div className="flex items-start justify-between mb-4 md:mb-6">
-                <div className="w-10 md:w-12 h-10 md:h-12 flex gap-1.5 md:gap-2">
-                  <div className="flex-1 h-10 md:h-12 border-2 border-purple-600 rounded-lg group-hover:bg-purple-50 transition-colors"></div>
-                  <div className="flex-1 h-10 md:h-12 border-2 border-purple-600 rounded-lg group-hover:bg-purple-50 transition-colors"></div>
+        {/* Feature Cards Grid (Mirroring Nav Cards) */}
+        <div className="bg-white dark:bg-neutral-900 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-white/10 overflow-hidden mb-12">
+          <div className="px-8 py-6 border-b border-gray-100 dark:border-white/5 bg-gray-50/30 dark:bg-neutral-800/20">
+            <h3 className="text-sm font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.3em]">Core Platform Features</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 dark:divide-white/5">
+            {FEATURE_CARDS.map(({ title, description, href, icon: Icon, iconBg, iconColor, linkColor, linkBg }) => (
+              <div key={title} className="p-8 hover:bg-gray-50/50 dark:hover:bg-white/5 transition-all group">
+                <div className={`w-12 h-12 ${iconBg} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                  <Icon className={`w-6 h-6 ${iconColor}`} />
                 </div>
-                <span className="px-2 md:px-3 py-1 md:py-1.5 bg-purple-100 text-purple-700 rounded-full text-xs md:text-sm font-semibold font-['Arimo']">
-                  Core
-                </span>
+                <h3 className="text-lg font-black text-gray-900 dark:text-white mb-2 uppercase tracking-tight">{title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-6 font-medium">{description}</p>
+                <Link
+                  href={href}
+                  className={`inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest ${linkColor} ${linkBg} rounded-xl px-4 py-2.5 transition-all`}
+                >
+                  Join Flow <ChevronRight className="w-4 h-4" />
+                </Link>
               </div>
-              <h3 className="text-lg md:text-xl font-bold text-neutral-950 font-['Arimo'] mb-2 md:mb-3">
-                Team Collaboration
-              </h3>
-              <p className="text-sm md:text-base text-gray-600 font-['Arimo'] leading-relaxed">
-                Work together in real-time with built-in comments, assignments, and activity tracking. Keep everyone on the same page.
-              </p>
-            </div>
-
-            {/* Analytics & Insights */}
-            <div className="group bg-white rounded-2xl border border-gray-200 p-6 md:p-8 hover:shadow-lg hover:border-green-200 transition-all duration-300">
-              <div className="flex items-start justify-between mb-4 md:mb-6">
-                <div className="w-10 md:w-12 h-10 md:h-12 border-2 border-green-600 rounded-xl group-hover:bg-green-50 transition-colors"></div>
-                <span className="px-2 md:px-3 py-1 md:py-1.5 bg-green-100 text-green-700 rounded-full text-xs md:text-sm font-semibold font-['Arimo']">
-                  Pro
-                </span>
-              </div>
-              <h3 className="text-lg md:text-xl font-bold text-neutral-950 font-['Arimo'] mb-2 md:mb-3">
-                Analytics & Insights
-              </h3>
-              <p className="text-sm md:text-base text-gray-600 font-['Arimo'] leading-relaxed">
-                Track progress with beautiful dashboards and reports. Monitor team productivity, identify bottlenecks, and optimize workflows.
-              </p>
-            </div>
-
-            {/* Smart Scheduling */}
-            <div className="group bg-white rounded-2xl border border-gray-200 p-6 md:p-8 hover:shadow-lg hover:border-orange-200 transition-all duration-300">
-              <div className="flex items-start justify-between mb-4 md:mb-6">
-                <div className="w-10 md:w-12 h-10 md:h-12 border-2 border-orange-600 rounded-lg group-hover:bg-orange-50 transition-colors flex items-center justify-center">
-                  <div className="w-6 md:w-7 h-6 md:h-7 border-2 border-orange-600 rounded"></div>
-                </div>
-                <span className="px-2 md:px-3 py-1 md:py-1.5 bg-orange-100 text-orange-700 rounded-full text-xs md:text-sm font-semibold font-['Arimo']">
-                  Smart
-                </span>
-              </div>
-              <h3 className="text-lg md:text-xl font-bold text-neutral-950 font-['Arimo'] mb-2 md:mb-3">
-                Smart Scheduling
-              </h3>
-              <p className="text-sm md:text-base text-gray-600 font-['Arimo'] leading-relaxed">
-                Intelligent scheduling with deadline management, calendar integration, and automated reminders to keep projects on track.
-              </p>
-            </div>
+            ))}
           </div>
         </div>
-      </section>
 
-      {/* Footer */}
-      <footer className="w-full border-t border-gray-200 bg-white py-8 md:py-12 px-4 md:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6 md:gap-8">
-            {/* Left - Brand */}
-            <div className="flex items-center gap-2">
-              <div className="w-6 md:w-7 h-6 md:h-7 bg-gray-950 rounded-lg"></div>
-              <span className="text-base md:text-lg font-bold text-neutral-950 font-['Arimo']">A+ Flow</span>
-            </div>
-
-            {/* Center - Copyright */}
-            <p className="text-gray-500 text-xs md:text-sm font-['Arimo']">© 2026 A+ Flow. All rights reserved.</p>
-
-            {/* Right - Links */}
-            <div className="flex items-center gap-4 md:gap-6">
-              <Link href="#" className="text-gray-500 text-xs md:text-sm font-['Arimo'] hover:text-gray-950 transition-colors duration-200">
-                Privacy Policy
-              </Link>
-              <Link href="#" className="text-gray-500 text-xs md:text-sm font-['Arimo'] hover:text-gray-950 transition-colors duration-200">
-                Terms
-              </Link>
-              <Link href="#" className="text-gray-500 text-xs md:text-sm font-['Arimo'] hover:text-gray-950 transition-colors duration-200">
-                Contact
-              </Link>
-            </div>
+        {/* Social Proof / Callout (Mirroring Upcoming Items section but with marketing content) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-neutral-900 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-white/10 p-8 flex flex-col justify-center items-center text-center group transition-all hover:border-blue-200 dark:hover:border-blue-900/50">
+             <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-3xl flex items-center justify-center mb-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+                <Users className="w-8 h-8" />
+             </div>
+             <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase mb-3 tracking-tight">Built for Teams</h4>
+             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-xs">
+               From startups to Fortune 500s, A+ Flow scales with your team&apos;s ambition.
+             </p>
+          </div>
+          <div className="bg-white dark:bg-neutral-900 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-white/10 p-8 flex flex-col justify-center items-center text-center group transition-all hover:border-emerald-200 dark:hover:border-emerald-900/50">
+             <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-3xl flex items-center justify-center mb-6 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
+                <CheckCircle2 className="w-8 h-8" />
+             </div>
+             <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase mb-3 tracking-tight">Security First</h4>
+             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-xs">
+               Enterprise-grade encryption and protocol management for your mission-critical data.
+             </p>
           </div>
         </div>
-      </footer>
-    </div>
+
+      </div>
+    </AppShell>
   );
 }
