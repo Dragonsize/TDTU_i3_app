@@ -41,6 +41,7 @@ CREATE TABLE public.calendar_events (
   event_type text DEFAULT 'meeting'::text,
   color text,
   created_at timestamp with time zone DEFAULT now(),
+  status text DEFAULT 'pending'::text,
   CONSTRAINT calendar_events_pkey PRIMARY KEY (id),
   CONSTRAINT calendar_events_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
   CONSTRAINT calendar_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
@@ -165,9 +166,30 @@ CREATE TABLE public.workspaces (
   position integer DEFAULT 0,
   created_at timestamp with time zone DEFAULT now(),
   description text,
-  members uuid[] DEFAULT '{}'::uuid[],
+  members ARRAY DEFAULT '{}'::uuid[],
   creator_id uuid NOT NULL,
+  parent_id uuid,
   CONSTRAINT workspaces_pkey PRIMARY KEY (id),
   CONSTRAINT workspaces_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id),
+  CONSTRAINT workspaces_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.workspaces(id),
   CONSTRAINT workspaces_creator_id_fkey FOREIGN KEY (creator_id) REFERENCES public.profiles(id)
 );
+
+-- Security: Enable Row Level Security (RLS) on all tables to prevent direct frontend access via Anon Key.
+-- Since our FastAPI backend uses the Service Role Key (supabase_admin), it bypasses RLS and continues to function normally, 
+-- while effectively blocking the frontend from executing any direct unwanted queries using the Anon Key.
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.project_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.workspaces ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.workspace_assignments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.workspace_deadlines ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.calendar_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_channels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_channel_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ai_chat_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ai_chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.busy_times ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.refresh_tokens ENABLE ROW LEVEL SECURITY;

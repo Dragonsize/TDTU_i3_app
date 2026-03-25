@@ -36,7 +36,7 @@ export default function ProjectPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState(null);
   const [projectColor, setProjectColor] = useState(PROJECT_COLORS[0]);
-  const [projectStatus, setProjectStatus] = useState("active");
+  const [projectStatus, setProjectStatus] = useState("in_process");
   const [projectSearchQuery, setProjectSearchQuery] = useState("");
   const [showManagerDeadlineModal, setShowManagerDeadlineModal] = useState(false);
   const [managerProject, setManagerProject] = useState(null);
@@ -202,7 +202,7 @@ export default function ProjectPage() {
         setShowEditModal(false);
         setProjectToEdit(null);
         setProjectName("");
-        setProjectStatus("active");
+        setProjectStatus("in_process");
       }
     } catch (error) {
       console.error("Failed to update project", error);
@@ -565,7 +565,7 @@ export default function ProjectPage() {
                     {new Date(project.created_at || Date.now()).toLocaleDateString("en-GB")}
                   </div>
                   <div className="col-span-2 text-left md:text-center text-base sm:text-lg md:text-2xl font-normal font-['Habibi']">
-                    {project.status === "active" ? "In process" : (project.status === "pause" ? "Pause" : (project.status === "completed" ? "Completed" : project.status))}
+                    {project.status === "in_process" ? "In process" : (project.status === "pause" ? "Pause" : (project.status === "completed" ? "Completed" : project.status))}
                   </div>
                   <div className="col-span-2 text-left md:text-center text-base sm:text-lg md:text-2xl font-normal font-['Habibi']">{project.deadline_count || 0}</div>
                   <div className="col-span-2 flex justify-start md:justify-end items-center gap-3 sm:gap-4">
@@ -589,7 +589,7 @@ export default function ProjectPage() {
                               setProjectToEdit(project);
                               setProjectName(project.title);
                               setProjectColor(project.color || PROJECT_COLORS[0]);
-                              setProjectStatus(project.status || "active");
+                              setProjectStatus(project.status || "in_process");
                               setShowEditModal(true);
                               setActiveMenu(null);
                             }}
@@ -955,7 +955,7 @@ export default function ProjectPage() {
                   value={projectStatus}
                   onChange={(e) => setProjectStatus(e.target.value)}
                 >
-                  <option value="active">In process</option>
+                  <option value="in_process">In process</option>
                   <option value="pause">Pause</option>
                   <option value="completed">Completed</option>
                 </select>

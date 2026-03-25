@@ -16,6 +16,14 @@ from threading import Lock
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, UploadFile, Form, Request, Query, WebSocket, WebSocketDisconnect, BackgroundTasks, Header
 import asyncio
+
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+
 def sanitize_chat_input(text: str) -> str:
     # Remove dangerous SQL/meta chars and trim
     if not isinstance(text, str):
@@ -140,18 +148,6 @@ def client_ip(http_request: Request) -> str:
     return forwarded or "unknown"
 
 
-def enforce_rate_limit(identifier: str, scope: str, max_requests: int, window_seconds: int) -> None:
-    now = time.time()
-    bucket_key = f"{scope}:{identifier}"
-    cutoff = now - window_seconds
-
-    with RATE_LIMIT_LOCK:
-        bucket = RATE_LIMIT_BUCKETS[bucket_key]
-        while bucket and bucket[0] < cutoff:
-            bucket.popleft()
-        if len(bucket) >= max_requests:
-            raise HTTPException(status_code=429, detail="Too many requests. Please try again later.")
-        bucket.append(now)
 
 
 def sanitize_filename(name: str) -> str:
@@ -603,7 +599,23 @@ async def check_deadlines_loop():
             
         await asyncio.sleep(3600)  # check every hour
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 @app.on_event("startup")
 async def startup_event():
@@ -1477,7 +1489,7 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
         set_auth_cookies(response, access_token, refresh_token)
 
         # Create/update profile in database using admin client (bypasses RLS)
-        full_name = request.fullname or user.email
+        full_name = body.fullname or user.email
         db_client = supabase_admin if supabase_admin else db
         profile_response = db_client.table("profiles").upsert({
             "id": user.id,
@@ -1491,8 +1503,8 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
         store_refresh_token(
             user.id,
             refresh_token,
-            http_request.headers.get("user-agent"),
-            http_request.client.host if http_request.client else None,
+            request.headers.get("user-agent"),
+            request.client.host if request.client else None,
         )
 
         return {"status": "success", "user": {"id": user.id, "email": user.email, "full_name": full_name}}
@@ -1520,13 +1532,13 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
 
 
 @app.post("/api/auth/register")
-def register(request: RegisterRequest, response: Response, http_request: Request):
+@limiter.limit("20/5minutes")
+def register(request: Request, body: RegisterRequest, response: Response):
     """Register a new user and create backend session from Supabase token"""
-    enforce_rate_limit(client_ip(http_request), "auth_register", 20, 300)
     try:
         db = require_supabase()
         # Verify the Supabase access token
-        user_response = db.auth.get_user(request.access_token)
+        user_response = db.auth.get_user(body.access_token)
         user = getattr(user_response, "user", None)
         if not user:
             raise HTTPException(status_code=401, detail="Invalid Supabase token")
@@ -1552,7 +1564,7 @@ def register(request: RegisterRequest, response: Response, http_request: Request
         set_auth_cookies(response, access_token, refresh_token)
 
         # Create/update profile in database using admin client (bypasses RLS)
-        full_name = request.fullname or (user.user_metadata or {}).get("full_name") or user.email
+        full_name = body.fullname or (user.user_metadata or {}).get("full_name") or user.email
         db_client = supabase_admin if supabase_admin else db
         profile_response = db_client.table("profiles").upsert({
             "id": user.id,
@@ -1566,8 +1578,8 @@ def register(request: RegisterRequest, response: Response, http_request: Request
         store_refresh_token(
             user.id,
             refresh_token,
-            http_request.headers.get("user-agent"),
-            http_request.client.host if http_request.client else None,
+            request.headers.get("user-agent"),
+            request.client.host if request.client else None,
         )
 
         return {"status": "success", "user": {"id": user.id, "email": user.email, "full_name": full_name}}
@@ -1728,12 +1740,33 @@ def get_projects(user=Depends(get_current_user)):
     db = require_db_client()
     user_id = user.get("sub")
     response = db.table("project_members").select("*, projects(*)").eq("user_id", user_id).execute()
+    
+    project_ids = []
+    for item in response.data:
+        if item.get("projects"):
+            project_ids.append(item["projects"]["id"])
+
+    deadline_counts = {}
+    if project_ids:
+        workspaces_resp = db.table("workspaces").select("id, project_id").in_("project_id", project_ids).execute()
+        if workspaces_resp.data:
+            ws_to_proj = {w["id"]: w["project_id"] for w in workspaces_resp.data}
+            workspace_ids = list(ws_to_proj.keys())
+            
+            if workspace_ids:
+                deadlines_resp = db.table("workspace_deadlines").select("workspace_id").in_("workspace_id", workspace_ids).execute()
+                for dl in (deadlines_resp.data or []):
+                    pid = ws_to_proj.get(dl["workspace_id"])
+                    if pid:
+                        deadline_counts[pid] = deadline_counts.get(pid, 0) + 1
+
     projects = []
     for item in response.data:
         if item.get("projects"):
             p = item["projects"]
             # Map DB 'name' to API 'title' for frontend compatibility
             p["title"] = p.get("name", p.get("title"))
+            p["deadline_count"] = deadline_counts.get(p["id"], 0)
             projects.append(p)
     return projects
 
@@ -2843,16 +2876,15 @@ def update_document_access(document_id: str, request: UpdateDocumentAccessReques
 
 
 @app.post("/api/documents/upload")
+@limiter.limit("30/5minutes")
 async def upload_document_file(
-    http_request: Request,
+    request: Request,
     file: UploadFile = File(...),
     project_id: Optional[str] = Form(None),
     user=Depends(get_current_user),
 ):
     db = require_db_client()
     user_id = user.get("sub")
-    request_ip = client_ip(http_request) if http_request else user_id
-    enforce_rate_limit(f"{user_id}:{request_ip}", "documents_upload", 30, 300)
 
     if project_id:
         require_project_member(user_id, project_id)
@@ -2974,18 +3006,18 @@ def mark_notification_read(notification_id: str, user=Depends(get_current_user))
     return {"status": "success"}
 
 @app.post("/api/chatbot")
+@limiter.limit("50/5minutes")
 def chatbot(
-    request: ChatbotRequest,
-    http_request: Request,
+    request: Request,
+    body: ChatbotRequest,
     user=Depends(get_current_user),
     x_chatbot_api_key: Optional[str] = Header(default=None, alias="x-chatbot-api-key"),
 ):
-    enforce_rate_limit(f"{user.get('sub')}:{client_ip(http_request)}", "chatbot", 50, 300)
-    question = sanitize_chat_input(request.question)
+    question = sanitize_chat_input(body.question)
     # Priority: user-provided key (Settings) > server default key > Google AI Studio default key.
     api_key = (x_chatbot_api_key or CHATBOT_API_KEY or GOOGLE_AI_STUDIO_API_KEY or "").strip()
-    api_base = (request.api_base or CHATBOT_API_BASE).strip().rstrip("/")
-    model = (request.model or CHATBOT_MODEL).strip()
+    api_base = (body.api_base or CHATBOT_API_BASE).strip().rstrip("/")
+    model = (body.model or CHATBOT_MODEL).strip()
 
     if api_key:
         try:
