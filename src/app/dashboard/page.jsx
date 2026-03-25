@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppShell from '@/components/AppShell';
 import PageLoader from '@/components/PageLoader';
+import { dFetch } from '@/lib/api';
 import {
   LayoutGrid, MessageSquare, FileText, Flag, CalendarDays,
   Users, Bot, AlertCircle, ChevronRight, Gauge
@@ -87,11 +88,11 @@ export default function Dashboard() {
     in30Days.setDate(now.getDate() + 30);
 
     const [projectsRes, channelsRes, docsRes, deadlinesRes, eventsRes] = await Promise.all([
-      fetch('/api/projects', { credentials: 'include' }),
-      fetch('/api/chat/channels', { credentials: 'include' }),
-      fetch('/api/documents', { credentials: 'include' }),
-      fetch('/api/deadlines?days=14', { credentials: 'include' }),
-      fetch(`/api/calendar/events?start=${encodeURIComponent(now.toISOString())}&end=${encodeURIComponent(in30Days.toISOString())}`, { credentials: 'include' }),
+      dFetch('/api/projects', { credentials: 'include' }),
+      dFetch('/api/chat/channels', { credentials: 'include' }),
+      dFetch('/api/documents', { credentials: 'include' }),
+      dFetch('/api/deadlines?days=14', { credentials: 'include' }),
+      dFetch(`/api/calendar/events?start=${encodeURIComponent(now.toISOString())}&end=${encodeURIComponent(in30Days.toISOString())}`, { credentials: 'include' }),
     ]);
 
     const [projects, channels, documents, deadlines, events] = await Promise.all([
@@ -119,11 +120,11 @@ export default function Dashboard() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/auth/me', { credentials: 'include' });
+        const response = await dFetch('/api/auth/me', { credentials: 'include' });
         if (!response.ok) { router.push('/login'); return; }
         const data = await response.json();
         setUser(data.user);
-        const profileResponse = await fetch('/api/profile', { credentials: 'include' });
+        const profileResponse = await dFetch('/api/profile', { credentials: 'include' });
         if (profileResponse.ok) {
           const profileData = await profileResponse.json();
           localStorage.setItem('userProfile', JSON.stringify(profileData.profile));

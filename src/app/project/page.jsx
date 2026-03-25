@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
+import { dFetch } from "@/lib/api";
 import {
   FolderOpen, Plus, Search, MoreHorizontal, Pencil, Trash2,
   CalendarDays, Clock, CheckCircle2, PauseCircle, Loader2,
@@ -82,12 +83,12 @@ export default function ProjectPage() {
   useEffect(() => {
     const checkAuthAndFetch = async () => {
       try {
-        const profileRes = await fetch('/api/profile', { credentials: 'include' });
+        const profileRes = await dFetch('/api/profile', { credentials: 'include' });
         const profileData = await profileRes.json();
         if (!profileData.profile) { router.push('/login'); return; }
         setCurrentUser(profileData.profile);
         setMembers([profileData.profile]);
-        const projRes = await fetch("/api/projects", { credentials: "include" });
+        const projRes = await dFetch("/api/projects", { credentials: "include" });
         const projData = await projRes.json();
         if (Array.isArray(projData)) setProjects(projData);
         setLoading(false);
@@ -145,7 +146,7 @@ export default function ProjectPage() {
   useEffect(() => {
     if (searchQuery.length < 2) { setSearchResults([]); return; }
     const timer = setTimeout(() => {
-      fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`, { credentials: "include" })
+      dFetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`, { credentials: "include" })
         .then((res) => res.json())
         .then((data) => setSearchResults(data || []));
     }, 300);
@@ -199,7 +200,7 @@ export default function ProjectPage() {
     if (!Array.isArray(workflows) || workflows.length === 0) { setManagerDeadlines([]); return; }
     const workflowById = workflows.reduce((acc, ws) => { acc[ws.id] = ws; return acc; }, {});
     const allDeadlines = await Promise.all(workflows.map(async (ws) => {
-      const response = await fetch(`/api/workflows/${ws.id}/deadlines`, { credentials: "include" });
+      const response = await dFetch(`/api/workflows/${ws.id}/deadlines`, { credentials: "include" });
       if (!response.ok) return [];
       const data = await response.json().catch(() => []);
       return Array.isArray(data) ? data.map((d) => ({ ...d, workflow: workflowById[ws.id] })) : [];
@@ -217,8 +218,8 @@ export default function ProjectPage() {
     setDeadlineDate(new Date().toISOString().slice(0, 10));
     try {
       const [workflowRes, memberRes] = await Promise.all([
-        fetch(`/api/projects/${project.id}/workflows`, { credentials: "include" }),
-        fetch(`/api/projects/${project.id}/members`, { credentials: "include" }),
+        dFetch(`/api/projects/${project.id}/workflows`, { credentials: "include" }),
+        dFetch(`/api/projects/${project.id}/members`, { credentials: "include" }),
       ]);
       if (!workflowRes.ok) throw new Error("Failed to load workflows");
       if (!memberRes.ok) throw new Error("Failed to load members");

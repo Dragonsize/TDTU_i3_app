@@ -23,9 +23,28 @@ export default function AppShell({ user, activePath, contentClassName = "", full
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [theme, setTheme] = useState("light");
+  const [internalUser, setInternalUser] = useState(null);
 
   useEffect(() => {
-    // Check for saved theme or system preference
+    // 1. Sync internal user state with prop or localStorage
+    if (user) {
+      setInternalUser(user);
+      localStorage.setItem("userProfile", JSON.stringify(user));
+    } else {
+      const savedUser = localStorage.getItem("userProfile");
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          if (parsed && typeof parsed === 'object') {
+            setInternalUser(parsed);
+          }
+        } catch (e) {
+          console.error("Failed to parse saved user profile");
+        }
+      }
+    }
+
+    // 2. Theme Initialization
     const savedTheme = localStorage.getItem("theme");
     const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     const initialTheme = savedTheme || systemTheme;
@@ -36,20 +55,7 @@ export default function AppShell({ user, activePath, contentClassName = "", full
     } else {
       document.documentElement.classList.remove("dark");
     }
-
-    const originalFetch = window.fetch;
-    window.fetch = async (...args) => {
-      const response = await originalFetch(...args);
-      if (response.status === 401 && !window.location.pathname.startsWith('/login')) {
-        router.push('/login');
-      }
-      return response;
-    };
-
-    return () => {
-      window.fetch = originalFetch;
-    };
-  }, [router]);
+  }, [user]);
 
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
@@ -62,6 +68,7 @@ export default function AppShell({ user, activePath, contentClassName = "", full
       document.documentElement.classList.remove("dark");
     }
   };
+
 
   const handleLogout = async () => {
     try {
@@ -85,10 +92,10 @@ export default function AppShell({ user, activePath, contentClassName = "", full
     }
   };
 
-  const displayName = user?.full_name || user?.fullname || "";
+  const displayName = internalUser?.full_name || internalUser?.fullname || "";
   const avatarInitial =
     (displayName && displayName.trim()[0]) ||
-    (user?.email && user.email[0]) ||
+    (internalUser?.email && internalUser.email[0]) ||
     "U";
 
   return (
@@ -134,8 +141,8 @@ export default function AppShell({ user, activePath, contentClassName = "", full
             <div className="flex items-center gap-2 cursor-pointer group">
               <div className="px-2 sm:px-3.5 py-1.5 rounded-xl flex justify-center items-center gap-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-all duration-200">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-sm font-bold text-white shadow-sm overflow-hidden group-hover:shadow-md transition-all">
-                  {user?.avatar_url ? (
-                    <img src={user.avatar_url} alt="User" className="w-full h-full object-cover" />
+                  {internalUser?.avatar_url ? (
+                    <img src={internalUser.avatar_url} alt="User" className="w-full h-full object-cover" />
                   ) : (
                     avatarInitial.toUpperCase()
                   )}
@@ -145,7 +152,7 @@ export default function AppShell({ user, activePath, contentClassName = "", full
                     {displayName}
                   </div>
                   <div className="text-gray-400 dark:text-gray-500 text-[10px] font-medium leading-tight truncate max-w-[100px]">
-                    {user?.email}
+                    {internalUser?.email}
                   </div>
                 </div>
                 <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
@@ -159,7 +166,7 @@ export default function AppShell({ user, activePath, contentClassName = "", full
                   <div className="px-5 py-4 border-b border-gray-50 dark:border-white/5 bg-gray-50/50 dark:bg-neutral-800/50">
                     <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Signed in as</p>
                     <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{displayName}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{internalUser?.email}</p>
                   </div>
                   
                   <div className="p-2">

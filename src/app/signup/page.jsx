@@ -54,29 +54,44 @@ export default function SignUp() {
     }
 
     try {
-      // Call backend register endpoint with email/password
-      // Backend will create user in Supabase, auto-confirm, and create JWT session
-      const registerResponse = await fetch('/api/auth/register-direct', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          email,
-          password,
-          fullname: fullName,
-        }),
-        credentials: 'include',
-      });
+      let attempts = 0;
+      const maxAttempts = 3;
+      let sessionResult = null;
 
-      if (!registerResponse.ok) {
-        const errorData = await registerResponse.json();
-        throw new Error(errorData.detail || 'Failed to create account');
+      while (attempts < maxAttempts) {
+        try {
+          console.log(`Initialising account (Attempt ${attempts + 1})...`);
+          const registerResponse = await fetch('/api/auth/register-direct', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, fullname: fullName }),
+            credentials: 'include',
+          });
+
+          if (!registerResponse.ok) {
+            const errorData = await registerResponse.json().catch(() => ({}));
+            if (registerResponse.status >= 500 && attempts < maxAttempts - 1) {
+              attempts++;
+              console.warn(`Signup attempt ${attempts} failed. Retrying in 1s...`);
+              await new Promise(r => setTimeout(r, 1000));
+              continue;
+            }
+            throw new Error(errorData.detail || 'Failed to create account');
+          }
+
+          sessionResult = await registerResponse.json();
+          break; // Success
+        } catch (err) {
+          if (attempts >= maxAttempts - 1) throw err;
+          attempts++;
+          await new Promise(r => setTimeout(r, 1000));
+        }
       }
 
       // Store user profile in localStorage
-      const sessionResult = await registerResponse.json();
-      localStorage.setItem('userProfile', JSON.stringify(sessionResult.user));
+      if (sessionResult?.user) {
+        localStorage.setItem('userProfile', JSON.stringify(sessionResult.user));
+      }
 
       setSuccess('Account created successfully! Redirecting...');
       setTimeout(() => {

@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { dFetch } from '@/lib/api';
 
 import { 
   BarChart3, 
@@ -69,7 +70,7 @@ export default function Home() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const response = await fetch('/api/auth/me', { credentials: 'include' });
+        const response = await dFetch('/api/auth/me', { credentials: 'include' });
         if (response.ok) {
           router.replace('/dashboard');
           return;

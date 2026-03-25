@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
 import { useRouter } from "next/navigation";
+import { dFetch } from "@/lib/api";
 import {
   FileText, Upload, Download, Trash2, Users, Lock, Globe,
   X, AlertCircle, Loader2, Image, File, Eye
@@ -16,11 +17,11 @@ function FileImagePreview({ file }) {
   useEffect(() => {
     let isMounted = true;
     setLoading(true); setError(""); setImgUrl(null);
-    fetch(`/api/documents/${file.id}/download`, { credentials: "include" })
+    dFetch(`/api/documents/${file.id}/download`, { credentials: "include" })
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to fetch file");
         const data = await res.json().catch(() => null);
-        if (data?.url) return fetch(data.url).then((r) => r.blob());
+        if (data?.url) return dFetch(data.url).then((r) => r.blob());
         throw new Error("No file URL");
       })
       .then((blob) => { if (isMounted) setImgUrl(URL.createObjectURL(blob)); })
@@ -44,11 +45,11 @@ function TextPreview({ fileId }) {
   useEffect(() => {
     let isMounted = true;
     setLoading(true); setError(""); setContent("");
-    fetch(`/api/documents/${fileId}/download`, { credentials: "include" })
+    dFetch(`/api/documents/${fileId}/download`, { credentials: "include" })
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to fetch file");
         const data = await res.json().catch(() => null);
-        if (data?.url) return fetch(data.url).then((r) => r.text());
+        if (data?.url) return dFetch(data.url).then((r) => r.text());
         throw new Error("No file URL");
       })
       .then((txt) => { if (isMounted) setContent(txt); })
@@ -107,7 +108,7 @@ export default function FilesPage() {
 
   const fetchFiles = async () => {
     try {
-      const response = await fetch("/api/documents", { credentials: "include" });
+      const response = await dFetch("/api/documents", { credentials: "include" });
       if (!response.ok) throw new Error("Failed to load files");
       const data = await response.json();
       setFiles(Array.isArray(data) ? data : []);
@@ -121,7 +122,7 @@ export default function FilesPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch("/api/projects", { credentials: "include" });
+      const response = await dFetch("/api/projects", { credentials: "include" });
       if (!response.ok) return;
       const data = await response.json();
       setProjects(Array.isArray(data) ? data : []);
@@ -131,7 +132,7 @@ export default function FilesPage() {
   useEffect(() => {
     fetchFiles();
     fetchProjects();
-    fetch("/api/profile", { credentials: "include" })
+    dFetch("/api/profile", { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
         if (data.profile) setCurrentUser(data.profile);
@@ -171,7 +172,7 @@ export default function FilesPage() {
 
   const handleDownload = async (documentId, filename) => {
     try {
-      const response = await fetch(`/api/documents/${documentId}/download`, { credentials: "include" });
+      const response = await dFetch(`/api/documents/${documentId}/download`, { credentials: "include" });
       if (!response.ok) throw new Error("Failed to download");
       const data = await response.json();
       if (data.url) {

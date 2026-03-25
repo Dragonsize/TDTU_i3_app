@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
+import { dFetch } from "@/lib/api";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -298,7 +299,7 @@ export default function CalendarPage() {
     try {
       const { start, end } = rangeForView(view, monthDate, selectedDate);
       const url = `/api/calendar/events?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
-      const res = await fetch(url, { credentials: "include" });
+      const res = await dFetch(url, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load events");
       const data = await res.json();
       setEvents(Array.isArray(data) ? data : []);
@@ -312,7 +313,7 @@ export default function CalendarPage() {
     if (!teamProjectId) return;
     try {
       const { start, end } = monthRange(currentMonth);
-      const res = await fetch(`/api/projects/${teamProjectId}/calendar/team?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`, { credentials: "include" });
+      const res = await dFetch(`/api/projects/${teamProjectId}/calendar/team?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load team data");
       const data = await res.json();
       setTeamData({
@@ -329,12 +330,12 @@ export default function CalendarPage() {
   useEffect(() => {
     const bootstrap = async () => {
       try {
-        const meRes = await fetch("/api/profile", { credentials: "include" });
+        const meRes = await dFetch("/api/profile", { credentials: "include" });
         const meData = await meRes.json();
         if (!meData?.profile) { router.push("/login"); return; }
         setUser(meData.profile);
 
-        const projRes = await fetch("/api/projects", { credentials: "include" });
+        const projRes = await dFetch("/api/projects", { credentials: "include" });
         if (projRes.ok) {
           const projData = await projRes.json();
           const safe = Array.isArray(projData) ? projData : [];

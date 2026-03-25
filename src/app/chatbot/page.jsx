@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
+import { dFetch } from "@/lib/api";
 import { Bot, Send, Sparkles, AlertCircle, Loader2 } from "lucide-react";
 
 const STARTER_PROMPTS = [
@@ -32,7 +33,7 @@ export default function ChatbotPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/profile', { credentials: 'include' });
+        const response = await dFetch('/api/profile', { credentials: 'include' });
         const data = await response.json();
         if (!data.profile) { router.push('/login'); return; }
         setUser(data.profile);

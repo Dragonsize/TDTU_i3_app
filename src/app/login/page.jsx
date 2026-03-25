@@ -56,29 +56,49 @@ export default function Login() {
   };
 
   const completeLogin = async (accessToken, studentId = null) => {
-    try {
-      console.log('Creating backend session...');
-      
-      const sessionResponse = await fetch('/api/auth/session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ access_token: accessToken }),
-        credentials: 'include',
-      });
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+      try {
+        console.log(`Creating backend session (Attempt ${attempts + 1})...`);
+        
+        const sessionResponse = await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ access_token: accessToken }),
+          credentials: 'include',
+        });
 
-      if (!sessionResponse.ok) {
-        const errorData = await sessionResponse.json().catch(() => ({}));
-        throw new Error(errorData.detail || `Failed to create backend session (${sessionResponse.status})`);
+        if (!sessionResponse.ok) {
+          const errorData = await sessionResponse.json().catch(() => ({}));
+          // If it's a 500 and we have attempts left, retry
+          if (sessionResponse.status >= 500 && attempts < maxAttempts - 1) {
+            attempts++;
+            console.warn(`Attempt ${attempts} failed with ${sessionResponse.status}. Retrying in 1s...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+          }
+          throw new Error(errorData.detail || `Failed to create backend session (${sessionResponse.status})`);
+        }
+
+        const sessionData = await sessionResponse.json();
+        if (sessionData.user) {
+          localStorage.setItem('userProfile', JSON.stringify(sessionData.user));
+        }
+
+        router.push('/dashboard');
+        return; // Success
+      } catch (err) {
+        if (attempts >= maxAttempts - 1) {
+          throw err;
+        }
+        attempts++;
+        console.warn(`Attempt ${attempts} failed with error: ${err.message}. Retrying in 1s...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
-
-      const sessionData = await sessionResponse.json();
-      localStorage.setItem('userProfile', JSON.stringify(sessionData.user));
-
-      router.push('/dashboard');
-    } catch (err) {
-      throw err;
     }
   };
 

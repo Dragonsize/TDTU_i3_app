@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
+import { dFetch } from "@/lib/api";
 import { User, Mail, Key, Bot, Link as LinkIcon, LogOut, Edit2, Check, X, Shield, Cpu } from "lucide-react";
 
 export default function SettingsPage() {
@@ -17,7 +18,7 @@ export default function SettingsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch("/api/profile", { credentials: "include" })
+    dFetch("/api/profile", { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
         if (data.profile) setProfile(data.profile);
