@@ -505,9 +505,103 @@ class CreateNotificationRequest(BaseModel):
     message: Optional[str] = None
     related_id: Optional[str] = None
 
+import resend
+
+RESEND_API_KEY = "re_bNGRWtr5_EYfp5PPvmfzXY1xaFM45Z8me"
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
+
+NOTIFIED_DEADLINES_FILE = os.path.join(os.path.dirname(__file__), ".notified_deadlines.json")
+
+def get_notified_deadlines() -> set:
+    if os.path.exists(NOTIFIED_DEADLINES_FILE):
+        try:
+            with open(NOTIFIED_DEADLINES_FILE, "r") as f:
+                return set(json.load(f))
+        except Exception:
+            return set()
+    return set()
+
+def save_notified_deadlines(notified_set: set):
+    try:
+        with open(NOTIFIED_DEADLINES_FILE, "w") as f:
+            json.dump(list(notified_set), f)
+    except Exception as e:
+        print(f"Error saving notified deadlines: {e}")
+
+async def check_deadlines_loop():
+    while True:
+        try:
+            if not supabase_admin or not RESEND_API_KEY:
+                await asyncio.sleep(3600)
+                continue
+                
+            now = datetime.now(timezone.utc)
+            in_48_hours = now + timedelta(hours=48)
+            
+            dl_resp = (
+                supabase_admin.table("workspace_deadlines")
+                .select("id, title, due_date, assigned_to, workspaces(name, project_id)")
+                .gte("due_date", now.isoformat())
+                .lte("due_date", in_48_hours.isoformat())
+                .eq("status", "pending")
+                .execute()
+            )
+            
+            deadlines = dl_resp.data or []
+            if deadlines:
+                notified = get_notified_deadlines()
+                newly_notified = False
+                
+                for dl in deadlines:
+                    dl_id = dl["id"]
+                    if dl_id in notified:
+                        continue
+                        
+                    assignee_id = dl.get("assigned_to")
+                    if not assignee_id:
+                        continue
+                        
+                    prof_resp = supabase_admin.table("profiles").select("email, full_name, username").eq("id", assignee_id).execute()
+                    if not prof_resp.data:
+                        continue
+                        
+                    profile = prof_resp.data[0]
+                    email = profile.get("email")
+                    name = profile.get("full_name") or profile.get("username") or "User"
+                    
+                    if not email:
+                        continue
+                    
+                    workflow_name = dl.get("workspaces", {}).get("name") or "Unknown Task"
+                    
+                    try:
+                        resend.Emails.send({
+                            "from": "TDTU i3 App Notifications <onboarding@resend.dev>",
+                            "to": email,
+                            "subject": f"Approaching Deadline: {dl.get('title')}",
+                            "html": f"<h3>Hi {name},</h3><p>This is a reminder that your deadline for <strong>{dl.get('title')}</strong> in workflow <em>{workflow_name}</em> is approaching!</p><p>Due Date: {dl.get('due_date')}</p><p>Please log in to your board to review and complete the task.</p>"
+                        })
+                        notified.add(dl_id)
+                        newly_notified = True
+                        print(f"Sent deadline reminder to {email} for deadline {dl_id}")
+                    except Exception as e:
+                        print(f"Resend Error for {email}: {e}")
+                        
+                if newly_notified:
+                    save_notified_deadlines(notified)
+                    
+        except Exception as e:
+            print(f"Background Loop Error: {e}")
+            
+        await asyncio.sleep(3600)  # check every hour
 
 app = FastAPI()
 
+@app.on_event("startup")
+async def startup_event():
+    if RESEND_API_KEY:
+        asyncio.create_task(check_deadlines_loop())
 # Configure CORS origins
 allowed_origins = ["http://localhost:3000", "http://localhost:3001"]
 if FRONTEND_ORIGIN:
