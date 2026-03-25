@@ -419,6 +419,7 @@ export default function ProjectDetailPage() {
     };
 
     loadDeadlineData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDeadlineModal, id]);
 
   const handleCreateDeadline = async (event) => {
@@ -655,6 +656,7 @@ export default function ProjectDetailPage() {
       }
     };
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const handleWorkspaceStatusChange = async (workspaceId, newStatus) => {

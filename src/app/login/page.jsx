@@ -11,6 +11,14 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorFromQuery = params.get('error');
+    if (errorFromQuery) {
+      setError(errorFromQuery);
+    }
+  }, []);
+
   const handleGoogleSignIn = async () => {
     try {
       setError('');
@@ -35,9 +43,11 @@ export default function Login() {
     setError('');
     
     try {
+      const normalizedEmail = email.trim();
+
       // Sign in with Supabase
       const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       });
 
@@ -48,57 +58,41 @@ export default function Login() {
       if (data.session?.access_token) {
         // Complete login with backend session
         await completeLogin(data.session.access_token);
+        return;
       }
+
+      throw new Error('Sign in succeeded but no session token was returned. Please try again.');
     } catch (err) {
       setError(err.message || 'An error occurred');
+    } finally {
       setLoading(false);
     }
   };
 
   const completeLogin = async (accessToken, studentId = null) => {
-    let attempts = 0;
-    const maxAttempts = 3;
-    
-    while (attempts < maxAttempts) {
-      try {
-        console.log(`Creating backend session (Attempt ${attempts + 1})...`);
-        
-        const sessionResponse = await fetch('/api/auth/session', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ access_token: accessToken }),
-          credentials: 'include',
-        });
+    try {
+      console.log('Creating backend session...');
+      
+      const sessionResponse = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ access_token: accessToken }),
+        credentials: 'include',
+      });
 
-        if (!sessionResponse.ok) {
-          const errorData = await sessionResponse.json().catch(() => ({}));
-          // If it's a 500 and we have attempts left, retry
-          if (sessionResponse.status >= 500 && attempts < maxAttempts - 1) {
-            attempts++;
-            console.warn(`Attempt ${attempts} failed with ${sessionResponse.status}. Retrying in 1s...`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            continue;
-          }
-          throw new Error(errorData.detail || `Failed to create backend session (${sessionResponse.status})`);
-        }
-
-        const sessionData = await sessionResponse.json();
-        if (sessionData.user) {
-          localStorage.setItem('userProfile', JSON.stringify(sessionData.user));
-        }
-
-        router.push('/dashboard');
-        return; // Success
-      } catch (err) {
-        if (attempts >= maxAttempts - 1) {
-          throw err;
-        }
-        attempts++;
-        console.warn(`Attempt ${attempts} failed with error: ${err.message}. Retrying in 1s...`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!sessionResponse.ok) {
+        const errorData = await sessionResponse.json().catch(() => null);
+        throw new Error(errorData?.detail || `Failed to create backend session (${sessionResponse.status})`);
       }
+
+      const sessionData = await sessionResponse.json();
+      localStorage.setItem('userProfile', JSON.stringify(sessionData.user));
+
+      router.push('/dashboard');
+    } catch (err) {
+      throw err;
     }
   };
 

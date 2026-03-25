@@ -54,49 +54,87 @@ export default function SignUp() {
     }
 
     try {
-      let attempts = 0;
-      const maxAttempts = 3;
-      let sessionResult = null;
+      const normalizedEmail = email.trim();
+      const normalizedFullName = fullName.trim();
 
-      while (attempts < maxAttempts) {
-        try {
-          console.log(`Initialising account (Attempt ${attempts + 1})...`);
-          const registerResponse = await fetch('/api/auth/register-direct', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, fullname: fullName }),
-            credentials: 'include',
-          });
+      // Call backend register endpoint with email/password
+      // Backend will create user in Supabase, auto-confirm, and create JWT session
+      const registerResponse = await fetch('/api/auth/register-direct', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          email: normalizedEmail,
+          password,
+          fullname: normalizedFullName,
+        }),
+        credentials: 'include',
+      });
 
-          if (!registerResponse.ok) {
-            const errorData = await registerResponse.json().catch(() => ({}));
-            if (registerResponse.status >= 500 && attempts < maxAttempts - 1) {
-              attempts++;
-              console.warn(`Signup attempt ${attempts} failed. Retrying in 1s...`);
-              await new Promise(r => setTimeout(r, 1000));
-              continue;
-            }
-            throw new Error(errorData.detail || 'Failed to create account');
-          }
-
-          sessionResult = await registerResponse.json();
-          break; // Success
-        } catch (err) {
-          if (attempts >= maxAttempts - 1) throw err;
-          attempts++;
-          await new Promise(r => setTimeout(r, 1000));
-        }
-      }
-
-      // Store user profile in localStorage
-      if (sessionResult?.user) {
+      if (registerResponse.ok) {
+        // Store user profile in localStorage
+        const sessionResult = await registerResponse.json();
         localStorage.setItem('userProfile', JSON.stringify(sessionResult.user));
+
+        setSuccess('Account created successfully! Redirecting...');
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 1200);
+        return;
       }
 
-      setSuccess('Account created successfully! Redirecting...');
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 1500);
+      const backendError = await registerResponse.json().catch(() => null);
+      const shouldFallback = [404, 405, 500, 502, 503, 504].includes(registerResponse.status);
+      if (!shouldFallback) {
+        throw new Error(backendError?.detail || 'Failed to create account');
+      }
+
+      // Fallback: sign up via Supabase, then create backend session/profile.
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+        options: {
+          data: {
+            full_name: normalizedFullName,
+          },
+        },
+      });
+
+      if (signUpError) {
+        throw new Error(signUpError.message);
+      }
+
+      if (signUpData.session?.access_token) {
+        const token = signUpData.session.access_token;
+        const registerViaTokenResponse = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            access_token: token,
+            fullname: normalizedFullName,
+          }),
+          credentials: 'include',
+        });
+
+        if (!registerViaTokenResponse.ok) {
+          const registerViaTokenError = await registerViaTokenResponse.json().catch(() => null);
+          throw new Error(registerViaTokenError?.detail || 'Could not initialize your account session');
+        }
+
+        const registerViaTokenResult = await registerViaTokenResponse.json();
+        localStorage.setItem('userProfile', JSON.stringify(registerViaTokenResult.user));
+
+        setSuccess('Account created successfully! Redirecting...');
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 1200);
+        return;
+      }
+
+      setSuccess('Account created. Please check your email to confirm, then sign in.');
     } catch (err) {
       setError(err.message || 'An error occurred');
     } finally {

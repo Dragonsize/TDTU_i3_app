@@ -1,41 +1,15 @@
-
-
-
 import os
 import re
 import hashlib
 import json
 import ast
-import time
 import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
-from collections import defaultdict, deque
-import socket
-from threading import Lock
 from dotenv import load_dotenv
-import httpx
 from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, UploadFile, Form, Request, Query, WebSocket, WebSocketDisconnect, BackgroundTasks, Header
 import asyncio
-import traceback
-import sys
-
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
-
-# DNS Patch: Force IPv4 for Supabase to fix local resolver flakiness
-_original_getaddrinfo = socket.getaddrinfo
-def _patched_getaddrinfo(host, port, family=0, *args, **kwargs):
-    if host and "supabase.co" in host:
-        return _original_getaddrinfo(host, port, socket.AF_INET, *args, **kwargs)
-    return _original_getaddrinfo(host, port, family, *args, **kwargs)
-socket.getaddrinfo = _patched_getaddrinfo
-
 def sanitize_chat_input(text: str) -> str:
     # Remove dangerous SQL/meta chars and trim
     if not isinstance(text, str):
@@ -53,7 +27,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field, field_validator, constr
 try:
-    from supabase import create_client, Client, ClientOptions
+    from supabase import create_client, Client
     SUPABASE_IMPORT_ERROR: Optional[str] = None
 except Exception as exc:  # pragma: no cover - runtime environment issue
     create_client = None
@@ -88,21 +62,15 @@ if SUPABASE_IMPORT_ERROR:
 elif not SUPABASE_URL or not SUPABASE_ANON_KEY:
     SUPABASE_CONFIG_ERROR = "Missing Supabase credentials"
 
-# Add global timeout and retry options
-SUPABASE_OPTIONS = ClientOptions(
-    postgrest_client_timeout=45,
-    storage_client_timeout=45
-) if create_client else None
-
 supabase: Optional[Client] = (
-    create_client(SUPABASE_URL, SUPABASE_ANON_KEY, options=SUPABASE_OPTIONS)
+    create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
     if create_client and not SUPABASE_CONFIG_ERROR
     else None
 )
 
 # Admin client for confirming users and other admin operations
 supabase_admin: Optional[Client] = (
-    create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, options=SUPABASE_OPTIONS)
+    create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     if create_client and SUPABASE_SERVICE_ROLE_KEY and SUPABASE_URL
     else None
 )
@@ -127,39 +95,6 @@ EMOJI_PATTERN = re.compile(
 
 DISALLOWED_USERNAME_CHARS = re.compile(r"[<>\"'`;]|--|/\*|\*/", flags=re.UNICODE)
 
-MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
-ALLOWED_UPLOAD_MIME_TYPES = {
-    "application/pdf",
-    "text/plain",
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/vnd.ms-excel",
-}
-ALLOWED_UPLOAD_EXTENSIONS = {
-    ".pdf", ".txt", ".jpg", ".jpeg", ".png", ".webp", ".doc", ".docx", ".xls", ".xlsx"
-}
-
-RATE_LIMIT_BUCKETS: Dict[str, deque] = defaultdict(deque)
-RATE_LIMIT_LOCK = Lock()
-
-
-def enforce_rate_limit(ip: str, key: str, limit: int, window_seconds: int) -> None:
-    """Sliding-window rate limiter. Raises HTTP 429 if limit exceeded."""
-    bucket_key = f"{ip}:{key}"
-    now = time.time()
-    with RATE_LIMIT_LOCK:
-        bucket = RATE_LIMIT_BUCKETS[bucket_key]
-        # Remove timestamps outside the current window
-        while bucket and bucket[0] < now - window_seconds:
-            bucket.popleft()
-        if len(bucket) >= limit:
-            raise HTTPException(status_code=429, detail="Too many requests. Please try again later.")
-        bucket.append(now)
-
 
 def contains_emoji(value: str) -> bool:
     return bool(EMOJI_PATTERN.search(value))
@@ -173,20 +108,6 @@ def contains_control_chars(value: str) -> bool:
     return any(not ch.isprintable() for ch in value)
 
 
-def client_ip(http_request: Request) -> str:
-    if http_request.client and http_request.client.host:
-        return http_request.client.host
-    forwarded = http_request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-    return forwarded or "unknown"
-
-
-
-
-def sanitize_filename(name: str) -> str:
-    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", (name or "").strip())
-    return cleaned[:180] or f"file_{int(time.time())}.bin"
-
-
 def require_supabase() -> Client:
     if not supabase:
         raise HTTPException(status_code=500, detail=SUPABASE_CONFIG_ERROR or "Supabase client not configured")
@@ -195,29 +116,6 @@ def require_supabase() -> Client:
 
 def require_db_client() -> Client:
     return supabase_admin if supabase_admin else require_supabase()
-
-
-def execute_with_retry(query_builder, max_retries=3):
-    """Executes a Supabase query with retries for network-related errors."""
-    import time
-    last_error = None
-    for attempt in range(max_retries):
-        try:
-            return query_builder.execute()
-        except (httpx.ConnectError, httpx.RemoteProtocolError, httpx.ConnectTimeout, httpx.ReadTimeout) as e:
-            last_error = e
-            print(f"Network error on attempt {attempt + 1}: {e}. Retrying...", file=sys.stderr)
-            time.sleep(0.5 * (attempt + 1))  # Faster progressive backoff
-        except Exception as e:
-            # For other exceptions, if it looks like a connection error, retry
-            msg = str(e).lower()
-            if any(term in msg for term in ["connection", "disconnected", "dns", "resolution", "timeout"]):
-                last_error = e
-                print(f"Likely network error on attempt {attempt + 1}: {e}. Retrying...", file=sys.stderr)
-                time.sleep(0.5 * (attempt + 1))
-                continue
-            raise e
-    raise last_error
 
 
 def ensure_profile_upsert(response, fallback_message: str) -> None:
@@ -373,13 +271,6 @@ class CreateProjectRequest(BaseModel):
     color: Optional[str] = "#78716c"
 
 
-class UpdateProjectRequest(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    color: Optional[str] = None
-    status: Optional[str] = None
-
-
 class AddMemberRequest(BaseModel):
     member_username: str = Field(..., min_length=1)
     role: str = "member"
@@ -397,12 +288,6 @@ class CreateWorkflowRequest(BaseModel):
     title: str = Field(..., min_length=1)
     description: Optional[str] = ""
     member_ids: Optional[List[str]] = None
-    parent_id: Optional[str] = None
-
-class UpdateWorkflowRequest(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    status: Optional[str] = None
 
 
 class AssignWorkflowMemberRequest(BaseModel):
@@ -497,7 +382,6 @@ class CreateCalendarEventRequest(BaseModel):
     description: Optional[str] = None
     event_type: Optional[str] = "meeting"
     color: Optional[str] = None
-    status: Optional[str] = "pending"
 
 
 class UpdateCalendarEventRequest(BaseModel):
@@ -507,7 +391,6 @@ class UpdateCalendarEventRequest(BaseModel):
     description: Optional[str] = None
     event_type: Optional[str] = None
     color: Optional[str] = None
-    status: Optional[str] = None
 
 
 class FindMeetingSlotsRequest(BaseModel):
@@ -550,6 +433,7 @@ class UpdateDocumentAccessRequest(BaseModel):
 class ChatbotRequest(BaseModel):
     question: str = Field(..., min_length=1)
     api_base: Optional[str] = None
+    api_key: Optional[str] = None
     model: Optional[str] = None
 
 
@@ -563,119 +447,9 @@ class CreateNotificationRequest(BaseModel):
     message: Optional[str] = None
     related_id: Optional[str] = None
 
-import resend
 
-RESEND_API_KEY = "re_bNGRWtr5_EYfp5PPvmfzXY1xaFM45Z8me"
-if RESEND_API_KEY:
-    resend.api_key = RESEND_API_KEY
-
-NOTIFIED_DEADLINES_FILE = os.path.join(os.path.dirname(__file__), ".notified_deadlines.json")
-
-def get_notified_deadlines() -> set:
-    if os.path.exists(NOTIFIED_DEADLINES_FILE):
-        try:
-            with open(NOTIFIED_DEADLINES_FILE, "r") as f:
-                return set(json.load(f))
-        except Exception:
-            return set()
-    return set()
-
-def save_notified_deadlines(notified_set: set):
-    try:
-        with open(NOTIFIED_DEADLINES_FILE, "w") as f:
-            json.dump(list(notified_set), f)
-    except Exception as e:
-        print(f"Error saving notified deadlines: {e}")
-
-async def check_deadlines_loop():
-    while True:
-        try:
-            if not supabase_admin or not RESEND_API_KEY:
-                await asyncio.sleep(3600)
-                continue
-                
-            now = datetime.now(timezone.utc)
-            in_48_hours = now + timedelta(hours=48)
-            
-            dl_resp = (
-                supabase_admin.table("workspace_deadlines")
-                .select("id, title, due_date, assigned_to, workspaces(name, project_id)")
-                .gte("due_date", now.isoformat())
-                .lte("due_date", in_48_hours.isoformat())
-                .eq("status", "pending")
-                .execute()
-            )
-            
-            deadlines = dl_resp.data or []
-            if deadlines:
-                notified = get_notified_deadlines()
-                newly_notified = False
-                
-                for dl in deadlines:
-                    dl_id = dl["id"]
-                    if dl_id in notified:
-                        continue
-                        
-                    assignee_id = dl.get("assigned_to")
-                    if not assignee_id:
-                        continue
-                        
-                    prof_resp = supabase_admin.table("profiles").select("email, full_name, username").eq("id", assignee_id).execute()
-                    if not prof_resp.data:
-                        continue
-                        
-                    profile = prof_resp.data[0]
-                    email = profile.get("email")
-                    name = profile.get("full_name") or profile.get("username") or "User"
-                    
-                    if not email:
-                        continue
-                    
-                    workflow_name = dl.get("workspaces", {}).get("name") or "Unknown Task"
-                    
-                    try:
-                        resend.Emails.send({
-                            "from": "TDTU i3 App Notifications <onboarding@resend.dev>",
-                            "to": email,
-                            "subject": f"Approaching Deadline: {dl.get('title')}",
-                            "html": f"<h3>Hi {name},</h3><p>This is a reminder that your deadline for <strong>{dl.get('title')}</strong> in workflow <em>{workflow_name}</em> is approaching!</p><p>Due Date: {dl.get('due_date')}</p><p>Please log in to your board to review and complete the task.</p>"
-                        })
-                        notified.add(dl_id)
-                        newly_notified = True
-                        print(f"Sent deadline reminder to {email} for deadline {dl_id}")
-                    except Exception as e:
-                        print(f"Resend Error for {email}: {e}")
-                        
-                if newly_notified:
-                    save_notified_deadlines(notified)
-                    
-        except Exception as e:
-            print(f"Background Loop Error: {e}")
-            
-        await asyncio.sleep(3600)  # check every hour
-
-limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
-app.state.limiter = limiter
-@app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response: Response = await call_next(request)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        return response
-
-app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(SlowAPIMiddleware)
-app.add_middleware(GZipMiddleware, minimum_size=1000)
-
-@app.on_event("startup")
-async def startup_event():
-    if RESEND_API_KEY:
-        asyncio.create_task(check_deadlines_loop())
 # Configure CORS origins
 allowed_origins = ["http://localhost:3000", "http://localhost:3001"]
 if FRONTEND_ORIGIN:
@@ -691,42 +465,297 @@ app.add_middleware(
 
 
 CHATBOT_KNOWLEDGE = {
+    # ── Dự án ──────────────────────────────────────────────────────────────
     "create_project": {
-        "keywords": ["create project", "new project", "tạo dự án", "tạo project"],
-        "response": "To create a new project: open Dashboard, click Create Project, fill in title and description, then submit. You will become the project lead automatically."
+        "keywords": [
+            "create project", "new project", "tạo dự án", "tạo project",
+            "tao du an", "them du an", "thêm dự án", "bắt đầu dự án",
+        ],
+        "response": (
+            "Để tạo dự án mới, bạn vào Dashboard rồi nhấn nút **Tạo dự án**. "
+            "Điền tiêu đề và mô tả, sau đó nhấn Xác nhận. "
+            "Bạn sẽ tự động trở thành trưởng nhóm (Project Lead) của dự án đó."
+        ),
     },
-    "create_workflow": {
-        "keywords": ["create workflow", "tạo workflow", "task breakdown", "sub process", "sub-process", "chia nhỏ"],
-        "response": "To create a workflow: open a project, select Add Workflow, provide title and description, then assign members. You can also create nested sub-processes up to 5 levels deep by clicking '+ Sub-flow' on an existing workflow."
+    "delete_project": {
+        "keywords": [
+            "delete project", "xóa dự án", "xoa du an", "remove project",
+            "hủy dự án", "xóa project",
+        ],
+        "response": (
+            "Chỉ trưởng nhóm mới có thể xóa dự án. "
+            "Vào **Cài đặt dự án → Xóa dự án**, nhập lại tên dự án để xác nhận. "
+            "Lưu ý: toàn bộ dữ liệu liên quan (workflow, deadline, tài liệu) sẽ bị xóa vĩnh viễn."
+        ),
     },
-    "workflow_status": {
-        "keywords": ["workflow status", "trạng thái", "in progress", "pause", "completed", "tạm dừng"],
-        "response": "You can change a workflow's status directly from the dropdown next to the workflow name in the project's workspace modal. Options include In process, Pause, and Completed."
+    "edit_project": {
+        "keywords": [
+            "edit project", "update project", "sửa dự án", "chỉnh sửa dự án",
+            "cập nhật dự án", "doi ten du an", "đổi tên dự án",
+        ],
+        "response": (
+            "Để chỉnh sửa dự án, mở dự án rồi vào **Cài đặt dự án**. "
+            "Bạn có thể thay tiêu đề, mô tả hoặc màu sắc, sau đó nhấn Lưu. "
+            "Chỉ trưởng nhóm mới có quyền chỉnh sửa thông tin dự án."
+        ),
     },
+
+    # ── Thành viên ─────────────────────────────────────────────────────────
     "add_members": {
-        "keywords": ["add member", "thêm thành viên", "invite"],
-        "response": "To add members: open project settings, choose Add Member, enter a username or email, select role, and confirm. Only project leads can add members."
+        "keywords": [
+            "add member", "thêm thành viên", "invite", "them thanh vien",
+            "mời thành viên", "them nguoi", "thêm người", "add user",
+        ],
+        "response": (
+            "Để thêm thành viên: mở dự án, vào **Quản lý thành viên → Thêm thành viên**, "
+            "nhập tên đăng nhập (username) của người dùng, chọn vai trò (Member hoặc Lead), "
+            "rồi nhấn Xác nhận. Chỉ trưởng nhóm mới có thể thêm thành viên."
+        ),
     },
-    "schedule": {
-        "keywords": ["calendar", "schedule", "busy time", "lịch"],
-        "response": "To manage schedule: open Calendar, add busy time with start and end time, and save. Conflicts are detected automatically when scheduling meetings."
+    "remove_member": {
+        "keywords": [
+            "remove member", "kick member", "xóa thành viên", "xoa thanh vien",
+            "mời ra", "loại thành viên", "remove user",
+        ],
+        "response": (
+            "Trưởng nhóm có thể xóa thành viên bằng cách vào **Quản lý thành viên**, "
+            "nhấn vào biểu tượng xóa bên cạnh tên thành viên, rồi xác nhận. "
+            "Thành viên bị xóa sẽ không còn truy cập được dự án."
+        ),
     },
-    "calendar_status": {
-        "keywords": ["calendar status", "event status", "inprocess", "in-progress", "pending"],
-        "response": "When creating or editing a calendar event, you can set its status to Pending, In Progress, or Completed using the dropdown menu. This status will be visible on the calendar."
+    "change_role": {
+        "keywords": [
+            "change role", "update role", "thay đổi vai trò", "thay doi vai tro",
+            "phân quyền", "nâng quyền", "hạ quyền", "promote", "demote",
+        ],
+        "response": (
+            "Để thay đổi vai trò thành viên, vào **Quản lý thành viên**, "
+            "nhấn vào tên thành viên và chọn vai trò mới (Member / Lead). "
+            "Chỉ trưởng nhóm hiện tại mới có quyền thực hiện thao tác này."
+        ),
     },
-    "documents": {
-        "keywords": ["document", "upload", "tài liệu", "file"],
-        "response": "To upload documents: open a project or workflow, choose Upload Document, select the file, and confirm. All project members can access shared files."
+
+    # ── Workflow ────────────────────────────────────────────────────────────
+    "create_workflow": {
+        "keywords": [
+            "create workflow", "tạo workflow", "task breakdown", "them workflow",
+            "thêm workflow", "tạo công việc", "tao cong viec",
+        ],
+        "response": (
+            "Để tạo workflow: mở dự án, nhấn **Thêm Workflow**, điền tiêu đề và mô tả, "
+            "sau đó phân công thành viên và đặt deadline. "
+            "Workflow giúp chia nhỏ công việc trong dự án thành các phần dễ quản lý hơn."
+        ),
     },
+    "update_workflow": {
+        "keywords": [
+            "update workflow", "edit workflow", "sửa workflow", "cập nhật workflow",
+            "sua workflow", "cap nhat workflow", "doi trang thai workflow",
+            "đổi trạng thái workflow",
+        ],
+        "response": (
+            "Để cập nhật workflow, mở workflow cần sửa rồi nhấn **Chỉnh sửa**. "
+            "Bạn có thể thay tiêu đề, mô tả hoặc trạng thái (Đang chờ / Đang làm / Hoàn thành). "
+            "Lưu lại sau khi chỉnh xong."
+        ),
+    },
+
+    # ── Deadline ────────────────────────────────────────────────────────────
     "deadline": {
-        "keywords": ["deadline", "due date", "hạn chót"],
-        "response": "To add a deadline: open a workflow, choose Add Deadline, set due date, and assign a member. Notifications appear as due dates approach."
+        "keywords": [
+            "deadline", "due date", "hạn chót", "han chot", "ngày hết hạn",
+            "ngay het han", "thêm deadline", "đặt deadline",
+        ],
+        "response": (
+            "Để thêm deadline: mở workflow, nhấn **Thêm Deadline**, đặt tiêu đề, "
+            "chọn ngày hết hạn và phân công cho một thành viên. "
+            "Hệ thống sẽ gửi thông báo tự động khi deadline đến gần. "
+            "Lưu ý: ngày hết hạn không được đặt trong quá khứ."
+        ),
     },
+    "update_deadline_status": {
+        "keywords": [
+            "complete deadline", "hoàn thành deadline", "hoan thanh deadline",
+            "đánh dấu hoàn thành", "danh dau hoan thanh", "cập nhật deadline",
+            "cap nhat deadline", "trạng thái deadline",
+        ],
+        "response": (
+            "Để cập nhật trạng thái deadline, mở deadline cần thay đổi và chọn trạng thái mới: "
+            "**Đang chờ (pending)**, **Đang làm (in_progress)** hoặc **Hoàn thành (completed)**. "
+            "Chỉ thành viên được phân công hoặc trưởng nhóm mới có thể cập nhật."
+        ),
+    },
+
+    # ── Lịch & Họp ─────────────────────────────────────────────────────────
+    "schedule": {
+        "keywords": [
+            "calendar", "schedule", "busy time", "lịch", "lich",
+            "thêm lịch", "them lich", "xem lịch", "quản lý lịch",
+        ],
+        "response": (
+            "Để quản lý lịch, mở mục **Lịch (Calendar)**, nhấn **Thêm thời gian bận** "
+            "và điền thời gian bắt đầu, kết thúc. "
+            "Khi đặt cuộc họp, hệ thống tự động phát hiện xung đột lịch giữa các thành viên."
+        ),
+    },
+    "schedule_meeting": {
+        "keywords": [
+            "schedule meeting", "tạo cuộc họp", "dat cuoc hop", "đặt cuộc họp",
+            "book meeting", "meeting", "cuộc họp", "cuoc hop", "họp nhóm",
+        ],
+        "response": (
+            "Để tạo cuộc họp: vào **Lịch**, nhấn **Tạo cuộc họp**, điền tiêu đề, "
+            "chọn thời gian bắt đầu/kết thúc và chọn thành viên tham dự. "
+            "Hệ thống sẽ kiểm tra xung đột lịch và gợi ý khung giờ phù hợp cho cả nhóm."
+        ),
+    },
+    "find_free_slot": {
+        "keywords": [
+            "find slot", "free time", "thời gian rảnh", "thoi gian ranh",
+            "khung giờ trống", "gợi ý lịch họp", "goi y lich hop",
+        ],
+        "response": (
+            "Tính năng **Tìm khung giờ trống** tự động so sánh lịch bận của tất cả thành viên "
+            "và gợi ý các khung giờ phù hợp. "
+            "Vào **Lịch → Tìm khung giờ**, chọn khoảng ngày, thời lượng và thành viên cần tham dự."
+        ),
+    },
+
+    # ── Tài liệu ────────────────────────────────────────────────────────────
+    "documents": {
+        "keywords": [
+            "document", "upload", "tài liệu", "tai lieu", "file",
+            "tải lên", "tai len", "đính kèm", "dinh kem",
+        ],
+        "response": (
+            "Để tải tài liệu lên: mở dự án hoặc workflow, nhấn **Tải lên tài liệu**, "
+            "chọn file từ máy tính rồi xác nhận. "
+            "Tất cả thành viên trong dự án đều có thể xem và tải xuống tài liệu dùng chung."
+        ),
+    },
+    "download_document": {
+        "keywords": [
+            "download document", "tải xuống", "tai xuong", "download file",
+            "xem tài liệu", "xem tai lieu",
+        ],
+        "response": (
+            "Để tải xuống tài liệu: mở mục **Tài liệu** trong dự án hoặc workflow, "
+            "tìm file cần tải và nhấn biểu tượng **Tải xuống**. "
+            "Link tải sẽ hết hạn sau 15 phút vì lý do bảo mật."
+        ),
+    },
+    "delete_document": {
+        "keywords": [
+            "delete document", "xóa tài liệu", "xoa tai lieu", "remove file",
+            "xóa file",
+        ],
+        "response": (
+            "Để xóa tài liệu: mở mục **Tài liệu**, nhấn vào biểu tượng xóa bên cạnh file. "
+            "Chỉ người đã tải lên hoặc trưởng nhóm mới có thể xóa. "
+            "Tài liệu bị xóa sẽ không thể khôi phục."
+        ),
+    },
+
+    # ── Tài khoản ───────────────────────────────────────────────────────────
+    "register": {
+        "keywords": [
+            "register", "sign up", "đăng ký", "dang ky", "tạo tài khoản",
+            "tao tai khoan", "tao account",
+        ],
+        "response": (
+            "Để đăng ký tài khoản, truy cập trang chủ và nhấn **Đăng ký**. "
+            "Điền email, mật khẩu và tên đầy đủ, sau đó xác nhận qua email. "
+            "Sau khi xác thực, bạn có thể đăng nhập và bắt đầu tạo dự án."
+        ),
+    },
+    "login": {
+        "keywords": [
+            "login", "sign in", "đăng nhập", "dang nhap", "log in",
+            "vao tai khoan", "vào tài khoản",
+        ],
+        "response": (
+            "Để đăng nhập, nhấn **Đăng nhập** ở trang chủ, nhập email và mật khẩu. "
+            "Nếu quên mật khẩu, nhấn **Quên mật khẩu** để đặt lại qua email."
+        ),
+    },
+    "logout": {
+        "keywords": [
+            "logout", "sign out", "đăng xuất", "dang xuat", "thoat tai khoan",
+            "thoát tài khoản",
+        ],
+        "response": (
+            "Để đăng xuất, nhấn vào **ảnh đại diện / tên tài khoản** ở góc trên bên phải "
+            "và chọn **Đăng xuất**. Phiên làm việc sẽ kết thúc ngay lập tức."
+        ),
+    },
+    "update_profile": {
+        "keywords": [
+            "update profile", "edit profile", "cập nhật hồ sơ", "cap nhat ho so",
+            "sửa thông tin", "doi ten", "đổi tên", "thay avatar", "thay anh dai dien",
+        ],
+        "response": (
+            "Để cập nhật hồ sơ, nhấn vào **ảnh đại diện → Cài đặt tài khoản**. "
+            "Bạn có thể thay tên hiển thị, username hoặc email, sau đó nhấn **Lưu thay đổi**."
+        ),
+    },
+    "forgot_password": {
+        "keywords": [
+            "forgot password", "reset password", "quên mật khẩu", "quen mat khau",
+            "lấy lại mật khẩu", "lay lai mat khau", "đổi mật khẩu",
+        ],
+        "response": (
+            "Nếu quên mật khẩu, ở trang đăng nhập nhấn **Quên mật khẩu**, "
+            "nhập địa chỉ email đã đăng ký. "
+            "Hệ thống sẽ gửi link đặt lại mật khẩu, link có hiệu lực trong 24 giờ."
+        ),
+    },
+
+    # ── Thông báo ───────────────────────────────────────────────────────────
+    "notifications": {
+        "keywords": [
+            "notification", "thông báo", "thong bao", "chuông", "alert",
+            "nhận thông báo", "nhan thong bao",
+        ],
+        "response": (
+            "Thông báo xuất hiện ở biểu tượng chuông góc trên bên phải. "
+            "Bạn sẽ nhận thông báo khi: được thêm vào dự án, có deadline sắp đến, "
+            "hoặc khi có thay đổi quan trọng trong dự án bạn tham gia. "
+            "Nhấn vào thông báo để đánh dấu đã đọc."
+        ),
+    },
+
+    # ── Vai trò & Quyền hạn ─────────────────────────────────────────────────
+    "roles_permissions": {
+        "keywords": [
+            "role", "permission", "quyền", "quyen", "vai trò", "vai tro",
+            "lead", "member", "trưởng nhóm", "truong nhom", "quyền hạn",
+        ],
+        "response": (
+            "Hệ thống có 2 vai trò chính:\n"
+            "• **Trưởng nhóm (Lead)**: tạo/xóa dự án, thêm/xóa thành viên, chỉnh sửa mọi thứ.\n"
+            "• **Thành viên (Member)**: xem dự án, tạo workflow, thêm deadline và tải tài liệu.\n"
+            "Trưởng nhóm có thể nâng/hạ vai trò thành viên bất kỳ lúc nào."
+        ),
+    },
+
+    # ── Hướng dẫn chung ─────────────────────────────────────────────────────
     "general": {
-        "keywords": ["help", "guide", "how to", "hướng dẫn"],
-        "response": "Ask about creating projects, workflows, members, schedules, documents, or deadlines."
-    }
+        "keywords": [
+            "help", "guide", "how to", "hướng dẫn", "huong dan",
+            "giúp", "giup", "cần hỗ trợ", "can ho tro", "tôi cần giúp đỡ",
+        ],
+        "response": (
+            "Xin chào! Tôi có thể hỗ trợ bạn về:\n"
+            "• Tạo / chỉnh sửa / xóa **dự án**\n"
+            "• Quản lý **thành viên** và vai trò\n"
+            "• Tạo và cập nhật **workflow**\n"
+            "• Thêm và theo dõi **deadline**\n"
+            "• Quản lý **lịch** và đặt **cuộc họp**\n"
+            "• Tải lên / tải xuống **tài liệu**\n"
+            "• Cài đặt **tài khoản** và thông báo\n\n"
+            "Hãy đặt câu hỏi cụ thể để tôi hỗ trợ bạn tốt hơn nhé!"
+        ),
+    },
 }
 
 
@@ -739,83 +768,22 @@ def find_best_match(question: str) -> str:
     return CHATBOT_KNOWLEDGE["general"]["response"]
 
 
-def get_team_schedule_context(user_id: str, db) -> str:
-    try:
-        now = datetime.now(timezone.utc)
-        in_7_days = now + timedelta(days=7)
-        now_iso = now.isoformat()
-        in_7_iso = in_7_days.isoformat()
-
-        # Get projects user is in
-        pm_resp = db.table("project_members").select("project_id").eq("user_id", user_id).execute()
-        project_ids = [pm["project_id"] for pm in pm_resp.data] if (pm_resp.data if hasattr(pm_resp, 'data') else None) else []
-
-        relevant_user_ids = {user_id}
-        project_to_users = defaultdict(list)
-        project_names = {}
-        
-        if project_ids:
-            # Fetch project names
-            proj_resp = db.table("projects").select("id, name").in_("id", project_ids).execute()
-            if hasattr(proj_resp, 'data') and proj_resp.data:
-                for p in proj_resp.data:
-                    project_names[p["id"]] = p["name"]
-            
-            # Fetch all members
-            all_pm_resp = db.table("project_members").select("user_id, project_id").in_("project_id", project_ids).execute()
-            if hasattr(all_pm_resp, 'data') and all_pm_resp.data:
-                for pm in all_pm_resp.data:
-                    relevant_user_ids.add(pm["user_id"])
-                    project_to_users[pm["project_id"]].append(pm["user_id"])
-
-        user_ids_list = list(relevant_user_ids)
-        profiles_resp = db.table("profiles").select("id, full_name, username, email").in_("id", user_ids_list).execute()
-        profiles = {p["id"]: (p.get("full_name") or p.get("username") or p.get("email") or "User") for p in (profiles_resp.data if hasattr(profiles_resp, 'data') and profiles_resp.data else [])}
-
-        busy_resp = db.table("busy_times").select("*").in_("user_id", user_ids_list).gte("end_time", now_iso).lte("start_time", in_7_iso).execute()
-        events_resp = db.table("calendar_events").select("*").in_("user_id", user_ids_list).gte("end_time", now_iso).lte("start_time", in_7_iso).execute()
-
-        schedule_by_user = defaultdict(list)
-        if hasattr(busy_resp, 'data') and busy_resp.data:
-            for b in busy_resp.data:
-                schedule_by_user[b["user_id"]].append(f"Busy: {b['start_time']} to {b['end_time']} ({b.get('description') or 'No description'})")
-        
-        if hasattr(events_resp, 'data') and events_resp.data:
-            for e in events_resp.data:
-                schedule_by_user[e["user_id"]].append(f"Meeting/Event: {e['start_time']} to {e['end_time']} ({e.get('title') or 'Event'})")
-
-        if not schedule_by_user:
-            return "\n\nContext: No team members have any busy times scheduled for the next 7 days. Everyone is completely free."
-
-        context = "\n\nContext - Team Schedules for the next 7 days:\n"
-        context += f"Current Time: {now_iso}\n\n"
-        
-        context += "Projects and their Members:\n"
-        for pid, uids in project_to_users.items():
-            pname = project_names.get(pid, "Unknown Project")
-            member_names = [profiles.get(uid, "Unknown User") for uid in uids]
-            context += f"- {pname}: {', '.join(member_names)}\n"
-            
-        context += "\nSchedules:\n"
-        for uid, events in schedule_by_user.items():
-            name = profiles.get(uid, "Unknown User")
-            context += f"\n{name}:\n"
-            for ev in sorted(events):
-                context += f" - {ev}\n"
-        
-        context += "\nDirective: Based on the team schedules, recommend optimal 30-60 minute meeting times during standard working hours (9 AM - 5 PM). If the user targets a specific project, only consider the availability of members in that specific project. If they ask about a specific person, only consider that person's availability."
-        return context
-    except Exception as e:
-        print(f"Error fetching schedule context: {e}")
-        return ""
-
-def call_external_chatbot(question: str, api_key: str, api_base: str, model: str, custom_context: str = "") -> str:
+def call_external_chatbot(question: str, api_key: str, api_base: str, model: str) -> str:
+    if not api_base:
+        raise HTTPException(
+            status_code=500,
+            detail="CHATBOT_API_BASE is not configured. Set it in your .env file (e.g. https://api.openai.com/v1 or https://api.featherless.ai/v1)",
+        )
+    if not api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="No API key provided. Set CHATBOT_API_KEY in your .env file.",
+        )
     url = f"{api_base.rstrip('/')}/chat/completions"
-    system_prompt = CHATBOT_SYSTEM_PROMPT + custom_context
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": CHATBOT_SYSTEM_PROMPT},
             {"role": "user", "content": question},
         ],
         "temperature": 0.3,
@@ -898,18 +866,8 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str) 
 
 
 def clear_auth_cookies(response: Response) -> None:
-    response.delete_cookie(
-        key="access_token",
-        path="/",
-        secure=IS_PRODUCTION,
-        samesite="lax"
-    )
-    response.delete_cookie(
-        key="refresh_token",
-        path="/",
-        secure=IS_PRODUCTION,
-        samesite="lax"
-    )
+    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/")
 
 
 def get_current_user(access_token: Optional[str] = Cookie(None)) -> Dict[str, Any]:
@@ -1086,15 +1044,14 @@ def list_chat_channels(project_id: Optional[str] = Query(None), user=Depends(get
     # Only channels user has access to (by project membership)
     if project_id:
         require_project_member(user_id, project_id)
-        response = execute_with_retry(db.table("chat_channels").select("*").eq("project_id", project_id).eq("is_archived", False).order("created_at"))
-        channels = response.data
+        channels = db.table("chat_channels").select("*").eq("project_id", project_id).eq("is_archived", False).order("created_at").execute()
     else:
         # 1. Get project IDs user is part of
-        memberships = execute_with_retry(db.table("project_members").select("project_id").eq("user_id", user_id))
+        memberships = db.table("project_members").select("project_id").eq("user_id", user_id).execute()
         project_ids = [m["project_id"] for m in memberships.data]
         
         # 2. Get direct/group channels user is explicitly a member of
-        direct_memberships = execute_with_retry(db.table("chat_channel_members").select("channel_id").eq("user_id", user_id))
+        direct_memberships = db.table("chat_channel_members").select("channel_id").eq("user_id", user_id).execute()
         direct_channel_ids = [m["channel_id"] for m in direct_memberships.data]
         
         # 3. Build query: Channels in my projects OR Channels I am a member of
@@ -1108,7 +1065,7 @@ def list_chat_channels(project_id: Optional[str] = Query(None), user=Depends(get
             return []
             
         query_str = ",".join(or_conditions)
-        channels_resp = execute_with_retry(db.table("chat_channels").select("*").or_(query_str).eq("is_archived", False).order("last_message_at", desc=True))
+        channels_resp = db.table("chat_channels").select("*").or_(query_str).eq("is_archived", False).order("last_message_at", desc=True).execute()
         channels = channels_resp.data
 
     return channels
@@ -1597,7 +1554,6 @@ class RegisterDirectRequest(BaseModel):
 @app.post("/api/auth/register-direct")
 def register_direct(request: RegisterDirectRequest, response: Response, http_request: Request):
     """Register a new user directly with email/password and create backend session"""
-    enforce_rate_limit(client_ip(http_request), "auth_register_direct", 10, 300)
     try:
         db = require_supabase()
         # Use regular client to sign up the user
@@ -1626,7 +1582,7 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
         set_auth_cookies(response, access_token, refresh_token)
 
         # Create/update profile in database using admin client (bypasses RLS)
-        full_name = body.fullname or user.email
+        full_name = request.fullname or user.email
         db_client = supabase_admin if supabase_admin else db
         profile_response = db_client.table("profiles").upsert({
             "id": user.id,
@@ -1640,8 +1596,8 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
         store_refresh_token(
             user.id,
             refresh_token,
-            request.headers.get("user-agent"),
-            request.client.host if request.client else None,
+            http_request.headers.get("user-agent"),
+            http_request.client.host if http_request.client else None,
         )
 
         return {"status": "success", "user": {"id": user.id, "email": user.email, "full_name": full_name}}
@@ -1669,13 +1625,12 @@ def register_direct(request: RegisterDirectRequest, response: Response, http_req
 
 
 @app.post("/api/auth/register")
-@limiter.limit("20/5minutes")
-def register(request: Request, body: RegisterRequest, response: Response):
+def register(request: RegisterRequest, response: Response, http_request: Request):
     """Register a new user and create backend session from Supabase token"""
     try:
         db = require_supabase()
         # Verify the Supabase access token
-        user_response = db.auth.get_user(body.access_token)
+        user_response = db.auth.get_user(request.access_token)
         user = getattr(user_response, "user", None)
         if not user:
             raise HTTPException(status_code=401, detail="Invalid Supabase token")
@@ -1701,7 +1656,7 @@ def register(request: Request, body: RegisterRequest, response: Response):
         set_auth_cookies(response, access_token, refresh_token)
 
         # Create/update profile in database using admin client (bypasses RLS)
-        full_name = body.fullname or (user.user_metadata or {}).get("full_name") or user.email
+        full_name = request.fullname or (user.user_metadata or {}).get("full_name") or user.email
         db_client = supabase_admin if supabase_admin else db
         profile_response = db_client.table("profiles").upsert({
             "id": user.id,
@@ -1715,8 +1670,8 @@ def register(request: Request, body: RegisterRequest, response: Response):
         store_refresh_token(
             user.id,
             refresh_token,
-            request.headers.get("user-agent"),
-            request.client.host if request.client else None,
+            http_request.headers.get("user-agent"),
+            http_request.client.host if http_request.client else None,
         )
 
         return {"status": "success", "user": {"id": user.id, "email": user.email, "full_name": full_name}}
@@ -1732,7 +1687,6 @@ def register(request: Request, body: RegisterRequest, response: Response):
 @app.post("/api/auth/session")
 def create_session(request: AuthSessionRequest, response: Response, http_request: Request):
     """Create backend session from Supabase access token"""
-    enforce_rate_limit(client_ip(http_request), "auth_session", 30, 300)
     try:
         db = require_supabase()
         user_response = db.auth.get_user(request.access_token)
@@ -1777,7 +1731,6 @@ def create_session(request: AuthSessionRequest, response: Response, http_request
 
 @app.post("/api/auth/refresh")
 def refresh_session(response: Response, http_request: Request, refresh_token: Optional[str] = Cookie(None)):
-    enforce_rate_limit(client_ip(http_request), "auth_refresh", 60, 300)
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token")
     payload = verify_token(refresh_token)
@@ -1835,7 +1788,7 @@ def logout(response: Response, refresh_token: Optional[str] = Cookie(None)):
 @app.get("/api/profile")
 def get_profile(user=Depends(get_current_user)):
     db = require_db_client()
-    response = execute_with_retry(db.table("profiles").select("*").eq("id", user.get("sub")))
+    response = db.table("profiles").select("*").eq("id", user.get("sub")).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Profile not found")
     return {"profile": response.data[0]}
@@ -1876,34 +1829,13 @@ def search_users(q: str, user=Depends(get_current_user)):
 def get_projects(user=Depends(get_current_user)):
     db = require_db_client()
     user_id = user.get("sub")
-    response = execute_with_retry(db.table("project_members").select("*, projects(*)").eq("user_id", user_id))
-    
-    project_ids = []
-    for item in response.data:
-        if item.get("projects"):
-            project_ids.append(item["projects"]["id"])
-
-    deadline_counts = {}
-    if project_ids:
-        workspaces_resp = db.table("workspaces").select("id, project_id").in_("project_id", project_ids).execute()
-        if workspaces_resp.data:
-            ws_to_proj = {w["id"]: w["project_id"] for w in workspaces_resp.data}
-            workspace_ids = list(ws_to_proj.keys())
-            
-            if workspace_ids:
-                deadlines_resp = db.table("workspace_deadlines").select("workspace_id").in_("workspace_id", workspace_ids).execute()
-                for dl in (deadlines_resp.data or []):
-                    pid = ws_to_proj.get(dl["workspace_id"])
-                    if pid:
-                        deadline_counts[pid] = deadline_counts.get(pid, 0) + 1
-
+    response = db.table("project_members").select("*, projects(*)").eq("user_id", user_id).execute()
     projects = []
     for item in response.data:
         if item.get("projects"):
             p = item["projects"]
             # Map DB 'name' to API 'title' for frontend compatibility
             p["title"] = p.get("name", p.get("title"))
-            p["deadline_count"] = deadline_counts.get(p["id"], 0)
             projects.append(p)
     return projects
 
@@ -1928,23 +1860,16 @@ def get_project_details(project_id: str, user=Depends(get_current_user)):
     return project
 
 @app.put("/api/projects/{project_id}")
-def update_project(project_id: str, request: UpdateProjectRequest, user=Depends(get_current_user)):
+def update_project(project_id: str, request: CreateProjectRequest, user=Depends(get_current_user)):
     db = require_db_client()
     require_project_lead(user.get("sub"), project_id)
     
-    updates = {}
-    if request.title is not None:
-        updates["name"] = request.title
-    if request.description is not None:
-        updates["description"] = request.description
-    if request.color is not None:
-        updates["color"] = request.color
-    if request.status is not None:
-        updates["status"] = request.status
-        
-    if not updates:
-        raise HTTPException(status_code=400, detail="No fields to update")
-        
+    updates = {
+        "name": request.title,
+        "description": request.description or "",
+        "color": request.color
+    }
+    
     response = db.table("projects").update(updates).eq("id", project_id).execute()
     if not response.data:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -2196,8 +2121,6 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
 
     last_error = None
     for workflow_data in payload_variants:
-        if getattr(request, "parent_id", None):
-            workflow_data["parent_id"] = request.parent_id
         try:
             response = db.table("workspaces").insert(workflow_data).execute()
         except Exception as exc:
@@ -2277,38 +2200,6 @@ def normalize_deadline_due_date(due_date: str) -> str:
         return trimmed
     parsed = datetime.fromisoformat(trimmed.replace("Z", "+00:00"))
     return parsed.date().isoformat()
-
-
-@app.patch("/api/workflows/{workflow_id}")
-def update_workflow(workflow_id: str, request: UpdateWorkflowRequest, user=Depends(get_current_user)):
-    db = require_db_client()
-    # Basic check
-    workspace_resp = db.table("workspaces").select("*").eq("id", workflow_id).limit(1).execute()
-    if not workspace_resp.data:
-        raise HTTPException(status_code=404, detail="Workflow not found")
-    
-    workspace = workspace_resp.data[0]
-    project_id = workspace.get("project_id")
-    require_project_member(user.get("sub"), project_id)
-
-    updates = {}
-    if request.title is not None:
-        updates["name"] = sanitize_chat_input(request.title)
-    if request.description is not None:
-        updates["description"] = sanitize_chat_input(request.description)
-    if request.status is not None:
-        allowed_status = {"in_progress", "pause", "completed", "active"}
-        status_val = request.status.lower()
-        if status_val in allowed_status:
-            updates["status"] = status_val
-
-    if not updates:
-        return workspace
-
-    response = db.table("workspaces").update(updates).eq("id", workflow_id).execute()
-    if not response.data:
-        raise HTTPException(status_code=500, detail="Failed to update workflow")
-    return response.data[0]
 
 
 @app.post("/api/workflows/{workflow_id}/members")
@@ -2487,14 +2378,9 @@ def delete_deadline(workflow_id: str, deadline_id: str, user=Depends(get_current
 def get_deadlines(days: int = 7, user=Depends(get_current_user)):
     db = require_db_client()
     user_id = user.get("sub")
-    
     max_date = datetime.now(timezone.utc) + timedelta(days=days)
-    
-    query = db.table("workspace_deadlines").select("*, workspaces(name, project_id)")
-    query = query.eq("assigned_to", user_id)
-        
-    response = execute_with_retry(query.lte("due_date", max_date.isoformat()))
-    data = response.data or []
+    response = db.table("workspace_deadlines").select("*, workspaces(name, project_id)").eq("assigned_to", user_id).execute()
+    data = response.data
     for item in data:
         if item.get("workspaces"):
             item["workflows"] = item["workspaces"]
@@ -2531,33 +2417,7 @@ def get_calendar_events(
         query = query.lt("start_time", end)
 
     response = query.order("start_time", desc=False).execute()
-    events = response.data or []
-
-    # Merge deadlines as events
-    dl_query = db.table("workspace_deadlines").select("*, workspaces(name, project_id)")
-    dl_query = dl_query.eq("assigned_to", user_id)
-        
-    if start:
-        dl_query = dl_query.gte("due_date", start)
-    if end:
-        dl_query = dl_query.lt("due_date", end)
-        
-    dl_resp = dl_query.execute()
-    for dl in dl_resp.data or []:
-        events.append({
-            "id": f"dl-{dl['id']}",
-            "title": f"[Deadline] {dl.get('title')}",
-            "description": f"Workflow: {dl.get('workspaces', {}).get('name')}",
-            "start_time": dl.get("due_date"),
-            "end_time": dl.get("due_date"),
-            "user_id": user_id,
-            "project_id": dl.get("workspaces", {}).get("project_id"),
-            "event_type": "deadline",
-            "color": "#dc2626",
-            "status": dl.get("status", "pending")
-        })
-
-    return events
+    return response.data or []
 
 
 @app.post("/api/calendar/events")
@@ -2583,7 +2443,6 @@ def create_calendar_event(request: CreateCalendarEventRequest, user=Depends(get_
         "end_time": request.end_time,
         "event_type": request.event_type or "meeting",
         "color": request.color,
-        "status": request.status or "pending",
     }).execute()
     if not response.data:
         raise HTTPException(status_code=500, detail="Failed to create calendar event")
@@ -2617,8 +2476,6 @@ def update_calendar_event(event_id: str, request: UpdateCalendarEventRequest, us
         updates["event_type"] = request.event_type
     if request.color is not None:
         updates["color"] = request.color
-    if request.status is not None:
-        updates["status"] = request.status
 
     start_value = request.start_time if request.start_time is not None else event.get("start_time")
     end_value = request.end_time if request.end_time is not None else event.get("end_time")
@@ -2720,47 +2577,9 @@ def get_project_team_calendar(
         .execute()
     )
 
-    # Also fetch project deadlines for assigned team members
-    workflows_resp = db.table("workspaces").select("id").eq("project_id", project_id).execute()
-    workflow_ids = [w["id"] for w in workflows_resp.data or []]
-    
-    deadlines = []
-    if workflow_ids and member_ids:
-        # assigned_to is a UUID column, pass only member_ids to avoid PostgREST cast errors
-        dl_resp = (
-            db.table("workspace_deadlines")
-            .select("*, workspaces(name, project_id)")
-            .in_("workspace_id", workflow_ids)
-            .in_("assigned_to", member_ids)
-            .gte("due_date", start_dt.isoformat()[:10]) # use slice to just get YYYY-MM-DD for direct string comparison
-            .lt("due_date", end_dt.isoformat()[:10] + "Z")
-            .execute()
-        )
-        
-        for dl in dl_resp.data or []:
-            assignee = dl.get("assigned_to")
-            matched_user_id = assignee
-            for m in members:
-                if m.get("username") == assignee or m.get("id") == assignee:
-                    matched_user_id = m.get("id")
-                    break
-                    
-            deadlines.append({
-                "id": f"dl-{dl['id']}",
-                "title": f"[Deadline] {dl.get('title')}",
-                "description": f"Workflow: {dl.get('workspaces', {}).get('name')}",
-                "start_time": dl.get("due_date"),
-                "end_time": dl.get("due_date"),
-                "user_id": matched_user_id,
-                "project_id": project_id,
-                "event_type": "deadline",
-                "color": "#dc2626",
-                "status": dl.get("status", "pending")
-            })
-
     return {
         "members": members,
-        "events": (events_resp.data or []) + deadlines,
+        "events": events_resp.data or [],
         "busy_times": busy_resp.data or [],
     }
 
@@ -2975,17 +2794,17 @@ def get_documents(project_id: Optional[str] = None, user=Depends(get_current_use
     user_id = user.get("sub")
     if project_id:
         require_project_member(user_id, project_id)
-        response = execute_with_retry(db.table("documents").select("*, profiles!uploaded_by(username)").eq("project_id", project_id))
+        response = db.table("documents").select("*, profiles!uploaded_by(username)").eq("project_id", project_id).execute()
         return response.data
 
-    memberships = execute_with_retry(db.table("project_members").select("project_id").eq("user_id", user_id))
+    memberships = db.table("project_members").select("project_id").eq("user_id", user_id).execute()
     project_ids = [item["project_id"] for item in memberships.data]
     if project_ids:
-        response = execute_with_retry(db.table("documents").select("*, profiles!uploaded_by(username)").or_(
+        response = db.table("documents").select("*, profiles!uploaded_by(username)").or_(
             f"uploaded_by.eq.{user_id},project_id.in.({','.join(project_ids)})"
-        ))
+        ).execute()
     else:
-        response = execute_with_retry(db.table("documents").select("*, profiles!uploaded_by(username)").eq("uploaded_by", user_id))
+        response = db.table("documents").select("*, profiles!uploaded_by(username)").eq("uploaded_by", user_id).execute()
     return response.data
 
 
@@ -3013,37 +2832,20 @@ def update_document_access(document_id: str, request: UpdateDocumentAccessReques
 
 
 @app.post("/api/documents/upload")
-@limiter.limit("30/5minutes")
 async def upload_document_file(
-    request: Request,
     file: UploadFile = File(...),
     project_id: Optional[str] = Form(None),
-    user=Depends(get_current_user),
+    user=Depends(get_current_user)
 ):
     db = require_db_client()
     user_id = user.get("sub")
-
     if project_id:
         require_project_member(user_id, project_id)
     
     try:
-        original_name = file.filename or "file.bin"
-        safe_name = sanitize_filename(original_name)
-        lowered_name = safe_name.lower()
-        ext = os.path.splitext(lowered_name)[1]
-        mime_type = (file.content_type or "application/octet-stream").lower()
-
-        if ext not in ALLOWED_UPLOAD_EXTENSIONS:
-            raise HTTPException(status_code=400, detail="Unsupported file extension")
-        if mime_type not in ALLOWED_UPLOAD_MIME_TYPES:
-            raise HTTPException(status_code=400, detail="Unsupported file type")
-
-        file_content = await file.read(MAX_UPLOAD_SIZE_BYTES + 1)
-        if len(file_content) > MAX_UPLOAD_SIZE_BYTES:
-            raise HTTPException(status_code=413, detail="File too large (max 10MB)")
-
+        file_content = await file.read()
         folder = project_id or f"private/{user_id}"
-        file_path = f"{folder}/{datetime.now().timestamp()}-{safe_name}"
+        file_path = f"{folder}/{datetime.now().timestamp()}-{file.filename}"
 
         upload_response = db.storage.from_("documents").upload(
             path=file_path,
@@ -3057,7 +2859,7 @@ async def upload_document_file(
 
         doc_response = db.table("documents").insert({
             "project_id": project_id,
-            "filename": safe_name,
+            "filename": file.filename,
             "file_url": file_path,
             "file_type": file_type,
             "file_size": file_size,
@@ -3068,10 +2870,8 @@ async def upload_document_file(
             raise HTTPException(status_code=500, detail="Failed to save document metadata")
 
         return doc_response.data[0]
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to upload file") from e
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/documents/{document_id}/download")
@@ -3114,8 +2914,6 @@ def get_document_download_url(document_id: str, user=Depends(get_current_user)):
 @app.post("/api/notifications/create")
 def create_notification(request: CreateNotificationRequest, user=Depends(get_current_user)):
     db = require_db_client()
-    if request.user_id != user.get("sub"):
-        raise HTTPException(status_code=403, detail="Cannot create notifications for other users")
     response = db.table("notifications").insert({
         "user_id": request.user_id,
         "type": request.type,
@@ -3143,28 +2941,21 @@ def mark_notification_read(notification_id: str, user=Depends(get_current_user))
     return {"status": "success"}
 
 @app.post("/api/chatbot")
-@limiter.limit("50/5minutes")
 def chatbot(
-    request: Request,
-    body: ChatbotRequest,
+    request: ChatbotRequest,
     user=Depends(get_current_user),
     x_chatbot_api_key: Optional[str] = Header(default=None, alias="x-chatbot-api-key"),
 ):
-    question = sanitize_chat_input(body.question)
-    
-    question_lower = question.lower()
-    schedule_context = ""
-    if any(kw in question_lower for kw in ["schedule", "meeting", "time", "busy", "available", "when"]):
-        schedule_context = get_team_schedule_context(user.get("sub"), require_db_client())
-        
-    # Priority: user-provided key (Settings) > server default key > Google AI Studio default key.
-    api_key = (x_chatbot_api_key or CHATBOT_API_KEY or GOOGLE_AI_STUDIO_API_KEY or "").strip()
-    api_base = (body.api_base or CHATBOT_API_BASE).strip().rstrip("/")
-    model = (body.model or CHATBOT_MODEL).strip()
+    question = sanitize_chat_input(request.question)
+    # Priority: request body key > header key > env CHATBOT_API_KEY > env GOOGLE_AI_STUDIO_API_KEY
+    api_key = (request.api_key or x_chatbot_api_key or CHATBOT_API_KEY or GOOGLE_AI_STUDIO_API_KEY or "").strip()
+    # Priority: request body api_base > env CHATBOT_API_BASE
+    api_base = (request.api_base or CHATBOT_API_BASE or "").strip().rstrip("/")
+    model = (request.model or CHATBOT_MODEL).strip()
 
     if api_key:
         try:
-            answer = call_external_chatbot(question, api_key, api_base, model, schedule_context)
+            answer = call_external_chatbot(question, api_key, api_base, model)
             return {
                 "question": question,
                 "answer": answer,
@@ -3184,12 +2975,14 @@ def chatbot(
                 }
             raise
 
+    # No API key configured — fall back to built-in rules matcher
     response = find_best_match(question)
     return {
         "question": question,
         "answer": response,
         "provider": "built-in",
         "model": "rules",
+        "warning": "No API key configured. Set CHATBOT_API_KEY and CHATBOT_API_BASE in your .env file to use an external provider.",
     }
 
 
