@@ -12,6 +12,7 @@ import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from collections import defaultdict, deque
+import socket
 from threading import Lock
 from dotenv import load_dotenv
 import httpx
@@ -26,6 +27,14 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+
+# DNS Patch: Force IPv4 for Supabase to fix local resolver flakiness
+_original_getaddrinfo = socket.getaddrinfo
+def _patched_getaddrinfo(host, port, family=0, *args, **kwargs):
+    if host and "supabase.co" in host:
+        return _original_getaddrinfo(host, port, socket.AF_INET, *args, **kwargs)
+    return _original_getaddrinfo(host, port, family, *args, **kwargs)
+socket.getaddrinfo = _patched_getaddrinfo
 
 def sanitize_chat_input(text: str) -> str:
     # Remove dangerous SQL/meta chars and trim
@@ -198,14 +207,14 @@ def execute_with_retry(query_builder, max_retries=3):
         except (httpx.ConnectError, httpx.RemoteProtocolError, httpx.ConnectTimeout, httpx.ReadTimeout) as e:
             last_error = e
             print(f"Network error on attempt {attempt + 1}: {e}. Retrying...", file=sys.stderr)
-            time.sleep(1.5 * (attempt + 1))  # Progressive backoff
+            time.sleep(0.5 * (attempt + 1))  # Faster progressive backoff
         except Exception as e:
             # For other exceptions, if it looks like a connection error, retry
             msg = str(e).lower()
-            if "connection" in msg or "disconnected" in msg or "dns" in msg or "resolution" in msg:
+            if any(term in msg for term in ["connection", "disconnected", "dns", "resolution", "timeout"]):
                 last_error = e
                 print(f"Likely network error on attempt {attempt + 1}: {e}. Retrying...", file=sys.stderr)
-                time.sleep(1.5 * (attempt + 1))
+                time.sleep(0.5 * (attempt + 1))
                 continue
             raise e
     raise last_error
