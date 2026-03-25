@@ -129,6 +129,20 @@ RATE_LIMIT_BUCKETS: Dict[str, deque] = defaultdict(deque)
 RATE_LIMIT_LOCK = Lock()
 
 
+def enforce_rate_limit(ip: str, key: str, limit: int, window_seconds: int) -> None:
+    """Sliding-window rate limiter. Raises HTTP 429 if limit exceeded."""
+    bucket_key = f"{ip}:{key}"
+    now = time.time()
+    with RATE_LIMIT_LOCK:
+        bucket = RATE_LIMIT_BUCKETS[bucket_key]
+        # Remove timestamps outside the current window
+        while bucket and bucket[0] < now - window_seconds:
+            bucket.popleft()
+        if len(bucket) >= limit:
+            raise HTTPException(status_code=429, detail="Too many requests. Please try again later.")
+        bucket.append(now)
+
+
 def contains_emoji(value: str) -> bool:
     return bool(EMOJI_PATTERN.search(value))
 

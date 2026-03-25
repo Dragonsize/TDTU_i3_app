@@ -35,7 +35,7 @@ export default function ChatPage() {
 
   if (loading) {
     return (
-      <AppShell user={user} activePath="/chat" contentClassName="flex-1" fullHeight={true}>
+      <AppShell user={user} activePath="/chat" contentClassName="flex-1 bg-gray-50/50" fullHeight={true}>
         <PageLoader label="Loading..." />
       </AppShell>
     );
