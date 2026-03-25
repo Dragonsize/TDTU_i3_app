@@ -8,5 +8,30 @@ const nextConfig = {
       },
     ]
   },
+  headers: async () => {
+    const privateRoutes = [
+      '/auth/:path*',
+      '/login',
+      '/signup',
+      '/reset-password',
+      '/dashboard/:path*',
+      '/project/:path*',
+      '/calendar/:path*',
+      '/chat/:path*',
+      '/chatbot/:path*',
+      '/files/:path*',
+      '/settings/:path*',
+    ];
+
+    return privateRoutes.map((source) => ({
+      source,
+      headers: [
+        {
+          key: 'X-Robots-Tag',
+          value: 'noindex, nofollow, noarchive',
+        },
+      ],
+    }));
+  },
 };
 export default nextConfig;
