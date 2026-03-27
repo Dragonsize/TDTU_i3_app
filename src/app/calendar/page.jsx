@@ -246,6 +246,18 @@ function formatDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function defaultMeetingWindow() {
+  const start = new Date();
+  start.setHours(9, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+  end.setHours(18, 0, 0, 0);
+  return {
+    start: toInputDateTime(start.toISOString()),
+    end: toInputDateTime(end.toISOString()),
+  };
+}
+
 // --- MAIN APPLICATION ---
 export default function CalendarPage() {
   const router = useRouter();
@@ -368,6 +380,17 @@ export default function CalendarPage() {
     fetchTeamCalendar();
   }, [fetchTeamCalendar, loading, teamProjectId, viewMode]);
 
+  useEffect(() => {
+    if (meetingWindowStart && meetingWindowEnd) return;
+    const defaults = defaultMeetingWindow();
+    setMeetingWindowStart(defaults.start);
+    setMeetingWindowEnd(defaults.end);
+  }, [meetingWindowStart, meetingWindowEnd]);
+
+  useEffect(() => {
+    setMeetingSlots([]);
+  }, [teamProjectId, selectedMemberIds.length]);
+
   const monthDays = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -399,16 +422,39 @@ export default function CalendarPage() {
     return Array.from({ length: 7 }, (_, idx) => addDays(weekStart, idx));
   }, [selectedDay]);
 
+  const memberMap = useMemo(() => {
+    const map = {};
+    for (const member of teamData.members) {
+      map[member.id] = member.full_name || member.username || "Unknown member";
+    }
+    return map;
+  }, [teamData.members]);
+
+  const displayedEvents = useMemo(() => {
+    if (viewMode !== "team") return events;
+    const memberFilter = selectedMemberIds.length > 0 ? new Set(selectedMemberIds) : null;
+    return (teamData.events || []).filter((event) => {
+      if (!memberFilter) return true;
+      return memberFilter.has(event.user_id);
+    });
+  }, [events, teamData.events, selectedMemberIds, viewMode]);
+
+  const sortedUpcomingEvents = useMemo(() => {
+    return [...displayedEvents]
+      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+      .slice(0, 3);
+  }, [displayedEvents]);
+
   const eventsByDateKey = useMemo(() => {
     const grouped = {};
-    for (const ev of events) {
+    for (const ev of displayedEvents) {
       const key = formatDateKey(new Date(ev.start_time));
       grouped[key] = grouped[key] || [];
       grouped[key].push(ev);
     }
     Object.values(grouped).forEach((list) => list.sort((a, b) => new Date(a.start_time) - new Date(b.start_time)));
     return grouped;
-  }, [events]);
+  }, [displayedEvents]);
 
   const navigateCalendar = (direction) => {
     if (calendarView === "day") {
@@ -430,6 +476,82 @@ export default function CalendarPage() {
     const now = new Date();
     setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1));
     setSelectedDay(now);
+  };
+
+  const findMeetingSlots = async () => {
+    if (!teamProjectId) {
+      setError("Choose a project before finding slots.");
+      return;
+    }
+    if (!meetingWindowStart || !meetingWindowEnd) {
+      setError("Choose both start and end of planning window.");
+      return;
+    }
+
+    setPlanningMeeting(true);
+    setError("");
+
+    try {
+      const payload = {
+        start_time: toIsoFromLocal(meetingWindowStart),
+        end_time: toIsoFromLocal(meetingWindowEnd),
+        duration_minutes: Number(meetingDuration) || 60,
+        member_ids: selectedMemberIds.length > 0 ? selectedMemberIds : undefined,
+      };
+
+      const res = await dFetch(`/api/projects/${teamProjectId}/calendar/meeting-slots`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.detail || "Failed to find meeting slots");
+
+      setMeetingSlots(Array.isArray(data.slots) ? data.slots : []);
+    } catch (err) {
+      console.error(err);
+      setMeetingSlots([]);
+      setError(err.message || "Unable to find slots.");
+    } finally {
+      setPlanningMeeting(false);
+    }
+  };
+
+  const scheduleFromSlot = async (slot) => {
+    setPlanningMeeting(true);
+    setError("");
+
+    try {
+      const eventDate = new Date(slot.start_time);
+      const prettyDate = eventDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const payload = {
+        title: `Team Meeting (${prettyDate})`,
+        description: "Scheduled from Meeting Finder",
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        member_ids: selectedMemberIds.length > 0 ? selectedMemberIds : undefined,
+        event_type: "meeting",
+      };
+
+      const res = await dFetch(`/api/projects/${teamProjectId}/calendar/meetings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.detail || "Failed to schedule meeting");
+
+      await Promise.all([
+        fetchTeamCalendar(),
+        fetchEventsForView(calendarView, currentMonth, selectedDay),
+      ]);
+      setMeetingSlots((prev) => prev.filter((candidate) => candidate.start_time !== slot.start_time));
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Unable to schedule meeting.");
+    } finally {
+      setPlanningMeeting(false);
+    }
   };
 
   const resetForm = () => {
@@ -585,6 +707,12 @@ export default function CalendarPage() {
           </div>
         </div>
 
+        {error && (
+          <div className="mb-6 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {error}
+          </div>
+        )}
+
         {/* Layout with Sidebar */}
         <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-8">
           
@@ -626,11 +754,84 @@ export default function CalendarPage() {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 ml-1">Duration</label>
+                      <select
+                        value={meetingDuration}
+                        onChange={(e) => setMeetingDuration(Number(e.target.value))}
+                        className="w-full h-[40px] bg-gray-50 border-0 rounded-xl px-3 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-blue-500/10"
+                      >
+                        {[30, 45, 60, 90, 120].map((minutes) => (
+                          <option key={minutes} value={minutes}>{minutes} min</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 ml-1">Members</label>
+                      <div className="h-[40px] bg-gray-50 rounded-xl px-3 flex items-center text-xs font-bold text-gray-700">
+                        {selectedMemberIds.length || teamData.members.length} people
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 ml-1">Window Start</label>
+                      <input
+                        type="datetime-local"
+                        value={meetingWindowStart}
+                        onChange={(e) => setMeetingWindowStart(e.target.value)}
+                        className="w-full h-[40px] bg-gray-50 border-0 rounded-xl px-3 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-blue-500/10"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 ml-1">Window End</label>
+                      <input
+                        type="datetime-local"
+                        value={meetingWindowEnd}
+                        onChange={(e) => setMeetingWindowEnd(e.target.value)}
+                        className="w-full h-[40px] bg-gray-50 border-0 rounded-xl px-3 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-blue-500/10"
+                      />
+                    </div>
+                  </div>
+
                   <button 
+                    type="button"
+                    onClick={findMeetingSlots}
+                    disabled={planningMeeting || !teamProjectId}
                     className="w-full py-3 bg-gray-900 text-white rounded-2xl text-xs font-bold hover:bg-black transition-all active:scale-[0.98] mt-2 shadow-sm"
                   >
-                    Find Optimum Slots
+                    {planningMeeting ? "Finding..." : "Find Optimum Slots"}
                   </button>
+
+                  <div className="space-y-2 max-h-56 overflow-auto pr-1">
+                    {meetingSlots.length === 0 && (
+                      <p className="text-[11px] font-medium text-gray-400">No suggested slots yet. Pick members and run finder.</p>
+                    )}
+                    {meetingSlots.map((slot) => {
+                      const start = new Date(slot.start_time);
+                      const end = new Date(slot.end_time);
+                      return (
+                        <div key={slot.start_time} className="border border-gray-100 rounded-xl p-3 bg-gray-50/70">
+                          <p className="text-xs font-bold text-gray-900">
+                            {start.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                          </p>
+                          <p className="text-[11px] text-gray-600 mt-0.5">
+                            {start.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })} - {end.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => scheduleFromSlot(slot)}
+                            disabled={planningMeeting}
+                            className="mt-2 w-full py-1.5 rounded-lg bg-white border border-gray-200 text-[11px] font-bold text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-60"
+                          >
+                            Schedule This Slot
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
@@ -640,10 +841,13 @@ export default function CalendarPage() {
                 Upcoming
               </h3>
               <div className="space-y-3">
-                {events.slice(0, 3).map(ev => (
+                {sortedUpcomingEvents.map(ev => (
                   <div key={ev.id} className="group cursor-pointer">
                     <p className="text-xs font-bold text-gray-800 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{ev.title}</p>
                     <p className="text-[10px] font-medium text-gray-400 mt-0.5">{new Date(ev.start_time).toLocaleDateString("en-US", { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}</p>
+                    {viewMode === "team" && ev.user_id && (
+                      <p className="text-[10px] font-bold text-indigo-500 mt-0.5">{memberMap[ev.user_id] || "Team member"}</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -682,16 +886,16 @@ export default function CalendarPage() {
                         <div className="space-y-1.5">
                           {visibleEvents.map((ev) => (
                             <div
-                              key={ev.id}
+                              key={`${ev.id}-${ev.user_id || "self"}`}
                               onClick={(event) => {
                                 event.stopPropagation();
                                 startEditEvent(ev);
                               }}
                               style={{ backgroundColor: ev.color || STATUS_CONFIG[ev.status]?.hex || "#111827" }}
                               className="w-full text-left truncate rounded-xl px-2.5 py-1.5 text-[10px] font-bold text-white transition-all transform hover:scale-[1.02] shadow-sm active:scale-[0.98]"
-                              title={`${ev.title} (${ev.status})`}
+                              title={`${ev.title} (${ev.status || "scheduled"})`}
                             >
-                              {ev.title}
+                              {viewMode === "team" ? `${memberMap[ev.user_id] || "Member"}: ${ev.title}` : ev.title}
                             </div>
                           ))}
                           {allDayEvents.length > 4 && <div className="text-[9px] font-bold text-gray-400 pl-1">+ {allDayEvents.length - 4} more</div>}
@@ -723,13 +927,13 @@ export default function CalendarPage() {
                         {dayEvents.length === 0 && <div className="text-xs text-gray-400">No events</div>}
                         {dayEvents.map((ev) => (
                           <button
-                            key={ev.id}
+                            key={`${ev.id}-${ev.user_id || "self"}`}
                             type="button"
                             onClick={() => startEditEvent(ev)}
                             style={{ backgroundColor: ev.color || STATUS_CONFIG[ev.status]?.hex || "#111827" }}
                             className="w-full text-left rounded-xl px-3 py-2 text-[11px] font-bold text-white"
                           >
-                            <div className="truncate">{ev.title}</div>
+                            <div className="truncate">{viewMode === "team" ? `${memberMap[ev.user_id] || "Member"}: ${ev.title}` : ev.title}</div>
                             <div className="text-[10px] opacity-90 mt-0.5">
                               {new Date(ev.start_time).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
                             </div>
@@ -755,14 +959,14 @@ export default function CalendarPage() {
                   )}
                   {(eventsByDateKey[formatDateKey(selectedDay)] || []).map((ev) => (
                     <button
-                      key={ev.id}
+                      key={`${ev.id}-${ev.user_id || "self"}`}
                       type="button"
                       onClick={() => startEditEvent(ev)}
                       className="w-full text-left rounded-2xl border border-gray-100 px-4 py-3 hover:bg-gray-50 transition-colors"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-bold text-gray-900 truncate">{ev.title}</p>
+                          <p className="text-sm font-bold text-gray-900 truncate">{viewMode === "team" ? `${memberMap[ev.user_id] || "Member"}: ${ev.title}` : ev.title}</p>
                           <p className="text-xs text-gray-500 mt-1">
                             {new Date(ev.start_time).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
                             {" - "}
