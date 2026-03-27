@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
+import SkeletonLoader from "@/components/SkeletonLoader";
 import { dFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import {
@@ -32,7 +33,7 @@ function FileImagePreview({ file }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.id]);
 
-  if (loading) return <div className="flex items-center gap-2 text-gray-400 text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div>;
+  if (loading) return <div className="h-80 bg-gray-200 rounded-xl animate-pulse" />;
   if (error) return <span className="text-red-500 text-sm">{error}</span>;
   if (!imgUrl) return <span className="text-gray-400 text-sm">No image</span>;
   // Blob/object URLs are generated at runtime, so native img is intentional here.
@@ -61,7 +62,14 @@ function TextPreview({ fileId }) {
     return () => { isMounted = false; };
   }, [fileId]);
 
-  if (loading) return <div className="flex items-center gap-2 text-gray-400 text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div>;
+  if (loading) return (
+    <div className="space-y-3 animate-pulse">
+      <div className="h-4 bg-gray-200 rounded w-full" />
+      <div className="h-4 bg-gray-200 rounded w-5/6" />
+      <div className="h-4 bg-gray-200 rounded w-4/6" />
+      <div className="h-40 bg-gray-200 rounded-xl mt-4" />
+    </div>
+  );
   if (error) return <span className="text-red-500 text-sm">{error}</span>;
   if (!content) return <span className="text-gray-400 text-sm">No content</span>;
   return (
@@ -251,8 +259,11 @@ export default function FilesPage() {
 
   if (loading) {
     return (
-      <AppShell user={currentUser} activePath="/files" contentClassName="flex-1">
-        <PageLoader label="Loading files..." />
+      <AppShell user={currentUser} activePath="/files" contentClassName="flex-1 bg-gray-50/50">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+          <SkeletonLoader count={2} type="header" />
+          <SkeletonLoader count={6} type="file-list" />
+        </div>
       </AppShell>
     );
   }

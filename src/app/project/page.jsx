@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
+import SkeletonLoader from "@/components/SkeletonLoader";
 import { dFetch } from "@/lib/api";
 import {
   FolderOpen, Plus, Search, MoreHorizontal, Pencil, Trash2,
@@ -352,7 +353,9 @@ export default function ProjectPage() {
   if (loading) {
     return (
       <AppShell user={currentUser} activePath="/project" contentClassName="flex-1">
-        <PageLoader label="Loading projects..." />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <SkeletonLoader count={6} type="projects" />
+        </div>
       </AppShell>
     );
   }

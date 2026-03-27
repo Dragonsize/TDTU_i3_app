@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
+import SkeletonLoader from "@/components/SkeletonLoader";
 import { dFetch } from "@/lib/api";
 import { 
   ChevronLeft, 
@@ -630,7 +631,9 @@ export default function CalendarPage() {
   if (loading) {
     return (
       <AppShell user={user} activePath="/calendar" contentClassName="flex-1 bg-gray-50/50">
-        <PageLoader label="Opening your schedule..." />
+        <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <SkeletonLoader type="calendar" />
+        </main>
       </AppShell>
     );
   }
