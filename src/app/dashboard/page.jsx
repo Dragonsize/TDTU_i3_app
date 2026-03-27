@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AppShell from '@/components/AppShell';
 import PageLoader from '@/components/PageLoader';
+import SkeletonLoader from '@/components/SkeletonLoader';
 import { dFetch } from '@/lib/api';
 import {
   LayoutGrid, MessageSquare, FileText, Flag, CalendarDays,
@@ -142,8 +143,23 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <AppShell user={user} activePath="/dashboard" contentClassName="flex-1">
-        <PageLoader label="Loading..." />
+      <AppShell user={user} activePath="/dashboard" contentClassName="flex-1 bg-gray-50/50 dark:bg-neutral-950/50 transition-colors duration-300">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+          {/* Header Skeleton */}
+          <div className="mb-8">
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-2 animate-pulse" />
+            <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-1/3 animate-pulse" />
+          </div>
+
+          {/* Stats Skeleton */}
+          <SkeletonLoader count={5} type="dashboard-stats" />
+
+          {/* Nav Cards Skeleton */}
+          <SkeletonLoader count={6} type="dashboard-nav-cards" />
+
+          {/* Upcoming Items Skeleton */}
+          <SkeletonLoader count={2} type="dashboard-upcoming" />
+        </div>
       </AppShell>
     );
   }
