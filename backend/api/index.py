@@ -35,9 +35,9 @@ def validate_url_safe(url: str) -> str:
     for protocol in dangerous_protocols:
         if url_lower.startswith(protocol):
             raise HTTPException(status_code=400, detail="URL contains invalid protocol")
-    # Basic URL format check
-    if not (url.startswith('http://') or url.startswith('https://') or url.startswith('/')):
-        raise HTTPException(status_code=400, detail="URL must be absolute or relative path")
+    # Only validate format if it looks like a full URL (contains ://)
+    if '://' in url and not (url.startswith('http://') or url.startswith('https://')):
+        raise HTTPException(status_code=400, detail="URL must use http or https")
     return url
 
 from fastapi.middleware.cors import CORSMiddleware
