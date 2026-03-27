@@ -5,12 +5,13 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
-import { dFetch } from "@/lib/api";
 
+// Formats a Date object into a "YYYY-MM-DD" string
 function formatDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+// Parses a "YYYY-MM-DD" string into a local Date object, ignoring the time component
 function parseDateOnly(dateValue) {
   if (!dateValue || !dateValue.includes("-")) return null;
   const [yearText, monthText, dayText] = dateValue.split("-");
@@ -21,12 +22,14 @@ function parseDateOnly(dateValue) {
   return new Date(year, month - 1, day);
 }
 
+// Formats a "YYYY-MM-DD" string into a displayable label like "Jan 1, 2024"
 function formatDateButtonLabel(dateValue) {
   const parsed = parseDateOnly(dateValue);
   if (!parsed) return "Select date";
   return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// Generates a 42-day calendar grid (6 weeks) array starting from the Monday of the month's first week
 function monthGridMonday(date) {
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -39,6 +42,7 @@ function monthGridMonday(date) {
   });
 }
 
+// Utility function to check if two Date objects represent the exact same calendar day
 function isSameDate(a, b) {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -47,12 +51,14 @@ function isSameDate(a, b) {
   );
 }
 
+// Pre-generated array of time strings in 15-minute increments (00:00 to 23:45)
 const TIME_OPTIONS = Array.from({ length: 96 }, (_, idx) => {
   const hour = String(Math.floor(idx / 4)).padStart(2, "0");
   const minute = String((idx % 4) * 15).padStart(2, "0");
   return `${hour}:${minute}`;
 });
 
+// Formats a 24-hour military time string (HH:MM) to a 12-hour string with AM/PM
 function formatTimeLabel(timeValue) {
   if (!timeValue || !timeValue.includes(":")) return "Select time";
   const [hoursText, minutesText] = timeValue.split(":");
@@ -65,6 +71,7 @@ function formatTimeLabel(timeValue) {
   return `${twelveHour}:${String(minutes).padStart(2, "0")} ${period}`;
 }
 
+// Custom Date picker dropdown component for selecting a specific date via a calendar UI
 function DateDropdown({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [displayMonth, setDisplayMonth] = useState(() => parseDateOnly(value) || new Date());
@@ -142,13 +149,12 @@ function DateDropdown({ value, onChange }) {
                     onChange(formatDateKey(day));
                     setOpen(false);
                   }}
-                  className={`w-9 h-9 mx-auto rounded-full text-sm ${
-                    isSelected
-                      ? "bg-[#1a73e8] text-white font-semibold"
-                      : inCurrentMonth
-                        ? "text-slate-800 hover:bg-slate-100"
-                        : "text-slate-400"
-                  }`}
+                  className={`w-9 h-9 mx-auto rounded-full text-sm ${isSelected
+                    ? "bg-[#1a73e8] text-white font-semibold"
+                    : inCurrentMonth
+                      ? "text-slate-800 hover:bg-slate-100"
+                      : "text-slate-400"
+                    }`}
                 >
                   {day.getDate()}
                 </button>
@@ -161,6 +167,7 @@ function DateDropdown({ value, onChange }) {
   );
 }
 
+// Custom Time picker dropdown component for selecting a time from 15-minute intervals
 function TimeDropdown({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef(null);
@@ -199,11 +206,10 @@ function TimeDropdown({ value, onChange }) {
                   onChange(option);
                   setOpen(false);
                 }}
-                className={`w-full text-left px-3 py-2 text-sm ${
-                  active
-                    ? "bg-[#e8f0fe] text-[#1a73e8] font-semibold"
-                    : "text-slate-800 hover:bg-slate-100"
-                }`}
+                className={`w-full text-left px-3 py-2 text-sm ${active
+                  ? "bg-[#e8f0fe] text-[#1a73e8] font-semibold"
+                  : "text-slate-800 hover:bg-slate-100"
+                  }`}
               >
                 {formatTimeLabel(option)}
               </button>
@@ -216,6 +222,7 @@ function TimeDropdown({ value, onChange }) {
 }
 
 
+// Main page component to display a project's details, manage its workflows, and oversee task deadlines
 export default function ProjectDetailPage() {
   const params = useParams();
   const id = params.id;
@@ -250,7 +257,6 @@ export default function ProjectDetailPage() {
   const [newFlowDeadline, setNewFlowDeadline] = useState("");
   const [newFlowDeadlineTime, setNewFlowDeadlineTime] = useState("09:00");
   const [selectedFlowMembers, setSelectedFlowMembers] = useState([]);
-  const [newFlowParentId, setNewFlowParentId] = useState(null);
 
   const handleFlowMemberToggle = (memberId, checked) => {
     if (checked) {
@@ -260,6 +266,8 @@ export default function ProjectDetailPage() {
     }
   };
 
+  // Submits the new workspace workflow to the API, assigns selected members,
+  // and automatically creates an initial deadline if requested.
   const handleCreateFlowSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -267,7 +275,7 @@ export default function ProjectDetailPage() {
       const hasValidDeadlineDate = /^\d{4}-\d{2}-\d{2}$/.test(isoDeadlineDate);
       const isoDeadline = hasValidDeadlineDate ? `${isoDeadlineDate}T${newFlowDeadlineTime || "09:00"}` : "";
 
-      const workflowRes = await dFetch(`/api/projects/${id}/workflows`, {
+      const workflowRes = await fetch(`/api/projects/${id}/workflows`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -275,7 +283,6 @@ export default function ProjectDetailPage() {
           title: newFlowName,
           description: newFlowDesc,
           member_ids: selectedFlowMembers,
-          parent_id: newFlowParentId,
         }),
       });
 
@@ -288,7 +295,7 @@ export default function ProjectDetailPage() {
       for (const memberId of selectedFlowMembers) {
         const member = members.find((m) => m.id === memberId);
         if (!member) continue;
-        const assignRes = await dFetch(`/api/workflows/${workflow.id}/members`, {
+        const assignRes = await fetch(`/api/workflows/${workflow.id}/members`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -302,7 +309,7 @@ export default function ProjectDetailPage() {
       // 3. Optionally create a deadline when both assignee and due date are available
       const deadlineAssignee = members.find((m) => m.id === selectedFlowMembers[0]);
       if (deadlineAssignee && isoDeadline) {
-        const deadlineRes = await dFetch(`/api/workflows/${workflow.id}/deadlines`, {
+        const deadlineRes = await fetch(`/api/workflows/${workflow.id}/deadlines`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -320,11 +327,10 @@ export default function ProjectDetailPage() {
       setNewFlowDeadline("");
       setNewFlowDeadlineTime("09:00");
       setSelectedFlowMembers([]);
-      setNewFlowParentId(null);
       // Optionally, refetch workspaces
       setWorkspaceLoading(true);
       setWorkspaceError("");
-      dFetch(`/api/projects/${id}/workflows`, { credentials: "include" })
+      fetch(`/api/projects/${id}/workflows`, { credentials: "include" })
         .then(async (res) => {
           if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
@@ -343,6 +349,7 @@ export default function ProjectDetailPage() {
     }
   };
 
+  // Fetches and aggregates all deadlines associated with a given list of user workflows
   const loadDeadlinesForWorkflows = async (workflows) => {
     if (!Array.isArray(workflows) || workflows.length === 0) {
       setDeadlines([]);
@@ -351,7 +358,7 @@ export default function ProjectDetailPage() {
 
     const allDeadlines = await Promise.all(
       workflows.map(async (ws) => {
-        const response = await dFetch(`/api/workflows/${ws.id}/deadlines`, {
+        const response = await fetch(`/api/workflows/${ws.id}/deadlines`, {
           credentials: "include",
         });
         if (!response.ok) return [];
@@ -363,6 +370,8 @@ export default function ProjectDetailPage() {
     setDeadlines(allDeadlines.flat());
   };
 
+  // Effect that fetches workflows, members, and all their respective deadlines
+  // whenever the "Manager Deadline" modal is opened.
   useEffect(() => {
     if (!showDeadlineModal || !id) return;
 
@@ -372,8 +381,8 @@ export default function ProjectDetailPage() {
 
       try {
         const [workflowRes, memberRes] = await Promise.all([
-          dFetch(`/api/projects/${id}/workflows`, { credentials: "include" }),
-          dFetch(`/api/projects/${id}/members`, { credentials: "include" }),
+          fetch(`/api/projects/${id}/workflows`, { credentials: "include" }),
+          fetch(`/api/projects/${id}/members`, { credentials: "include" }),
         ]);
 
         if (!workflowRes.ok) {
@@ -385,7 +394,7 @@ export default function ProjectDetailPage() {
         const safeWorkflows = Array.isArray(workflows) ? workflows : [];
         setDeadlineWorkflows(safeWorkflows);
 
-        let safeMembers = [];
+        let safeMembers = Array.isArray(members) ? members : [];
         if (memberRes.ok) {
           const memberData = await memberRes.json();
           safeMembers = Array.isArray(memberData) ? memberData : [];
@@ -405,7 +414,9 @@ export default function ProjectDetailPage() {
             : safeMembers[0]?.username || ""
         );
 
-        setDeadlineDueDate((prev) => prev || formatDateKey(new Date()));
+        if (!deadlineDueDate) {
+          setDeadlineDueDate(formatDateKey(new Date()));
+        }
 
         await loadDeadlinesForWorkflows(safeWorkflows);
       } catch (error) {
@@ -418,9 +429,9 @@ export default function ProjectDetailPage() {
     };
 
     loadDeadlineData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDeadlineModal, id]);
 
+  // Validates inputs and creates a new deadline associated with the selected workflow
   const handleCreateDeadline = async (event) => {
     event.preventDefault();
     setDeadlineError("");
@@ -444,7 +455,7 @@ export default function ProjectDetailPage() {
 
     setCreatingDeadline(true);
     try {
-      const response = await dFetch(`/api/workflows/${deadlineWorkflowId}/deadlines`, {
+      const response = await fetch(`/api/workflows/${deadlineWorkflowId}/deadlines`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -469,12 +480,13 @@ export default function ProjectDetailPage() {
     }
   };
 
+  // Sends an API request to update the status (e.g., pending, completed) of an existing deadline
   const handleDeadlineStatusChange = async (deadline, status) => {
     setUpdatingDeadlineId(deadline.id);
     setDeadlineError("");
 
     try {
-      const response = await dFetch(`/api/workflows/${deadline.workflow?.id}/deadlines/${deadline.id}`, {
+      const response = await fetch(`/api/workflows/${deadline.workflow?.id}/deadlines/${deadline.id}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -496,6 +508,7 @@ export default function ProjectDetailPage() {
     }
   };
 
+  // Deletes a specific deadline after prompting the user for confirmation
   const handleDeleteDeadline = async (deadline) => {
     if (!window.confirm(`Delete deadline \"${deadline.title}\"?`)) return;
 
@@ -503,7 +516,7 @@ export default function ProjectDetailPage() {
     setDeadlineError("");
 
     try {
-      const response = await dFetch(`/api/workflows/${deadline.workflow?.id}/deadlines/${deadline.id}`, {
+      const response = await fetch(`/api/workflows/${deadline.workflow?.id}/deadlines/${deadline.id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -543,6 +556,7 @@ export default function ProjectDetailPage() {
     }));
   };
 
+  // Persists edited changes (title, due date, assignee) of a deadline draft to the backend
   const saveDeadlineEdit = async (deadline) => {
     const draft = deadlineDrafts[deadline.id];
     if (!draft) return;
@@ -551,7 +565,7 @@ export default function ProjectDetailPage() {
     setDeadlineError("");
 
     try {
-      const response = await dFetch(`/api/workflows/${deadline.workflow?.id}/deadlines/${deadline.id}`, {
+      const response = await fetch(`/api/workflows/${deadline.workflow?.id}/deadlines/${deadline.id}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -571,11 +585,11 @@ export default function ProjectDetailPage() {
         prev.map((item) =>
           item.id === deadline.id
             ? {
-                ...item,
-                title: (draft.title || item.title).trim(),
-                due_date: draft.due_date ? `${draft.due_date}T09:00` : item.due_date,
-                assigned_to: draft.assigned_to || item.assigned_to,
-              }
+              ...item,
+              title: (draft.title || item.title).trim(),
+              due_date: draft.due_date ? `${draft.due_date}T09:00` : item.due_date,
+              assigned_to: draft.assigned_to || item.assigned_to,
+            }
             : item
         )
       );
@@ -599,12 +613,12 @@ export default function ProjectDetailPage() {
     completed: "Completed",
   };
 
-  // Fetch workspaces when modal opens
+  // Fetches workplace configurations and project workflows when the "Manage workspace" modal opens
   useEffect(() => {
     if (!showWorkspaceModal || !id) return;
     setWorkspaceLoading(true);
     setWorkspaceError("");
-    dFetch(`/api/projects/${id}/workflows`, { credentials: "include" })
+    fetch(`/api/projects/${id}/workflows`, { credentials: "include" })
       .then(async (res) => {
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
@@ -620,12 +634,14 @@ export default function ProjectDetailPage() {
       .finally(() => setWorkspaceLoading(false));
   }, [showWorkspaceModal, id]);
 
+  // Initial fetch effect that loads the current user's profile, project detail metadata,
+  // and project member lists when the page is first mounted.
   useEffect(() => {
     if (!id) return;
     const fetchData = async () => {
       try {
         // Fetch user profile for header and auth
-        const profileRes = await dFetch("/api/profile", { credentials: "include" });
+        const profileRes = await fetch("/api/profile", { credentials: "include" });
         const profileData = await profileRes.json();
         if (profileData.profile) {
           setCurrentUser(profileData.profile);
@@ -637,8 +653,8 @@ export default function ProjectDetailPage() {
 
         // Fetch project and members
         const [projRes, memRes] = await Promise.all([
-          dFetch(`/api/projects/${id}`, { credentials: "include" }),
-          dFetch(`/api/projects/${id}/members`, { credentials: "include" })
+          fetch(`/api/projects/${id}`, { credentials: "include" }),
+          fetch(`/api/projects/${id}/members`, { credentials: "include" })
         ]);
 
         if (projRes.ok && memRes.ok) {
@@ -655,67 +671,7 @@ export default function ProjectDetailPage() {
       }
     };
     fetchData();
-  }, [id, router]);
-
-  const handleWorkspaceStatusChange = async (workspaceId, newStatus) => {
-    try {
-      const res = await dFetch(`/api/workflows/${workspaceId}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (!res.ok) throw new Error("Failed to update status");
-      setWorkspaces(prev => prev.map(ws => ws.id === workspaceId ? { ...ws, status: newStatus } : ws));
-    } catch (err) {
-      alert("Error updating status: " + err.message);
-    }
-  };
-
-  const renderWorkflowTree = (parentId = null, level = 0) => {
-    const children = workspaces.filter(ws => (ws.parent_id || null) === parentId);
-    if (children.length === 0) return null;
-    return children.map((ws, idx) => (
-      <div key={ws.id} className="w-full flex flex-col mb-3">
-        <div 
-          className="w-full min-h-[56px] py-2 bg-stone-500 rounded-[14px] flex flex-wrap sm:flex-nowrap items-center justify-between px-3 sm:px-4 gap-3 relative" 
-          style={{ marginLeft: `${level * 24}px`, width: `calc(100% - ${level * 24}px)` }}
-        >
-          <div className="flex items-center gap-2 sm:gap-4 overflow-hidden min-w-[40%]">
-            <div className="shrink-0 w-7 h-7 bg-zinc-300 rounded-[14px] flex items-center justify-center text-black text-base font-['Habibi']">{idx + 1}</div>
-            <div className="text-white text-sm sm:text-base font-normal font-['Habibi'] truncate" title={ws.name}>Flow: {ws.name}</div>
-            <div className="hidden md:block text-white text-[13px] font-normal font-['Habibi'] shrink-0">{ws.created_at ? new Date(ws.created_at).toLocaleDateString("en-GB") : "-"}</div>
-          </div>
-          <div className="flex items-center justify-end gap-2 shrink-0 flex-wrap">
-            <select
-              value={ws.status || "in_process"}
-              onChange={(e) => handleWorkspaceStatusChange(ws.id, e.target.value)}
-              className="bg-stone-600 text-white text-[12px] sm:text-[13px] rounded px-1 sm:px-2 py-1 outline-none border border-stone-400 max-w-[100px] sm:max-w-none"
-            >
-              <option value="in_process">In process</option>
-              <option value="pause">Pause</option>
-              <option value="completed">Completed</option>
-            </select>
-            {level < 5 && (
-              <button
-                className="px-2 h-6 bg-zinc-200 rounded-md flex items-center justify-center text-black text-[11px] sm:text-xs font-bold hover:bg-zinc-100 whitespace-nowrap"
-                onClick={() => {
-                  setNewFlowParentId(ws.id);
-                  if (!newFlowDeadline) setNewFlowDeadline(formatDateKey(new Date()));
-                  setNewFlowDeadlineTime(prev => prev || "09:00");
-                  setShowCreateFlowModal(true);
-                }}
-                title="Create Sub-Flow"
-              >
-                + Sub-flow
-              </button>
-            )}
-          </div>
-        </div>
-        {renderWorkflowTree(ws.id, level + 1)}
-      </div>
-    ));
-  };
+  }, [id]);
 
   if (loading || userLoading) {
     return (
@@ -733,7 +689,7 @@ export default function ProjectDetailPage() {
         {/* Project Info */}
         <div className="mb-10">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-normal font-['Habibi'] text-neutral-950 mb-6 sm:mb-8 break-words">{project.title}</h1>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-8">
             <div className="flex flex-col gap-2">
               <span className="text-black text-2xl font-normal font-['Habibi']">Day Create</span>
@@ -741,11 +697,11 @@ export default function ProjectDetailPage() {
                 {project.created_at ? new Date(project.created_at).toLocaleDateString("en-GB") : "-"}
               </span>
             </div>
-            
+
             <div className="flex flex-col gap-2">
               <span className="text-black text-2xl font-normal font-['Habibi']">Status</span>
               <span className="text-black text-xl font-normal font-['Habibi'] text-gray-600">
-                {project.status === "in_process" ? "In process" : (project.status === "pause" ? "Pause" : (project.status === "completed" ? "Completed" : project.status))}
+                {project.status === "active" ? "In process" : project.status}
               </span>
             </div>
 
@@ -768,358 +724,379 @@ export default function ProjectDetailPage() {
           </button>
           <button
             className="px-6 py-3 bg-black rounded-md text-white text-base font-normal font-['Arimo'] hover:bg-gray-800 transition"
+            onClick={() => {
+              if (!newFlowDeadline) setNewFlowDeadline(formatDateKey(new Date()));
+              setNewFlowDeadlineTime((prev) => prev || "09:00");
+              setShowCreateFlowModal(true);
+            }}
+          >
+            + Create Flow
+          </button>
+          <button
+            className="px-6 py-3 bg-black rounded-md text-white text-base font-normal font-['Arimo'] hover:bg-gray-800 transition"
             onClick={() => setShowDeadlineModal(true)}
           >
             Manager Deadline
           </button>
         </div>
-      {/* Deadlines Modal */}
-      {showDeadlineModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-3 sm:p-4">
-          <div className="relative w-full max-w-4xl h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-            <div className="w-full h-14 px-6 bg-white border-b border-black/10 flex items-center justify-between">
-              <span className="text-neutral-950 text-lg font-bold font-['Arimo']">Manager Deadlines</span>
-              <button
-                className="text-2xl text-gray-400 hover:text-gray-700"
-                onClick={() => {
-                  setShowDeadlineModal(false);
-                  setEditingDeadlineId(null);
-                  setDeadlineError("");
-                }}
-              >
-                &times;
-              </button>
-            </div>
+        {/* Deadlines Modal */}
+        {showDeadlineModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-3 sm:p-4">
+            <div className="relative w-full max-w-4xl h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+              <div className="w-full h-14 px-6 bg-white border-b border-black/10 flex items-center justify-between">
+                <span className="text-neutral-950 text-lg font-bold font-['Arimo']">Manager Deadlines</span>
+                <button
+                  className="text-2xl text-gray-400 hover:text-gray-700"
+                  onClick={() => {
+                    setShowDeadlineModal(false);
+                    setEditingDeadlineId(null);
+                    setDeadlineError("");
+                  }}
+                >
+                  &times;
+                </button>
+              </div>
 
-            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 bg-slate-50/60">
-              {deadlineError && (
-                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {deadlineError}
-                </div>
-              )}
+              <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 bg-slate-50/60">
+                {deadlineError && (
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {deadlineError}
+                  </div>
+                )}
 
-              <form
-                onSubmit={handleCreateDeadline}
-                className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm"
-              >
-                <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-4">Create Deadline</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <input
-                    type="text"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
-                    placeholder="Deadline title"
-                    value={deadlineTitle}
-                    onChange={(event) => setDeadlineTitle(event.target.value)}
-                    disabled={creatingDeadline || deadlineWorkflows.length === 0}
-                    required
-                  />
-                  <input
-                    type="date"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
-                    value={deadlineDueDate}
-                    onChange={(event) => setDeadlineDueDate(event.target.value)}
-                    disabled={creatingDeadline || deadlineWorkflows.length === 0}
-                    required
-                  />
-                  <select
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
-                    value={deadlineWorkflowId}
-                    onChange={(event) => setDeadlineWorkflowId(event.target.value)}
-                    disabled={creatingDeadline || deadlineWorkflows.length === 0}
-                    required
-                  >
-                    {deadlineWorkflows.length === 0 && <option value="">No workflows</option>}
-                    {deadlineWorkflows.map((workflow) => (
-                      <option key={workflow.id} value={workflow.id}>
-                        {workflow.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
-                    value={deadlineAssignee}
-                    onChange={(event) => setDeadlineAssignee(event.target.value)}
-                    disabled={creatingDeadline || deadlineMembers.length === 0}
-                    required
-                  >
-                    {deadlineMembers.length === 0 && <option value="">No members</option>}
-                    {deadlineMembers.map((member) => (
-                      <option key={member.id} value={member.username}>
-                        {member.full_name || member.username}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="mt-4 flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={creatingDeadline || deadlineWorkflows.length === 0 || deadlineMembers.length === 0}
-                    className="px-4 py-2 rounded-md bg-black text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {creatingDeadline ? "Creating..." : "Create Deadline"}
-                  </button>
-                </div>
-              </form>
+                <form
+                  onSubmit={handleCreateDeadline}
+                  className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm"
+                >
+                  <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-4">Create Deadline</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <input
+                      type="text"
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
+                      placeholder="Deadline title"
+                      value={deadlineTitle}
+                      onChange={(event) => setDeadlineTitle(event.target.value)}
+                      disabled={creatingDeadline || deadlineWorkflows.length === 0}
+                      required
+                    />
+                    <input
+                      type="date"
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
+                      value={deadlineDueDate}
+                      onChange={(event) => setDeadlineDueDate(event.target.value)}
+                      disabled={creatingDeadline || deadlineWorkflows.length === 0}
+                      required
+                    />
+                    <select
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
+                      value={deadlineWorkflowId}
+                      onChange={(event) => setDeadlineWorkflowId(event.target.value)}
+                      disabled={creatingDeadline || deadlineWorkflows.length === 0}
+                      required
+                    >
+                      {deadlineWorkflows.length === 0 && <option value="">No workflows</option>}
+                      {deadlineWorkflows.map((workflow) => (
+                        <option key={workflow.id} value={workflow.id}>
+                          {workflow.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
+                      value={deadlineAssignee}
+                      onChange={(event) => setDeadlineAssignee(event.target.value)}
+                      disabled={creatingDeadline || deadlineMembers.length === 0}
+                      required
+                    >
+                      {deadlineMembers.length === 0 && <option value="">No members</option>}
+                      {deadlineMembers.map((member) => (
+                        <option key={member.id} value={member.username}>
+                          {member.full_name || member.username}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={creatingDeadline || deadlineWorkflows.length === 0 || deadlineMembers.length === 0}
+                      className="px-4 py-2 rounded-md bg-black text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {creatingDeadline ? "Creating..." : "Create Deadline"}
+                    </button>
+                  </div>
+                </form>
 
-              {deadlineLoading ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-                  Loading deadlines...
-                </div>
-              ) : deadlines.length === 0 ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-                  No deadlines found for this project.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {deadlines.map((deadline) => {
-                    const isEditing = editingDeadlineId === deadline.id;
-                    const draft = deadlineDrafts[deadline.id] || {};
-                    const assigneeProfile = deadlineMemberMap[deadline.assigned_to || ""];
+                {deadlineLoading ? (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+                    Loading deadlines...
+                  </div>
+                ) : deadlines.length === 0 ? (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+                    No deadlines found for this project.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {deadlines.map((deadline) => {
+                      const isEditing = editingDeadlineId === deadline.id;
+                      const draft = deadlineDrafts[deadline.id] || {};
+                      const assigneeProfile = deadlineMemberMap[deadline.assigned_to || ""];
 
-                    return (
-                      <div key={deadline.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                        {isEditing ? (
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                            <input
-                              type="text"
-                              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
-                              value={draft.title || ""}
-                              onChange={(event) =>
-                                handleDeadlineDraftChange(deadline.id, "title", event.target.value)
-                              }
-                            />
-                            <input
-                              type="date"
-                              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
-                              value={draft.due_date || ""}
-                              onChange={(event) =>
-                                handleDeadlineDraftChange(deadline.id, "due_date", event.target.value)
-                              }
-                            />
-                            <select
-                              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
-                              value={draft.assigned_to || ""}
-                              onChange={(event) =>
-                                handleDeadlineDraftChange(deadline.id, "assigned_to", event.target.value)
-                              }
-                            >
-                              {deadlineMembers.map((member) => (
-                                <option key={member.id} value={member.username}>
-                                  {member.full_name || member.username}
-                                </option>
-                              ))}
-                            </select>
-                            <select
-                              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
-                              value={deadline.status || "pending"}
-                              onChange={(event) =>
-                                handleDeadlineStatusChange(deadline, event.target.value)
-                              }
-                              disabled={updatingDeadlineId === deadline.id}
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="in_progress">In Progress</option>
-                              <option value="completed">Completed</option>
-                            </select>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
-                            <div>
-                              <div className="text-base font-semibold text-slate-900">{deadline.title}</div>
-                              <div className="text-xs sm:text-sm text-slate-600 mt-1">
-                                Workflow: {deadline.workflow?.name || "Unknown"}
-                              </div>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-slate-700">
-                              <span className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200">
-                                Due: {deadline.due_date ? new Date(deadline.due_date).toLocaleDateString("en-GB") : "-"}
-                              </span>
-                              <span className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200">
-                                Assignee: {assigneeProfile?.full_name || deadline.assigned_to || "-"}
-                              </span>
-                              <span className="px-2.5 py-1 rounded-full bg-slate-900 text-white">
-                                {deadlineStatusLabel[deadline.status] || "Pending"}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex flex-wrap items-center justify-end gap-2">
+                      return (
+                        <div key={deadline.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                           {isEditing ? (
-                            <>
-                              <button
-                                type="button"
-                                className="px-3 py-1.5 rounded-md border border-slate-300 text-sm text-slate-700 hover:bg-slate-50"
-                                onClick={() => setEditingDeadlineId(null)}
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                type="button"
-                                className="px-3 py-1.5 rounded-md bg-black text-white text-sm hover:bg-gray-800 disabled:opacity-50"
-                                onClick={() => saveDeadlineEdit(deadline)}
-                                disabled={updatingDeadlineId === deadline.id}
-                              >
-                                {updatingDeadlineId === deadline.id ? "Saving..." : "Save"}
-                              </button>
-                            </>
-                          ) : (
-                            <>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                              <input
+                                type="text"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
+                                value={draft.title || ""}
+                                onChange={(event) =>
+                                  handleDeadlineDraftChange(deadline.id, "title", event.target.value)
+                                }
+                              />
+                              <input
+                                type="date"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
+                                value={draft.due_date || ""}
+                                onChange={(event) =>
+                                  handleDeadlineDraftChange(deadline.id, "due_date", event.target.value)
+                                }
+                              />
                               <select
-                                className="rounded-md border border-gray-300 px-2 py-1.5 text-sm text-black"
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
+                                value={draft.assigned_to || ""}
+                                onChange={(event) =>
+                                  handleDeadlineDraftChange(deadline.id, "assigned_to", event.target.value)
+                                }
+                              >
+                                {deadlineMembers.map((member) => (
+                                  <option key={member.id} value={member.username}>
+                                    {member.full_name || member.username}
+                                  </option>
+                                ))}
+                              </select>
+                              <select
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
                                 value={deadline.status || "pending"}
-                                onChange={(event) => handleDeadlineStatusChange(deadline, event.target.value)}
+                                onChange={(event) =>
+                                  handleDeadlineStatusChange(deadline, event.target.value)
+                                }
                                 disabled={updatingDeadlineId === deadline.id}
                               >
                                 <option value="pending">Pending</option>
                                 <option value="in_progress">In Progress</option>
                                 <option value="completed">Completed</option>
                               </select>
-                              <button
-                                type="button"
-                                className="px-3 py-1.5 rounded-md border border-slate-300 text-sm text-slate-700 hover:bg-slate-50"
-                                onClick={() => startDeadlineEdit(deadline)}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className="px-3 py-1.5 rounded-md border border-red-200 text-red-700 text-sm hover:bg-red-50 disabled:opacity-50"
-                                onClick={() => handleDeleteDeadline(deadline)}
-                                disabled={deletingDeadlineId === deadline.id}
-                              >
-                                {deletingDeadlineId === deadline.id ? "Deleting..." : "Delete"}
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-slate-200 px-6 py-4 bg-white flex justify-end">
-              <button
-                className="px-4 py-2 bg-black rounded-md text-white text-sm hover:bg-gray-800"
-                onClick={() => {
-                  setShowDeadlineModal(false);
-                  setEditingDeadlineId(null);
-                }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Manage Workspace Modal */}
-      {showWorkspaceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-3 sm:p-4">
-          <div className="relative w-full max-w-4xl h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-            {/* Header */}
-            <div className="w-full h-14 px-6 bg-white/60 border-b border-black/10 flex items-center justify-between">
-              <span className="text-neutral-950 text-lg font-bold font-['Arimo']">Workspace</span>
-              <button className="text-2xl text-gray-400 hover:text-gray-700" onClick={() => setShowWorkspaceModal(false)}>&times;</button>
-            </div>
-            {/* Modal Content */}
-            <div className="flex-1 bg-white flex flex-col items-center pt-6">
-              <div className="w-full flex flex-col items-center">
-                <div className="w-full max-w-3xl min-h-[240px] max-h-[56dvh] bg-zinc-300 rounded-[16px] mx-auto relative p-4 overflow-y-auto">
-                  {workspaceError && (
-                    <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                      {workspaceError}
-                    </div>
-                  )}
-                  {workspaceLoading ? (
-                    <div className="text-center text-gray-500 text-base mt-16">Loading workspace flows...</div>
-                  ) : workspaces.length === 0 ? (
-                    <div className="text-center text-gray-500 text-base mt-16">No workspace flows found.</div>
-                  ) : (
-                    renderWorkflowTree(null, 0)
-                  )}
-                  {/* Create Flow Button */}
-                  <button
-                    className="mt-6 w-full h-12 bg-stone-400 rounded-[14px] flex items-center justify-center text-white text-base font-normal font-['Habibi'] hover:bg-stone-500 transition"
-                    onClick={() => {
-                      setNewFlowParentId(null);
-                      if (!newFlowDeadline) {
-                        setNewFlowDeadline(formatDateKey(new Date()));
-                      }
-                      setNewFlowDeadlineTime((prev) => prev || "09:00");
-                      setShowCreateFlowModal(true);
-                    }}
-                  >
-                    + Create Flow
-                  </button>
-                      {/* Create Flow Modal */}
-                      {showCreateFlowModal && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-3 sm:p-4">
-                          <div className="relative w-full max-w-[480px] h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-visible flex flex-col">
-                            {/* Header */}
-                            <div className="w-full h-14 px-6 bg-white/60 border-b border-black/10 flex items-center justify-between">
-                              <span className="text-neutral-950 text-lg font-bold font-['Arimo']">Create Workspace Flow</span>
-                              <button className="text-2xl text-gray-400 hover:text-gray-700" onClick={() => setShowCreateFlowModal(false)}>&times;</button>
                             </div>
-                            {/* Modal Content */}
-                            <form className="flex-1 bg-white flex flex-col items-center pt-6 px-6" onSubmit={handleCreateFlowSubmit}>
-                              <div className="w-full flex flex-col gap-4">
-                                <label className="text-black text-base font-normal font-['Arimo']">Flow Name</label>
-                                <input type="text" className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black" value={newFlowName} onChange={e => setNewFlowName(e.target.value)} required />
-                                <label className="text-black text-base font-normal font-['Arimo']">Description</label>
-                                <textarea className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black" value={newFlowDesc} onChange={e => setNewFlowDesc(e.target.value)} />
-                                <label className="text-black text-base font-normal font-['Arimo']">Deadline</label>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                  <DateDropdown
-                                    value={newFlowDeadline}
-                                    onChange={setNewFlowDeadline}
-                                  />
-                                  <TimeDropdown
-                                    value={newFlowDeadlineTime}
-                                    onChange={setNewFlowDeadlineTime}
-                                  />
-                                </div>
-                                <label className="text-black text-base font-normal font-['Arimo']">Assign Members</label>
-                                <div className="w-full flex flex-col gap-2">
-                                  {members.map(member => (
-                                    <label key={member.id} className="flex items-center gap-2">
-                                      <input
-                                        type="checkbox"
-                                        checked={selectedFlowMembers.includes(member.id)}
-                                        onChange={e => handleFlowMemberToggle(member.id, e.target.checked)}
-                                      />
-                                      <span className="text-black text-base font-normal font-['Arimo']">{member.full_name || member.username} ({member.username})</span>
-                                    </label>
-                                  ))}
+                          ) : (
+                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
+                              <div>
+                                <div className="text-base font-semibold text-slate-900">{deadline.title}</div>
+                                <div className="text-xs sm:text-sm text-slate-600 mt-1">
+                                  Workflow: {deadline.workflow?.name || "Unknown"}
                                 </div>
                               </div>
-                              <button type="submit" className="mt-6 w-full h-12 bg-black rounded-md flex items-center justify-center text-white text-base font-normal font-['Arimo'] hover:bg-gray-800 transition">Finish</button>
-                            </form>
+                              <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-slate-700">
+                                <span className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200">
+                                  Due: {deadline.due_date ? new Date(deadline.due_date).toLocaleDateString("en-GB") : "-"}
+                                </span>
+                                <span className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200">
+                                  Assignee: {assigneeProfile?.full_name || deadline.assigned_to || "-"}
+                                </span>
+                                <span className="px-2.5 py-1 rounded-full bg-slate-900 text-white">
+                                  {deadlineStatusLabel[deadline.status] || "Pending"}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            {isEditing ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="px-3 py-1.5 rounded-md border border-slate-300 text-sm text-slate-700 hover:bg-slate-50"
+                                  onClick={() => setEditingDeadlineId(null)}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  className="px-3 py-1.5 rounded-md bg-black text-white text-sm hover:bg-gray-800 disabled:opacity-50"
+                                  onClick={() => saveDeadlineEdit(deadline)}
+                                  disabled={updatingDeadlineId === deadline.id}
+                                >
+                                  {updatingDeadlineId === deadline.id ? "Saving..." : "Save"}
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <select
+                                  className="rounded-md border border-gray-300 px-2 py-1.5 text-sm text-black"
+                                  value={deadline.status || "pending"}
+                                  onChange={(event) => handleDeadlineStatusChange(deadline, event.target.value)}
+                                  disabled={updatingDeadlineId === deadline.id}
+                                >
+                                  <option value="pending">Pending</option>
+                                  <option value="in_progress">In Progress</option>
+                                  <option value="completed">Completed</option>
+                                </select>
+                                <button
+                                  type="button"
+                                  className="px-3 py-1.5 rounded-md border border-slate-300 text-sm text-slate-700 hover:bg-slate-50"
+                                  onClick={() => startDeadlineEdit(deadline)}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="px-3 py-1.5 rounded-md border border-red-200 text-red-700 text-sm hover:bg-red-50 disabled:opacity-50"
+                                  onClick={() => handleDeleteDeadline(deadline)}
+                                  disabled={deletingDeadlineId === deadline.id}
+                                >
+                                  {deletingDeadlineId === deadline.id ? "Deleting..." : "Delete"}
+                                </button>
+                              </>
+                            )}
                           </div>
                         </div>
-                      )}
-                </div>
-                <button type="button" onClick={() => setShowWorkspaceModal(false)} className="mt-8 mb-6 w-40 h-10 bg-gray-950 rounded-md flex items-center justify-center hover:bg-gray-800 transition">
-                  <span className="text-white text-base font-normal font-['Arimo']">Finish</span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-slate-200 px-6 py-4 bg-white flex justify-end">
+                <button
+                  className="px-4 py-2 bg-black rounded-md text-white text-sm hover:bg-gray-800"
+                  onClick={() => {
+                    setShowDeadlineModal(false);
+                    setEditingDeadlineId(null);
+                  }}
+                >
+                  Close
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+        {/* Manage Workspace Modal */}
+        {showWorkspaceModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-3 sm:p-4">
+            <div className="relative w-full max-w-[540px] h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+              {/* Header */}
+              <div className="w-full h-14 px-6 bg-white/60 border-b border-black/10 flex items-center justify-between">
+                <span className="text-neutral-950 text-lg font-bold font-['Arimo']">Workspace</span>
+                <button className="text-2xl text-gray-400 hover:text-gray-700" onClick={() => setShowWorkspaceModal(false)}>&times;</button>
+              </div>
+              {/* Modal Content */}
+              <div className="flex-1 bg-white flex flex-col items-center pt-6">
+                <div className="w-full flex flex-col items-center">
+                  <div className="w-full max-w-[420px] min-h-[240px] max-h-[56dvh] bg-zinc-300 rounded-[16px] mx-auto relative p-4 overflow-y-auto">
+                    {workspaceError && (
+                      <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {workspaceError}
+                      </div>
+                    )}
+                    {workspaceLoading ? (
+                      <div className="text-center text-gray-500 text-base mt-16">Loading workspace flows...</div>
+                    ) : workspaces.length === 0 ? (
+                      <div className="text-center text-gray-500 text-base mt-16">No workspace flows found.</div>
+                    ) : (
+                      workspaces.map((ws, idx) => (
+                        <div key={ws.id} className="w-full h-14 mb-3 bg-stone-500 rounded-[14px] flex items-center px-4 relative">
+                          <div className="flex-1 flex flex-row items-center gap-4">
+                            <div className="w-7 h-7 bg-zinc-300 rounded-[14px] flex items-center justify-center text-black text-base font-['Habibi']">{idx + 1}</div>
+                            <div className="text-white text-base font-normal font-['Habibi'] truncate max-w-[120px]">Flow: {ws.name}</div>
+                            <div className="text-white text-base font-normal font-['Habibi']">{ws.created_at ? new Date(ws.created_at).toLocaleDateString("en-GB") : "-"}</div>
+                            <div className="text-white text-base font-normal font-['Habibi']">{ws.status || "In process"}</div>
+                          </div>
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                            <button className="w-6 h-6 bg-zinc-300 rounded-full flex items-center justify-center text-black text-lg font-['Habibi']">...</button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                    {/* Create Flow Button */}
+                    <button
+                      className="mt-6 w-full h-12 bg-stone-400 rounded-[14px] flex items-center justify-center text-white text-base font-normal font-['Habibi'] hover:bg-stone-500 transition"
+                      onClick={() => {
+                        if (!newFlowDeadline) {
+                          setNewFlowDeadline(formatDateKey(new Date()));
+                        }
+                        setNewFlowDeadlineTime((prev) => prev || "09:00");
+                        setShowCreateFlowModal(true);
+                      }}
+                    >
+                      + Create Flow
+                    </button>
+                    {/* Create Flow Modal */}
+                    {showCreateFlowModal && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-3 sm:p-4">
+                        <div className="relative w-full max-w-[480px] h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-visible flex flex-col">
+                          {/* Header */}
+                          <div className="w-full h-14 px-6 bg-white/60 border-b border-black/10 flex items-center justify-between">
+                            <span className="text-neutral-950 text-lg font-bold font-['Arimo']">Create Workspace Flow</span>
+                            <button className="text-2xl text-gray-400 hover:text-gray-700" onClick={() => setShowCreateFlowModal(false)}>&times;</button>
+                          </div>
+                          {/* Modal Content */}
+                          <form className="flex-1 bg-white flex flex-col items-center pt-6 px-6" onSubmit={handleCreateFlowSubmit}>
+                            <div className="w-full flex flex-col gap-4">
+                              <label className="text-black text-base font-normal font-['Arimo']">Flow Name</label>
+                              <input type="text" className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black" value={newFlowName} onChange={e => setNewFlowName(e.target.value)} required />
+                              <label className="text-black text-base font-normal font-['Arimo']">Description</label>
+                              <textarea className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black" value={newFlowDesc} onChange={e => setNewFlowDesc(e.target.value)} />
+                              <label className="text-black text-base font-normal font-['Arimo']">Deadline</label>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <DateDropdown
+                                  value={newFlowDeadline}
+                                  onChange={setNewFlowDeadline}
+                                />
+                                <TimeDropdown
+                                  value={newFlowDeadlineTime}
+                                  onChange={setNewFlowDeadlineTime}
+                                />
+                              </div>
+                              <label className="text-black text-base font-normal font-['Arimo']">Assign Members</label>
+                              <div className="w-full flex flex-col gap-2">
+                                {members.map(member => (
+                                  <label key={member.id} className="flex items-center gap-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedFlowMembers.includes(member.id)}
+                                      onChange={e => handleFlowMemberToggle(member.id, e.target.checked)}
+                                    />
+                                    <span className="text-black text-base font-normal font-['Arimo']">{member.full_name || member.username} ({member.username})</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                            <button type="submit" className="mt-6 w-full h-12 bg-black rounded-md flex items-center justify-center text-white text-base font-normal font-['Arimo'] hover:bg-gray-800 transition">Finish</button>
+                          </form>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <button className="mt-8 w-40 h-10 bg-gray-950 rounded-md flex items-center justify-center">
+                    <span className="text-white text-base font-normal font-['Arimo']">Finish</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Member List */}
         <div className="bg-zinc-300 rounded-2xl p-4 sm:p-6 min-h-[320px]">
           <div className="text-white text-2xl font-bold mb-6 px-2">Members</div>
-          <div className="flex flex-col gap-4 max-h-[50dvh] overflow-y-auto pr-2">
+          <div className="flex flex-col gap-4">
             {members.length === 0 ? (
               <div className="text-center text-gray-500 mt-10">No members found</div>
             ) : (
               members.map((member) => (
                 <div key={member.id} className="w-full bg-stone-500 rounded-2xl flex items-center px-4 sm:px-8 py-3 sm:py-4 relative">
                   <div className="text-black text-base sm:text-xl md:text-2xl font-normal font-['ABeeZee'] break-words">
-                    {member.full_name || member.username} 
+                    {member.full_name || member.username}
                     <span className="text-lg opacity-70 ml-2">({member.username})</span>
                     {member.role && <span className="text-sm ml-2 opacity-60 uppercase">- {member.role}</span>}
                   </div>
