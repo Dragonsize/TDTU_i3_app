@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
+import { dFetch } from "@/lib/api";
 
 function formatDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -266,7 +267,7 @@ export default function ProjectDetailPage() {
       const hasValidDeadlineDate = /^\d{4}-\d{2}-\d{2}$/.test(isoDeadlineDate);
       const isoDeadline = hasValidDeadlineDate ? `${isoDeadlineDate}T${newFlowDeadlineTime || "09:00"}` : "";
 
-      const workflowRes = await fetch(`/api/projects/${id}/workflows`, {
+      const workflowRes = await dFetch(`/api/projects/${id}/workflows`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -287,7 +288,7 @@ export default function ProjectDetailPage() {
       for (const memberId of selectedFlowMembers) {
         const member = members.find((m) => m.id === memberId);
         if (!member) continue;
-        const assignRes = await fetch(`/api/workflows/${workflow.id}/members`, {
+        const assignRes = await dFetch(`/api/workflows/${workflow.id}/members`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -301,7 +302,7 @@ export default function ProjectDetailPage() {
       // 3. Optionally create a deadline when both assignee and due date are available
       const deadlineAssignee = members.find((m) => m.id === selectedFlowMembers[0]);
       if (deadlineAssignee && isoDeadline) {
-        const deadlineRes = await fetch(`/api/workflows/${workflow.id}/deadlines`, {
+        const deadlineRes = await dFetch(`/api/workflows/${workflow.id}/deadlines`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -323,7 +324,7 @@ export default function ProjectDetailPage() {
       // Optionally, refetch workspaces
       setWorkspaceLoading(true);
       setWorkspaceError("");
-      fetch(`/api/projects/${id}/workflows`, { credentials: "include" })
+      dFetch(`/api/projects/${id}/workflows`, { credentials: "include" })
         .then(async (res) => {
           if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
@@ -350,7 +351,7 @@ export default function ProjectDetailPage() {
 
     const allDeadlines = await Promise.all(
       workflows.map(async (ws) => {
-        const response = await fetch(`/api/workflows/${ws.id}/deadlines`, {
+        const response = await dFetch(`/api/workflows/${ws.id}/deadlines`, {
           credentials: "include",
         });
         if (!response.ok) return [];
@@ -371,8 +372,8 @@ export default function ProjectDetailPage() {
 
       try {
         const [workflowRes, memberRes] = await Promise.all([
-          fetch(`/api/projects/${id}/workflows`, { credentials: "include" }),
-          fetch(`/api/projects/${id}/members`, { credentials: "include" }),
+          dFetch(`/api/projects/${id}/workflows`, { credentials: "include" }),
+          dFetch(`/api/projects/${id}/members`, { credentials: "include" }),
         ]);
 
         if (!workflowRes.ok) {
@@ -443,7 +444,7 @@ export default function ProjectDetailPage() {
 
     setCreatingDeadline(true);
     try {
-      const response = await fetch(`/api/workflows/${deadlineWorkflowId}/deadlines`, {
+      const response = await dFetch(`/api/workflows/${deadlineWorkflowId}/deadlines`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -473,7 +474,7 @@ export default function ProjectDetailPage() {
     setDeadlineError("");
 
     try {
-      const response = await fetch(`/api/workflows/${deadline.workflow?.id}/deadlines/${deadline.id}`, {
+      const response = await dFetch(`/api/workflows/${deadline.workflow?.id}/deadlines/${deadline.id}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -502,7 +503,7 @@ export default function ProjectDetailPage() {
     setDeadlineError("");
 
     try {
-      const response = await fetch(`/api/workflows/${deadline.workflow?.id}/deadlines/${deadline.id}`, {
+      const response = await dFetch(`/api/workflows/${deadline.workflow?.id}/deadlines/${deadline.id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -550,7 +551,7 @@ export default function ProjectDetailPage() {
     setDeadlineError("");
 
     try {
-      const response = await fetch(`/api/workflows/${deadline.workflow?.id}/deadlines/${deadline.id}`, {
+      const response = await dFetch(`/api/workflows/${deadline.workflow?.id}/deadlines/${deadline.id}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -603,7 +604,7 @@ export default function ProjectDetailPage() {
     if (!showWorkspaceModal || !id) return;
     setWorkspaceLoading(true);
     setWorkspaceError("");
-    fetch(`/api/projects/${id}/workflows`, { credentials: "include" })
+    dFetch(`/api/projects/${id}/workflows`, { credentials: "include" })
       .then(async (res) => {
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
@@ -624,7 +625,7 @@ export default function ProjectDetailPage() {
     const fetchData = async () => {
       try {
         // Fetch user profile for header and auth
-        const profileRes = await fetch("/api/profile", { credentials: "include" });
+        const profileRes = await dFetch("/api/profile", { credentials: "include" });
         const profileData = await profileRes.json();
         if (profileData.profile) {
           setCurrentUser(profileData.profile);
@@ -636,8 +637,8 @@ export default function ProjectDetailPage() {
 
         // Fetch project and members
         const [projRes, memRes] = await Promise.all([
-          fetch(`/api/projects/${id}`, { credentials: "include" }),
-          fetch(`/api/projects/${id}/members`, { credentials: "include" })
+          dFetch(`/api/projects/${id}`, { credentials: "include" }),
+          dFetch(`/api/projects/${id}/members`, { credentials: "include" })
         ]);
 
         if (projRes.ok && memRes.ok) {
@@ -658,7 +659,7 @@ export default function ProjectDetailPage() {
 
   const handleWorkspaceStatusChange = async (workspaceId, newStatus) => {
     try {
-      const res = await fetch(`/api/workflows/${workspaceId}`, {
+      const res = await dFetch(`/api/workflows/${workspaceId}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

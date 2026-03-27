@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { dFetch } from "@/lib/api";
 import { 
   ArrowLeft, 
   Plus, 
@@ -53,7 +54,7 @@ export default function ChatRoom({ user }) {
   // Fetch members on active channel change
   useEffect(() => {
     if (activeChannel) {
-      fetch(`/api/chat/channels/${activeChannel.id}/members`)
+      dFetch(`/api/chat/channels/${activeChannel.id}/members`)
         .then(res => res.ok ? res.json() : [])
         .then(setChannelMembers)
         .catch(console.error);
@@ -68,7 +69,7 @@ export default function ChatRoom({ user }) {
   useEffect(() => {
     const fetchChannels = async () => {
       try {
-        const res = await fetch("/api/chat/channels");
+        const res = await dFetch("/api/chat/channels");
         if (res.ok) {
           const data = await res.json();
           setChannels(data);
@@ -90,7 +91,7 @@ export default function ChatRoom({ user }) {
       return;
     }
     const timer = setTimeout(() => {
-      fetch(`/api/users/search?q=${encodeURIComponent(targetEmail)}`)
+      dFetch(`/api/users/search?q=${encodeURIComponent(targetEmail)}`)
         .then((res) => res.json())
         .then((data) => setSearchResults(data || []));
     }, 300);
@@ -106,7 +107,7 @@ export default function ChatRoom({ user }) {
     // Fetch initial history
     const fetchInitialMessages = async () => {
       try {
-        const res = await fetch(`/api/chat/messages?channel_id=${activeChannel.id}&limit=50`);
+        const res = await dFetch(`/api/chat/messages?channel_id=${activeChannel.id}&limit=50`);
         if (res.ok) {
           const data = await res.json();
           setMessages(data);
@@ -123,7 +124,7 @@ export default function ChatRoom({ user }) {
     const connectWs = async () => {
       let token = "";
       try {
-        const res = await fetch("/api/auth/me");
+        const res = await dFetch("/api/auth/me");
         if (res.ok) {
           const authData = await res.json();
           token = authData.ws_token || "";
@@ -166,7 +167,7 @@ export default function ChatRoom({ user }) {
     e.preventDefault();
     if (!inputText.trim() || !activeChannel) return;
     try {
-      const res = await fetch("/api/chat/messages", {
+      const res = await dFetch("/api/chat/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ channel_id: activeChannel.id, message: inputText.trim() }),
@@ -182,7 +183,7 @@ export default function ChatRoom({ user }) {
     if (selectedUsers.length === 0) return;
     try {
       const payload = { emails: selectedUsers.map(u => u.email) };
-      const res = await fetch("/api/chat/channels", {
+      const res = await dFetch("/api/chat/channels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -201,7 +202,7 @@ export default function ChatRoom({ user }) {
   const handleRenameChannel = async (e) => {
     e.preventDefault();
     if (!renameValue.trim() || !activeChannel) return;
-    const res = await fetch(`/api/chat/channels/${activeChannel.id}`, {
+    const res = await dFetch(`/api/chat/channels/${activeChannel.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: renameValue.trim() })
@@ -215,7 +216,7 @@ export default function ChatRoom({ user }) {
   };
 
   const fetchProjects = useCallback(async () => {
-    const res = await fetch("/api/projects", { credentials: "include" });
+    const res = await dFetch("/api/projects");
     if (res.ok) {
         const data = await res.json();
         setProjects(Array.isArray(data) ? data : []);

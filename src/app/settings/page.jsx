@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
+import { dFetch } from "@/lib/api";
 import { User, Mail, Key, Bot, Link as LinkIcon, LogOut, Edit2, Check, X, Shield, Cpu } from "lucide-react";
 
 export default function SettingsPage() {
@@ -18,7 +19,7 @@ export default function SettingsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch("/api/profile", { credentials: "include" })
+    dFetch("/api/profile")
       .then((res) => res.json())
       .then((data) => {
         if (data.profile) setProfile(data.profile);
@@ -37,10 +38,9 @@ export default function SettingsPage() {
     setSaving(true);
     setError("");
     try {
-      const res = await fetch("/api/profile", {
+      const res = await dFetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ full_name: newName })
       });
       if (!res.ok) throw new Error("Failed to update name");
@@ -58,7 +58,7 @@ export default function SettingsPage() {
   const handleLogout = async () => {
     try {
       // 1. Backend logout
-      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      await dFetch("/api/auth/logout", { method: "POST" });
       
       // 2. Supabase logout
       const { supabase } = await import("@/lib/supabaseClient");

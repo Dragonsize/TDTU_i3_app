@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
+import { dFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import {
   FileText, Upload, Download, Trash2, Users, Lock, Globe,
@@ -17,7 +18,7 @@ function FileImagePreview({ file }) {
   useEffect(() => {
     let isMounted = true;
     setLoading(true); setError(""); setImgUrl(null);
-    fetch(`/api/documents/${file.id}/download`, { credentials: "include" })
+    dFetch(`/api/documents/${file.id}/download`)
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to fetch file");
         const data = await res.json().catch(() => null);
@@ -47,7 +48,7 @@ function TextPreview({ fileId }) {
   useEffect(() => {
     let isMounted = true;
     setLoading(true); setError(""); setContent("");
-    fetch(`/api/documents/${fileId}/download`, { credentials: "include" })
+    dFetch(`/api/documents/${fileId}/download`)
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to fetch file");
         const data = await res.json().catch(() => null);
@@ -110,7 +111,7 @@ export default function FilesPage() {
 
   const fetchFiles = async () => {
     try {
-      const response = await fetch("/api/documents", { credentials: "include" });
+      const response = await dFetch("/api/documents");
       if (!response.ok) throw new Error("Failed to load files");
       const data = await response.json();
       setFiles(Array.isArray(data) ? data : []);
@@ -124,7 +125,7 @@ export default function FilesPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch("/api/projects", { credentials: "include" });
+      const response = await dFetch("/api/projects");
       if (!response.ok) return;
       const data = await response.json();
       setProjects(Array.isArray(data) ? data : []);
@@ -134,7 +135,7 @@ export default function FilesPage() {
   useEffect(() => {
     fetchFiles();
     fetchProjects();
-    fetch("/api/profile", { credentials: "include" })
+    dFetch("/api/profile")
       .then((res) => res.json())
       .then((data) => {
         if (data.profile) setCurrentUser(data.profile);
@@ -159,7 +160,7 @@ export default function FilesPage() {
       formData.append("file", file);
       if (shareScope === "project" && !selectedProject) throw new Error("Choose a project to share with all members.");
       if (shareScope === "project" && selectedProject) formData.append("project_id", selectedProject);
-      const response = await fetch("/api/documents/upload", { method: "POST", body: formData, credentials: "include" });
+      const response = await dFetch("/api/documents/upload", { method: "POST", body: formData });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.detail || "Upload failed");
@@ -174,7 +175,7 @@ export default function FilesPage() {
 
   const handleDownload = async (documentId, filename) => {
     try {
-      const response = await fetch(`/api/documents/${documentId}/download`, { credentials: "include" });
+      const response = await dFetch(`/api/documents/${documentId}/download`);
       if (!response.ok) throw new Error("Failed to download");
       const data = await response.json();
       if (data.url) {
@@ -198,7 +199,7 @@ export default function FilesPage() {
     setDeleting(true);
     setDeleteError("");
     try {
-      const resp = await fetch(`/api/documents/${documentId}/delete`, { method: "POST", credentials: "include" });
+      const resp = await dFetch(`/api/documents/${documentId}/delete`, { method: "POST" });
       if (!resp.ok) {
         const data = await resp.json().catch(() => ({}));
         throw new Error(data.detail || "Failed to delete file");
@@ -222,10 +223,9 @@ export default function FilesPage() {
     setAccessSaving(true);
     setAccessError("");
     try {
-      const response = await fetch(`/api/documents/${selectedFile.id}/access`, {
+      const response = await dFetch(`/api/documents/${selectedFile.id}/access`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ project_id: targetProjectId }),
       });
       if (!response.ok) {

@@ -6,6 +6,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, User, Settings, ChevronDown, Moon, Sun } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { dFetch } from "@/lib/api";
 
 const NAV_ITEMS = [
   { href: "/project", label: "Project" },
@@ -67,7 +68,7 @@ export default function AppShell({ user, activePath, contentClassName = "", full
   const handleLogout = async () => {
     try {
       // 1. Backend logout (clears HttpOnly cookies)
-      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      await dFetch("/api/auth/logout", { method: "POST" });
       
       // 2. Supabase logout (clears client-side session)
       if (supabase) {

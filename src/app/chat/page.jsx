@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
+import { dFetch } from "@/lib/api";
 
 const ChatRoom = dynamic(() => import("./ChatRoom"), { ssr: false });
 
@@ -17,7 +18,7 @@ export default function ChatPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch('/api/profile', { credentials: 'include' });
+        const response = await dFetch('/api/profile');
         const data = await response.json();
         if (!data.profile) {
           router.push('/login');

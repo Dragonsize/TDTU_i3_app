@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
+import { dFetch } from "@/lib/api";
 import {
   FolderOpen, Plus, Search, MoreHorizontal, Pencil, Trash2,
   CalendarDays, Clock, CheckCircle2, PauseCircle, Loader2,
@@ -82,12 +83,12 @@ export default function ProjectPage() {
   useEffect(() => {
     const checkAuthAndFetch = async () => {
       try {
-        const profileRes = await fetch('/api/profile', { credentials: 'include' });
+        const profileRes = await dFetch('/api/profile');
         const profileData = await profileRes.json();
         if (!profileData.profile) { router.push('/login'); return; }
         setCurrentUser(profileData.profile);
         setMembers([profileData.profile]);
-        const projRes = await fetch("/api/projects", { credentials: "include" });
+        const projRes = await dFetch("/api/projects");
         const projData = await projRes.json();
         if (Array.isArray(projData)) setProjects(projData);
         setLoading(false);
@@ -101,11 +102,10 @@ export default function ProjectPage() {
     setIsCreating(true);
     setCreateError("");
     try {
-      const res = await fetch("/api/projects", {
+      const res = await dFetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: projectName.trim(), color: projectColor }),
-        credentials: "include",
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({ detail: "Server error" }));
@@ -114,11 +114,10 @@ export default function ProjectPage() {
       const newProject = await res.json();
       const membersToAdd = members.filter((m) => m.id !== currentUser?.id);
       await Promise.all(membersToAdd.map((member) =>
-        fetch(`/api/projects/${newProject.id}/members`, {
+        dFetch(`/api/projects/${newProject.id}/members`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ member_username: member.username, role: "member" }),
-          credentials: "include",
         })
       ));
       setProjects([...projects, { ...newProject, deadline_count: 0 }]);
@@ -145,7 +144,7 @@ export default function ProjectPage() {
   useEffect(() => {
     if (searchQuery.length < 2) { setSearchResults([]); return; }
     const timer = setTimeout(() => {
-      fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`, { credentials: "include" })
+      dFetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`)
         .then((res) => res.json())
         .then((data) => setSearchResults(data || []));
     }, 300);
@@ -161,7 +160,7 @@ export default function ProjectPage() {
   const confirmDeleteProject = async () => {
     if (!projectToDelete) return;
     try {
-      const res = await fetch(`/api/projects/${projectToDelete.id}`, { method: "DELETE", credentials: "include" });
+      const res = await dFetch(`/api/projects/${projectToDelete.id}`, { method: "DELETE" });
       if (res.ok) {
         setProjects(projects.filter((p) => p.id !== projectToDelete.id));
         setShowDeleteModal(false);
@@ -178,11 +177,10 @@ export default function ProjectPage() {
     e.preventDefault();
     if (!projectToEdit) return;
     try {
-      const res = await fetch(`/api/projects/${projectToEdit.id}`, {
+      const res = await dFetch(`/api/projects/${projectToEdit.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: projectName, color: projectColor, status: projectStatus }),
-        credentials: "include",
       });
       if (res.ok) {
         const updatedProject = await res.json();
@@ -199,7 +197,7 @@ export default function ProjectPage() {
     if (!Array.isArray(workflows) || workflows.length === 0) { setManagerDeadlines([]); return; }
     const workflowById = workflows.reduce((acc, ws) => { acc[ws.id] = ws; return acc; }, {});
     const allDeadlines = await Promise.all(workflows.map(async (ws) => {
-      const response = await fetch(`/api/workflows/${ws.id}/deadlines`, { credentials: "include" });
+      const response = await dFetch(`/api/workflows/${ws.id}/deadlines`);
       if (!response.ok) return [];
       const data = await response.json().catch(() => []);
       return Array.isArray(data) ? data.map((d) => ({ ...d, workflow: workflowById[ws.id] })) : [];
@@ -217,8 +215,8 @@ export default function ProjectPage() {
     setDeadlineDate(new Date().toISOString().slice(0, 10));
     try {
       const [workflowRes, memberRes] = await Promise.all([
-        fetch(`/api/projects/${project.id}/workflows`, { credentials: "include" }),
-        fetch(`/api/projects/${project.id}/members`, { credentials: "include" }),
+        dFetch(`/api/projects/${project.id}/workflows`),
+        dFetch(`/api/projects/${project.id}/members`),
       ]);
       if (!workflowRes.ok) throw new Error("Failed to load workflows");
       if (!memberRes.ok) throw new Error("Failed to load members");
@@ -245,10 +243,9 @@ export default function ProjectPage() {
     setCreatingDeadline(true);
     setManagerError("");
     try {
-      const response = await fetch(`/api/workflows/${deadlineWorkflowId}/deadlines`, {
+      const response = await dFetch(`/api/workflows/${deadlineWorkflowId}/deadlines`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ title: deadlineTitle.trim(), due_date: deadlineDate, assigned_to: deadlineAssignee }),
       });
       if (!response.ok) {
@@ -269,9 +266,9 @@ export default function ProjectPage() {
     if (!deadline?.id || !deadline?.workflow?.id) return;
     setUpdatingDeadlineId(deadline.id);
     try {
-      const response = await fetch(`/api/workflows/${deadline.workflow.id}/deadlines/${deadline.id}`, {
+      const response = await dFetch(`/api/workflows/${deadline.workflow.id}/deadlines/${deadline.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        credentials: "include", body: JSON.stringify({ status }),
+        body: JSON.stringify({ status }),
       });
       if (!response.ok) throw new Error("Failed to update");
       const updated = await response.json();
@@ -285,8 +282,8 @@ export default function ProjectPage() {
     if (!confirm("Delete this deadline?")) return;
     setDeletingDeadlineId(deadline.id);
     try {
-      const response = await fetch(`/api/workflows/${deadline.workflow.id}/deadlines/${deadline.id}`, {
-        method: "DELETE", credentials: "include",
+      const response = await dFetch(`/api/workflows/${deadline.workflow.id}/deadlines/${deadline.id}`, {
+        method: "DELETE",
       });
       if (!response.ok) throw new Error("Failed to delete");
       setManagerDeadlines((prev) => prev.filter((item) => item.id !== deadline.id));
@@ -322,9 +319,9 @@ export default function ProjectPage() {
     setUpdatingDeadlineId(deadline.id);
     setManagerError("");
     try {
-      const response = await fetch(`/api/workflows/${deadline.workflow.id}/deadlines/${deadline.id}`, {
+      const response = await dFetch(`/api/workflows/${deadline.workflow.id}/deadlines/${deadline.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        credentials: "include", body: JSON.stringify({ title: draft.title.trim(), due_date: draft.due_date, assigned_to: draft.assigned_to }),
+        body: JSON.stringify({ title: draft.title.trim(), due_date: draft.due_date, assigned_to: draft.assigned_to }),
       });
       if (!response.ok) throw new Error("Failed to save");
       const updated = await response.json();

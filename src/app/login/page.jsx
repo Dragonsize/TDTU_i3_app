@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { dFetch } from '@/lib/api';
 
 export default function Login() {
   const router = useRouter();
@@ -73,13 +74,12 @@ export default function Login() {
     try {
       console.log('Creating backend session...');
       
-      const sessionResponse = await fetch('/api/auth/session', {
+      const sessionResponse = await dFetch('/api/auth/session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ access_token: accessToken }),
-        credentials: 'include',
       });
 
       if (!sessionResponse.ok) {
