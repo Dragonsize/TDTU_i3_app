@@ -13,6 +13,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [chatbotApiKey, setChatbotApiKey] = useState("");
+  const [chatbotProvider, setChatbotProvider] = useState("openai-compatible");
   const [chatbotApiBase, setChatbotApiBase] = useState("https://api.openai.com/v1");
   const [chatbotModel, setChatbotModel] = useState("gpt-4o-mini");
   const [chatbotSaved, setChatbotSaved] = useState("");
@@ -31,9 +32,16 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setChatbotApiKey(localStorage.getItem("chatbot_api_key") || "");
+    setChatbotProvider(localStorage.getItem("chatbot_provider") || "openai-compatible");
     setChatbotApiBase(localStorage.getItem("chatbot_api_base") || "https://api.openai.com/v1");
     setChatbotModel(localStorage.getItem("chatbot_api_model") || "gpt-4o-mini");
   }, []);
+
+  useEffect(() => {
+    if (chatbotProvider === "google-ai-studio" && !chatbotApiBase) {
+      setChatbotApiBase("https://generativelanguage.googleapis.com/v1beta");
+    }
+  }, [chatbotProvider, chatbotApiBase]);
 
   const handleRename = async () => {
     setSaving(true);
@@ -81,8 +89,12 @@ export default function SettingsPage() {
 
   const handleSaveChatbotSettings = () => {
     localStorage.setItem("chatbot_api_key", chatbotApiKey.trim());
-    localStorage.setItem("chatbot_api_base", chatbotApiBase.trim() || "https://api.openai.com/v1");
-    localStorage.setItem("chatbot_api_model", chatbotModel.trim() || "gpt-4o-mini");
+    localStorage.setItem("chatbot_provider", chatbotProvider);
+    localStorage.setItem(
+      "chatbot_api_base",
+      chatbotApiBase.trim() || (chatbotProvider === "google-ai-studio" ? "https://generativelanguage.googleapis.com/v1beta" : "https://api.openai.com/v1")
+    );
+    localStorage.setItem("chatbot_api_model", chatbotModel.trim() || (chatbotProvider === "google-ai-studio" ? "gemini-1.5-flash" : "gpt-4o-mini"));
     setChatbotSaved("Chatbot API settings saved successfully!");
     setTimeout(() => setChatbotSaved(""), 3000);
   };
@@ -224,6 +236,21 @@ export default function SettingsPage() {
               
               <div className="p-6 space-y-5">
                 <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Provider</label>
+                  <div className="relative text-gray-700">
+                    <Bot className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <select
+                      value={chatbotProvider}
+                      onChange={(e) => setChatbotProvider(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl pl-11 pr-4 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all bg-white"
+                    >
+                      <option value="openai-compatible">OpenAI Compatible (OpenAI, OpenRouter, Together, Groq)</option>
+                      <option value="google-ai-studio">Google AI Studio (Gemini)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">API Key</label>
                   <div className="relative text-gray-700">
                     <Key className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -249,7 +276,7 @@ export default function SettingsPage() {
                         type="text"
                         value={chatbotApiBase}
                         onChange={(e) => setChatbotApiBase(e.target.value)}
-                        placeholder="https://api.openai.com/v1"
+                        placeholder={chatbotProvider === "google-ai-studio" ? "https://generativelanguage.googleapis.com/v1beta" : "https://api.openai.com/v1"}
                         className="w-full border border-gray-200 rounded-xl pl-11 pr-4 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-gray-300"
                       />
                     </div>
@@ -263,7 +290,7 @@ export default function SettingsPage() {
                         type="text"
                         value={chatbotModel}
                         onChange={(e) => setChatbotModel(e.target.value)}
-                        placeholder="gpt-4o-mini"
+                        placeholder={chatbotProvider === "google-ai-studio" ? "gemini-1.5-flash" : "gpt-4o-mini"}
                         className="w-full border border-gray-200 rounded-xl pl-11 pr-4 py-3 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-gray-300"
                       />
                     </div>

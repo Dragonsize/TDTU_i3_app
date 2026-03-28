@@ -4,6 +4,7 @@ import hashlib
 import json
 import ast
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
@@ -458,6 +459,7 @@ class ChatbotRequest(BaseModel):
     api_base: Optional[str] = None
     api_key: Optional[str] = None
     model: Optional[str] = None
+    provider: Optional[str] = None
 
 
 class NotificationSubscriptionRequest(BaseModel):
@@ -880,6 +882,91 @@ def call_external_chatbot(question: str, api_key: str, api_base: str, model: str
     if not isinstance(content, str) or not content.strip():
         raise HTTPException(status_code=502, detail="Chatbot provider returned empty content")
     return content.strip()
+
+
+def infer_chatbot_provider(provider_hint: Optional[str], api_base: str, model: str) -> str:
+    hint = (provider_hint or "").strip().lower()
+    if hint in {"openai", "openai-compatible", "openai_compatible"}:
+        return "openai-compatible"
+    if hint in {"google", "google-ai-studio", "gemini"}:
+        return "google-ai-studio"
+
+    base_lower = (api_base or "").lower()
+    model_lower = (model or "").lower()
+    if "generativelanguage.googleapis.com" in base_lower or "gemini" in model_lower:
+        return "google-ai-studio"
+
+    return "openai-compatible"
+
+
+def call_google_ai_studio_chat(question: str, api_key: str, api_base: str, model: str) -> str:
+    if not api_key:
+        raise HTTPException(status_code=500, detail="No API key provided for Google AI Studio")
+
+    resolved_model = (model or "gemini-1.5-flash").strip()
+    if not resolved_model.startswith("models/"):
+        resolved_model = f"models/{resolved_model}"
+
+    resolved_base = (api_base or "https://generativelanguage.googleapis.com/v1beta").strip().rstrip("/")
+    resolved_base = validate_url_safe(resolved_base)
+    encoded_key = urllib.parse.quote(api_key, safe="")
+    url = f"{resolved_base}/{resolved_model}:generateContent?key={encoded_key}"
+
+    payload = {
+        "systemInstruction": {"parts": [{"text": CHATBOT_SYSTEM_PROMPT}]},
+        "contents": [{"role": "user", "parts": [{"text": question}]}],
+        "generationConfig": {"temperature": 0.3},
+    }
+
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            raw = response.read().decode("utf-8")
+            data = json.loads(raw)
+    except urllib.error.HTTPError as exc:
+        body = ""
+        parsed_message = ""
+        try:
+            body = exc.read().decode("utf-8")
+            parsed = json.loads(body) if body else {}
+            if isinstance(parsed, dict):
+                err = parsed.get("error") or {}
+                parsed_message = err.get("message") if isinstance(err, dict) else ""
+        except Exception:
+            body = ""
+
+        message = (parsed_message or body or str(exc)).strip()
+        message_lower = message.lower()
+        if exc.code == 429 or "quota" in message_lower or "resource_exhausted" in message_lower or "rate limit" in message_lower:
+            raise HTTPException(
+                status_code=429,
+                detail="Chatbot provider quota exceeded. Using built-in fallback response.",
+            )
+
+        raise HTTPException(status_code=502, detail=f"Google AI Studio error: {message}")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Google AI Studio unavailable: {str(exc)}")
+
+    candidates = data.get("candidates") or []
+    if not candidates:
+        raise HTTPException(status_code=502, detail="Google AI Studio returned no candidates")
+
+    content = (candidates[0] or {}).get("content") or {}
+    parts = content.get("parts") or []
+    text_parts = [part.get("text", "") for part in parts if isinstance(part, dict)]
+    answer = "\n".join(text.strip() for text in text_parts if isinstance(text, str) and text.strip()).strip()
+    if not answer:
+        raise HTTPException(status_code=502, detail="Google AI Studio returned empty content")
+
+    return answer
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
@@ -3077,14 +3164,18 @@ def chatbot(
     # Priority: request body api_base > env CHATBOT_API_BASE
     api_base = (request.api_base or CHATBOT_API_BASE or "").strip().rstrip("/")
     model = (request.model or CHATBOT_MODEL).strip()
+    provider = infer_chatbot_provider(request.provider, api_base, model)
 
     if api_key:
         try:
-            answer = call_external_chatbot(question, api_key, api_base, model)
+            if provider == "google-ai-studio":
+                answer = call_google_ai_studio_chat(question, api_key, api_base, model)
+            else:
+                answer = call_external_chatbot(question, api_key, api_base, model)
             return {
                 "question": question,
                 "answer": answer,
-                "provider": "external",
+                "provider": provider,
                 "model": model,
             }
         except HTTPException as exc:
@@ -3107,7 +3198,7 @@ def chatbot(
         "answer": response,
         "provider": "built-in",
         "model": "rules",
-        "warning": "No API key configured. Set CHATBOT_API_KEY and CHATBOT_API_BASE in your .env file to use an external provider.",
+        "warning": "No API key configured. Add your key in Settings to use OpenAI-compatible or Google AI Studio providers.",
     }
 
 
