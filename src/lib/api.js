@@ -1,38 +1,96 @@
-// Simple API utility to deduplicate pending requests and handle authentication
+// API utility with request deduplication, automatic token refresh, and global 401 handling
 const pendingRequests = new Map();
 
+let _isRedirecting = false;
+let _isRefreshing = false;
+let _refreshPromise = null;
+
+function redirectToLogin() {
+  if (_isRedirecting) return;
+  if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+    _isRedirecting = true;
+    localStorage.removeItem('userProfile');
+    window.location.href = '/login';
+  }
+}
+
 /**
- * Fetch with deduplication: if a request to the same URL is already pending, return its promise.
+ * Attempt to refresh the access token via the backend refresh endpoint.
+ * Returns true if refresh succeeded, false otherwise.
+ * Deduplicates concurrent refresh attempts.
+ */
+async function tryRefreshToken() {
+  if (_isRefreshing) {
+    return _refreshPromise;
+  }
+  _isRefreshing = true;
+  _refreshPromise = (async () => {
+    try {
+      const res = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      return res.ok;
+    } catch {
+      return false;
+    } finally {
+      _isRefreshing = false;
+      _refreshPromise = null;
+    }
+  })();
+  return _refreshPromise;
+}
+
+/**
+ * Fetch with deduplication, automatic token refresh, and global 401 redirect.
+ * - GET requests to the same URL are deduplicated while pending.
+ * - On 401, attempts a token refresh and retries once before redirecting to /login.
  */
 export async function dFetch(url, options = {}) {
   const method = options.method || 'GET';
-  
-  // Only deduplicate GET requests by default
+
+  // Non-GET: run directly, no deduplication
   if (method !== 'GET') {
-    return fetch(url, options);
+    const response = await fetch(url, options);
+    if (response.status === 401) {
+      const refreshed = await tryRefreshToken();
+      if (refreshed) {
+        // Retry the original request after refresh
+        return fetch(url, options);
+      }
+      redirectToLogin();
+    }
+    return response;
   }
 
   const cacheKey = JSON.stringify({ url, credentials: options.credentials });
-  
+
   if (pendingRequests.has(cacheKey)) {
     return pendingRequests.get(cacheKey);
   }
 
   const requestPromise = (async () => {
     try {
-      const response = await fetch(url, options);
-      
-      // Global 401 handling if needed (can be added here)
-      if (response.status === 401 && !window.location.pathname.startsWith('/login')) {
-         // Optionally handle redirect here or in components
+      let response = await fetch(url, options);
+
+      // On 401, try to refresh the token and retry once
+      if (response.status === 401) {
+        const refreshed = await tryRefreshToken();
+        if (refreshed) {
+          response = await fetch(url, options);
+          // If still 401 after refresh, redirect
+          if (response.status === 401) {
+            redirectToLogin();
+          }
+          return response;
+        }
+        redirectToLogin();
       }
-      
+
       return response;
     } finally {
-      // Small delay before clearing to prevent back-to-back duplicate calls (e.g. StrictMode)
-      setTimeout(() => {
-        pendingRequests.delete(cacheKey);
-      }, 500); 
+      // Small delay to absorb StrictMode double-invocation
+      setTimeout(() => pendingRequests.delete(cacheKey), 500);
     }
   })();
 

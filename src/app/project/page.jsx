@@ -84,15 +84,32 @@ export default function ProjectPage() {
     const checkAuthAndFetch = async () => {
       try {
         const profileRes = await dFetch('/api/profile', { credentials: 'include' });
+        if (profileRes.status === 401) {
+          // dFetch already tried token refresh — truly unauthenticated
+          router.push('/login');
+          return;
+        }
+        if (!profileRes.ok) {
+          // Server error — don't redirect, just stop loading
+          console.error('Profile fetch failed:', profileRes.status);
+          setLoading(false);
+          return;
+        }
         const profileData = await profileRes.json();
         if (!profileData.profile) { router.push('/login'); return; }
         setCurrentUser(profileData.profile);
         setMembers([profileData.profile]);
         const projRes = await dFetch("/api/projects", { credentials: "include" });
-        const projData = await projRes.json();
-        if (Array.isArray(projData)) setProjects(projData);
+        if (projRes.ok) {
+          const projData = await projRes.json();
+          if (Array.isArray(projData)) setProjects(projData);
+        }
         setLoading(false);
-      } catch { router.push('/login'); }
+      } catch (err) {
+        // Network error — don't redirect to login, show an error state
+        console.error('Failed to load projects:', err);
+        setLoading(false);
+      }
     };
     checkAuthAndFetch();
   }, [router]);
