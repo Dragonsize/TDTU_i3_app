@@ -167,8 +167,9 @@ function DateDropdown({ value, onChange }) {
               );
             })}
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }
