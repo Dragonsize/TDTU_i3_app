@@ -1985,13 +1985,29 @@ def create_project(request: CreateProjectRequest, user=Depends(get_current_user)
 def get_project_members(project_id: str, user=Depends(get_current_user)):
     db = require_db_client()
     require_project_member(user.get("sub"), project_id)
-    
-    response = db.table("project_members").select("role, profiles:user_id(id, username, full_name, email)").eq("project_id", project_id).execute()
+
+    try:
+        response = db.table("project_members").select("role, profiles:user_id(id, username, full_name, email)").eq("project_id", project_id).execute()
+    except Exception as exc:
+        print(f"Members join query failed, falling back: {exc}")
+        # Fallback: fetch members without join, then fetch profiles separately
+        pm_response = db.table("project_members").select("user_id, role").eq("project_id", project_id).execute()
+        if not pm_response.data:
+            return []
+        members = []
+        for row in pm_response.data:
+            profile_resp = db.table("profiles").select("id, username, full_name, email").eq("id", row["user_id"]).limit(1).execute()
+            if profile_resp.data:
+                member_data = profile_resp.data[0]
+                member_data["role"] = row.get("role")
+                members.append(member_data)
+        return members
+
     if getattr(response, "error", None):
         raise HTTPException(status_code=500, detail="Failed to fetch members")
-    
+
     members = []
-    for row in response.data:
+    for row in (response.data or []):
         if row.get("profiles"):
             member_data = row["profiles"]
             member_data["role"] = row.get("role")
@@ -2039,7 +2055,7 @@ def get_workflows(project_id: str, user=Depends(get_current_user)):
 @app.post("/api/projects/{project_id}/workflows")
 def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depends(get_current_user)):
     db = require_db_client()
-    require_project_lead(user.get("sub"), project_id)
+    require_project_member(user.get("sub"), project_id)
     creator_id = user.get("sub")
     member_ids: List[str] = []
 
@@ -2247,6 +2263,50 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
     if last_error:
         raise HTTPException(status_code=500, detail=f"Failed to create workflow: {last_error}")
     raise HTTPException(status_code=500, detail="Failed to create workflow")
+
+
+class UpdateWorkflowRequest(BaseModel):
+    status: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+@app.patch("/api/workflows/{workflow_id}")
+def update_workflow(workflow_id: str, request: UpdateWorkflowRequest, user=Depends(get_current_user)):
+    """Update a workflow's status, name, or description."""
+    db = require_db_client()
+
+    # Fetch the workflow to get its project_id
+    workflow_resp = db.table("workspaces").select("id, project_id").eq("id", workflow_id).execute()
+    if not workflow_resp.data:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    project_id = workflow_resp.data[0].get("project_id")
+    if project_id:
+        require_project_member(user.get("sub"), project_id)
+
+    updates = {}
+    if request.status is not None:
+        updates["status"] = request.status
+    if request.name is not None:
+        updates["name"] = request.name
+    if request.description is not None:
+        updates["description"] = request.description
+
+    if not updates:
+        return workflow_resp.data[0]
+
+    try:
+        response = db.table("workspaces").update(updates).eq("id", workflow_id).execute()
+        if not response.data:
+            raise HTTPException(status_code=500, detail="Failed to update workflow")
+        result = response.data[0]
+        result["title"] = result.get("name", result.get("title"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to update workflow: {str(exc)}")
 
 
 def normalize_deadline_due_date(due_date: str) -> str:

@@ -198,7 +198,7 @@ export default function Login() {
             {/* Registration Prompt */}
             <div className="text-center pt-4">
               <p className="text-gray-400 dark:text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-4">
-                If you don't have an account
+                If you don&apos;t have an account
               </p>
               <Link
                 href="/signup"

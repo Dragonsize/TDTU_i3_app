@@ -93,7 +93,11 @@ export default function ProjectPage() {
         const projData = await projRes.json();
         if (Array.isArray(projData)) setProjects(projData);
         setLoading(false);
-      } catch { router.push('/login'); }
+      } catch (err) {
+        // Network error — don't redirect to login, show an error state
+        console.error('Failed to load projects:', err);
+        setLoading(false);
+      }
     };
     checkAuthAndFetch();
   }, [router]);
