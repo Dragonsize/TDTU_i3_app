@@ -281,7 +281,7 @@ function DeadlineStatusBadge({ status }) {
 
 export default function ProjectDetailPage() {
   const params = useParams();
-  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  const id = params.id;
   const router = useRouter();
   const [project, setProject] = useState(null);
   const [members, setMembers] = useState([]);
@@ -315,16 +315,6 @@ export default function ProjectDetailPage() {
   const [selectedFlowMembers, setSelectedFlowMembers] = useState([]);
   const [newFlowParentId, setNewFlowParentId] = useState(null);
   const [hoveredWorkspace, setHoveredWorkspace] = useState(null);
-  const [showLinkProjectModal, setShowLinkProjectModal] = useState(false);
-  const [allProjects, setAllProjects] = useState([]);
-  const [selectedSourceProject, setSelectedSourceProject] = useState(null);
-  const [linkedProjectMembers, setLinkedProjectMembers] = useState([]);
-  const [linkingProject, setLinkingProject] = useState(false);
-  const [linkProjectError, setLinkProjectError] = useState("");
-  const [showAddMemberForm, setShowAddMemberForm] = useState(false);
-  const [newMemberUsername, setNewMemberUsername] = useState("");
-  const [addingMember, setAddingMember] = useState(false);
-  const [addMemberError, setAddMemberError] = useState("");
 
   const handleFlowMemberToggle = (memberId, checked) => {
     if (checked) {
@@ -672,19 +662,6 @@ export default function ProjectDetailPage() {
     completed: "Completed",
   };
 
-  const loadSourceProjectMembers = async (projectId) => {
-    try {
-      const res = await dFetch(`/api/projects/${projectId}/members`, { credentials: "include" });
-      if (res.ok) {
-        const membersList = await res.json();
-        setLinkedProjectMembers(Array.isArray(membersList) ? membersList : []);
-      }
-    } catch (err) {
-      console.error("Error loading source project members:", err);
-      setLinkedProjectMembers([]);
-    }
-  };
-
   useEffect(() => {
     if (!showWorkspaceModal || !id) return;
     setWorkspaceLoading(true);
@@ -704,24 +681,6 @@ export default function ProjectDetailPage() {
       })
       .finally(() => setWorkspaceLoading(false));
   }, [showWorkspaceModal, id]);
-
-  useEffect(() => {
-    if (!showLinkProjectModal) return;
-    const load = async () => {
-      try {
-        const res = await dFetch("/api/projects", { credentials: "include" });
-        if (res.ok) {
-          const projectsList = await res.json();
-          const filteredProjects = (Array.isArray(projectsList) ? projectsList : []).filter((p) => p.id !== id);
-          setAllProjects(filteredProjects);
-        }
-      } catch (err) {
-        console.error("Error loading projects:", err);
-        setAllProjects([]);
-      }
-    };
-    load();
-  }, [showLinkProjectModal, id]);
 
   useEffect(() => {
     if (!id) return;
@@ -1049,15 +1008,6 @@ export default function ProjectDetailPage() {
             <Flag className="w-4 h-4" />
             Manager Deadline
           </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 rounded-xl text-white text-base font-medium hover:shadow-lg transition-all flex items-center gap-2"
-            onClick={() => setShowLinkProjectModal(true)}
-          >
-            <Plus className="w-4 h-4" />
-            Link Project
-          </motion.button>
         </div>
 
         {/* Members Section */}
@@ -1066,62 +1016,13 @@ export default function ProjectDetailPage() {
           animate={{ opacity: 1, y: 0 }}
           className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl"
         >
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center">
-                <Users className="w-5 h-5 text-indigo-400" />
-              </div>
-              <h2 className="text-2xl font-bold text-white">Team Members</h2>
-              <span className="text-white/50 text-sm">({members.length})</span>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center">
+              <Users className="w-5 h-5 text-indigo-400" />
             </div>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowAddMemberForm(!showAddMemberForm)}
-              className="px-3 py-1 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              + Add Member
-            </motion.button>
+            <h2 className="text-2xl font-bold text-white">Team Members</h2>
+            <span className="text-white/50 text-sm">({members.length})</span>
           </div>
-
-          {showAddMemberForm && (
-            <motion.form
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-6 p-4 bg-white/10 rounded-xl backdrop-blur-sm border border-white/20"
-              onSubmit={handleAddMember}
-            >
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Enter username"
-                  value={newMemberUsername}
-                  onChange={(e) => setNewMemberUsername(e.target.value)}
-                  className="flex-1 px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-indigo-400"
-                />
-                <motion.button
-                  type="submit"
-                  disabled={addingMember}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/50 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                >
-                  {addingMember ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                  Add
-                </motion.button>
-              </div>
-              {addMemberError && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="mt-2 text-red-400 text-sm flex items-center gap-2"
-                >
-                  <AlertCircle className="w-4 h-4" />
-                  {addMemberError}
-                </motion.div>
-              )}
-            </motion.form>
-          )}
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
             {members.length === 0 ? (
@@ -1627,155 +1528,6 @@ export default function ProjectDetailPage() {
                 >
                   Close
                 </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Link Project Modal */}
-      <AnimatePresence>
-        {showLinkProjectModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ type: "spring", duration: 0.3 }}
-              className="relative w-full max-w-2xl h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
-            >
-              <div className="relative px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-pink-50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
-                      <Plus className="w-4 h-4 text-white" />
-                    </div>
-                    <h2 className="text-xl font-bold text-gray-900">Link Project</h2>
-                  </div>
-                  <button
-                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/50 text-gray-400 hover:text-gray-600 transition-colors"
-                    onClick={() => {
-                      setShowLinkProjectModal(false);
-                      setSelectedSourceProject(null);
-                      setLinkedProjectMembers([]);
-                      setLinkProjectError("");
-                    }}
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-6 bg-gray-50 space-y-4">
-                {linkProjectError && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 flex items-center gap-2"
-                  >
-                    <AlertCircle className="w-4 h-4" />
-                    {linkProjectError}
-                  </motion.div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Select Project to Link</label>
-                  <select
-                    value={selectedSourceProject || ""}
-                    onChange={(e) => {
-                      setSelectedSourceProject(e.target.value);
-                      if (e.target.value) {
-                        loadSourceProjectMembers(e.target.value);
-                      } else {
-                        setLinkedProjectMembers([]);
-                      }
-                    }}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all"
-                  >
-                    <option value="">-- Choose a project --</option>
-                    {allProjects.map((proj) => (
-                      <option key={proj.id} value={proj.id}>
-                        {proj.title || proj.name} ({proj.members?.length || 0} members)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {selectedSourceProject && linkedProjectMembers.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-xl bg-white p-4 border border-gray-100"
-                  >
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <Users className="w-4 h-4 text-purple-600" />
-                      Members to Add ({linkedProjectMembers.length})
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-64 overflow-y-auto">
-                      {linkedProjectMembers.map((member) => (
-                        <motion.div
-                          key={member.id}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="flex items-center gap-3 p-2 rounded-lg bg-gray-50"
-                        >
-                          <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                            {(member.full_name || member.username || "?")[0].toUpperCase()}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {member.full_name || member.username}
-                            </p>
-                            <p className="text-xs text-gray-500 truncate">{member.email || member.username}</p>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-
-                {selectedSourceProject && linkedProjectMembers.length === 0 && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex items-center justify-center py-8 rounded-xl bg-white border border-gray-100"
-                  >
-                    <p className="text-gray-500 text-sm">Loading members...</p>
-                  </motion.div>
-                )}
-              </div>
-
-              <div className="border-t border-gray-100 px-6 py-4 bg-white flex justify-end gap-3">
-                <button
-                  className="px-5 py-2 bg-gray-200 hover:bg-gray-300 rounded-xl text-gray-900 text-sm font-medium transition-all"
-                  onClick={() => {
-                    setShowLinkProjectModal(false);
-                    setSelectedSourceProject(null);
-                    setLinkedProjectMembers([]);
-                    setLinkProjectError("");
-                  }}
-                >
-                  Cancel
-                </button>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  disabled={!selectedSourceProject || linkingProject || linkedProjectMembers.length === 0}
-                  onClick={handleLinkProjectSubmit}
-                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-purple-600/50 disabled:to-pink-600/50 rounded-xl text-white text-sm font-medium transition-all flex items-center gap-2"
-                >
-                  {linkingProject ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Linking...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Link Project
-                    </>
-                  )}
-                </motion.button>
               </div>
             </motion.div>
           </div>
