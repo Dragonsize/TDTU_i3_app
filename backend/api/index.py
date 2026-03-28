@@ -10,6 +10,11 @@ from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, UploadFile, Form, Request, Query, WebSocket, WebSocketDisconnect, BackgroundTasks, Header
 import asyncio
+import sys
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 def sanitize_chat_input(text: str) -> str:
     # Remove dangerous SQL/meta chars and trim
     if not isinstance(text, str):
@@ -493,7 +498,7 @@ async def add_security_headers(request: Request, call_next):
     # Enable XSS protection in older browsers
     response.headers["X-XSS-Protection"] = "1; mode=block"
     # Content Security Policy: restrict inline scripts, only allow from trusted origins
-    csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; font-src 'self'; connect-src 'self' https:; frame-ancestors 'self'"
+    csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' fastly.jsdelivr.net https: data:; font-src 'self'; connect-src 'self' https:; frame-ancestors 'self'"
     response.headers["Content-Security-Policy"] = csp
     return response
 
