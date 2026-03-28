@@ -4,14 +4,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { dFetch } from '@/lib/api';
 
-import { 
-  BarChart3, 
-  Layout, 
-  Users, 
-  CalendarDays, 
-  ArrowRight, 
-  CheckCircle2, 
-  Shield, 
+import {
+  BarChart3,
+  Layout,
+  Users,
+  CalendarDays,
+  ArrowRight,
+  CheckCircle2,
+  Shield,
   Zap,
   LayoutGrid,
   MessageSquare,
@@ -99,7 +99,7 @@ export default function Home() {
   return (
     <AppShell contentClassName="flex-1 bg-gray-50/50 dark:bg-neutral-950/50 min-h-screen transition-colors duration-300">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 md:py-20">
-        
+
         {/* Hero Area Mirroring Dashboard Header */}
         <div className="mb-12 text-center md:text-left">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-full border border-blue-100 dark:border-blue-900/30 mb-6">
@@ -108,7 +108,7 @@ export default function Home() {
           </div>
           <h1 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight leading-[0.9] flex flex-col md:flex-row items-center gap-4 mb-4">
             <Gauge className="w-10 h-10 md:w-16 md:h-16 text-blue-500 animate-pulse" />
-            Workspace Precision
+            Welcome to the homepage
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-base md:text-lg max-w-2xl mt-4 leading-relaxed font-medium">
             Redefining team orchestration for high-performance units. Experience the same precision before and after you sign in.
@@ -163,22 +163,22 @@ export default function Home() {
         {/* Social Proof / Callout (Mirroring Upcoming Items section but with marketing content) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white dark:bg-neutral-900 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-white/10 p-8 flex flex-col justify-center items-center text-center group transition-all hover:border-blue-200 dark:hover:border-blue-900/50">
-             <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-3xl flex items-center justify-center mb-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-                <Users className="w-8 h-8" />
-             </div>
-             <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase mb-3 tracking-tight">Built for Teams</h4>
-             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-xs">
-               From startups to Fortune 500s, A+ Flow scales with your team&apos;s ambition.
-             </p>
+            <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-3xl flex items-center justify-center mb-6 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+              <Users className="w-8 h-8" />
+            </div>
+            <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase mb-3 tracking-tight">Built for Teams</h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-xs">
+              From startups to Fortune 500s, A+ Flow scales with your team&apos;s ambition.
+            </p>
           </div>
           <div className="bg-white dark:bg-neutral-900 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-white/10 p-8 flex flex-col justify-center items-center text-center group transition-all hover:border-emerald-200 dark:hover:border-emerald-900/50">
-             <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-3xl flex items-center justify-center mb-6 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
-                <CheckCircle2 className="w-8 h-8" />
-             </div>
-             <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase mb-3 tracking-tight">Security First</h4>
-             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-xs">
-               Enterprise-grade encryption and protocol management for your mission-critical data.
-             </p>
+            <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-3xl flex items-center justify-center mb-6 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+            <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase mb-3 tracking-tight">Security First</h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-xs">
+              Enterprise-grade encryption and protocol management for your mission-critical data.
+            </p>
           </div>
         </div>
 
