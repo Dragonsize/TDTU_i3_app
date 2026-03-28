@@ -66,7 +66,8 @@ export async function dFetch(url, options = {}) {
   const cacheKey = JSON.stringify({ url, credentials: options.credentials });
 
   if (pendingRequests.has(cacheKey)) {
-    return pendingRequests.get(cacheKey);
+    const response = await pendingRequests.get(cacheKey);
+    return response.clone();
   }
 
   const requestPromise = (async () => {
@@ -88,12 +89,24 @@ export async function dFetch(url, options = {}) {
       }
 
       return response;
-    } finally {
-      // Small delay to absorb StrictMode double-invocation
-      setTimeout(() => pendingRequests.delete(cacheKey), 500);
+    } catch (err) {
+      // Ensure we clear the pending request on network error so it can be retried
+      pendingRequests.delete(cacheKey);
+      throw err;
     }
   })();
 
   pendingRequests.set(cacheKey, requestPromise);
-  return requestPromise;
+
+  try {
+    const response = await requestPromise;
+    return response.clone();
+  } finally {
+    // Delete from cache after a delay to absorb StrictMode double-invocations
+    setTimeout(() => {
+      if (pendingRequests.get(cacheKey) === requestPromise) {
+        pendingRequests.delete(cacheKey);
+      }
+    }, 1000);
+  }
 }
