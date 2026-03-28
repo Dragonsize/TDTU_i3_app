@@ -3,16 +3,21 @@
 import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Clock, Loader2, PauseCircle } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
 import { dFetch } from "@/lib/api";
+import {
+  FolderOpen, Plus, CalendarDays, Clock, CheckCircle2, PauseCircle, Loader2,
+  X, Check, Calendar, Users, ChevronRight, AlertCircle,
+  LayoutGrid, Flag, Target, Sparkles, GitBranch, Layers, UserCheck,
+  Calendar as CalendarIcon, Trash2, Pencil, MoreHorizontal
+} from "lucide-react";
 
+// Helper functions
 function formatDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-// Parses a "YYYY-MM-DD" string into a local Date object, ignoring the time component
 function parseDateOnly(dateValue) {
   if (!dateValue || !dateValue.includes("-")) return null;
   const [yearText, monthText, dayText] = dateValue.split("-");
@@ -23,14 +28,12 @@ function parseDateOnly(dateValue) {
   return new Date(year, month - 1, day);
 }
 
-// Formats a "YYYY-MM-DD" string into a displayable label like "Jan 1, 2024"
 function formatDateButtonLabel(dateValue) {
   const parsed = parseDateOnly(dateValue);
   if (!parsed) return "Select date";
   return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-// Generates a 42-day calendar grid (6 weeks) array starting from the Monday of the month's first week
 function monthGridMonday(date) {
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -43,7 +46,6 @@ function monthGridMonday(date) {
   });
 }
 
-// Utility function to check if two Date objects represent the exact same calendar day
 function isSameDate(a, b) {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -52,14 +54,12 @@ function isSameDate(a, b) {
   );
 }
 
-// Pre-generated array of time strings in 15-minute increments (00:00 to 23:45)
 const TIME_OPTIONS = Array.from({ length: 96 }, (_, idx) => {
   const hour = String(Math.floor(idx / 4)).padStart(2, "0");
   const minute = String((idx % 4) * 15).padStart(2, "0");
   return `${hour}:${minute}`;
 });
 
-// Formats a 24-hour military time string (HH:MM) to a 12-hour string with AM/PM
 function formatTimeLabel(timeValue) {
   if (!timeValue || !timeValue.includes(":")) return "Select time";
   const [hoursText, minutesText] = timeValue.split(":");
@@ -72,7 +72,6 @@ function formatTimeLabel(timeValue) {
   return `${twelveHour}:${String(minutes).padStart(2, "0")} ${period}`;
 }
 
-// Custom Date picker dropdown component for selecting a specific date via a calendar UI
 function DateDropdown({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [displayMonth, setDisplayMonth] = useState(() => parseDateOnly(value) || new Date());
@@ -144,39 +143,38 @@ function DateDropdown({ value, onChange }) {
               ))}
             </div>
 
-          <div className="grid grid-cols-7 gap-y-0.5">
-            {days.map((day) => {
-              const inCurrentMonth = day.getMonth() === displayMonth.getMonth();
-              const isSelected = selected && isSameDate(day, selected);
-              return (
-                <button
-                  key={day.toISOString()}
-                  type="button"
-                  onClick={() => {
-                    onChange(formatDateKey(day));
-                    setOpen(false);
-                  }}
-                  className={`w-9 h-9 mx-auto rounded-full text-sm ${
-                    isSelected
-                      ? "bg-[#1a73e8] text-white font-semibold"
-                      : inCurrentMonth
-                        ? "text-slate-800 hover:bg-slate-100"
-                        : "text-slate-400"
-                  }`}
-                >
-                  {day.getDate()}
-                </button>
-              );
-            })}
-          </div>
-        </motion.div>
-      )}
+            <div className="grid grid-cols-7 gap-y-0.5">
+              {days.map((day) => {
+                const inCurrentMonth = day.getMonth() === displayMonth.getMonth();
+                const isSelected = selected && isSameDate(day, selected);
+                return (
+                  <button
+                    key={day.toISOString()}
+                    type="button"
+                    onClick={() => {
+                      onChange(formatDateKey(day));
+                      setOpen(false);
+                    }}
+                    className={`w-9 h-9 mx-auto rounded-full text-sm transition-all ${
+                      isSelected
+                        ? "bg-indigo-600 text-white font-semibold shadow-md"
+                        : inCurrentMonth
+                          ? "text-slate-800 hover:bg-slate-100"
+                          : "text-slate-400"
+                    }`}
+                  >
+                    {day.getDate()}
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
 }
 
-// Custom Time picker dropdown component for selecting a time from 15-minute intervals
 function TimeDropdown({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef(null);
@@ -203,30 +201,37 @@ function TimeDropdown({ value, onChange }) {
         <span className="text-gray-400">▾</span>
       </button>
 
-      {open && (
-        <div className="absolute left-0 right-0 mt-1 max-h-52 overflow-y-auto rounded-md shadow-xl z-40 bg-white border border-slate-300">
-          {TIME_OPTIONS.map((option) => {
-            const active = option === value;
-            return (
-              <button
-                key={option}
-                type="button"
-                onClick={() => {
-                  onChange(option);
-                  setOpen(false);
-                }}
-                className={`w-full text-left px-3 py-2 text-sm ${
-                  active
-                    ? "bg-[#e8f0fe] text-[#1a73e8] font-semibold"
-                    : "text-slate-800 hover:bg-slate-100"
-                }`}
-              >
-                {formatTimeLabel(option)}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            className="absolute left-0 right-0 mt-1 max-h-52 overflow-y-auto rounded-xl shadow-xl z-40 bg-white border border-slate-200"
+          >
+            {TIME_OPTIONS.map((option) => {
+              const active = option === value;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => {
+                    onChange(option);
+                    setOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                    active
+                      ? "bg-indigo-50 text-indigo-600 font-semibold"
+                      : "text-slate-800 hover:bg-slate-50"
+                  }`}
+                >
+                  {formatTimeLabel(option)}
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -274,10 +279,9 @@ function DeadlineStatusBadge({ status }) {
   );
 }
 
-// Main page component to display a project's details, manage its workflows, and oversee task deadlines
 export default function ProjectDetailPage() {
   const params = useParams();
-  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  const id = params.id;
   const router = useRouter();
   const [project, setProject] = useState(null);
   const [members, setMembers] = useState([]);
@@ -310,6 +314,7 @@ export default function ProjectDetailPage() {
   const [newFlowDeadlineTime, setNewFlowDeadlineTime] = useState("09:00");
   const [selectedFlowMembers, setSelectedFlowMembers] = useState([]);
   const [newFlowParentId, setNewFlowParentId] = useState(null);
+  const [hoveredWorkspace, setHoveredWorkspace] = useState(null);
 
   const handleFlowMemberToggle = (memberId, checked) => {
     if (checked) {
@@ -319,8 +324,6 @@ export default function ProjectDetailPage() {
     }
   };
 
-  // Submits the new workspace workflow to the API, assigns selected members,
-  // and automatically creates an initial deadline if requested.
   const handleCreateFlowSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -336,6 +339,7 @@ export default function ProjectDetailPage() {
           title: newFlowName,
           description: newFlowDesc,
           member_ids: selectedFlowMembers,
+          parent_id: newFlowParentId,
         }),
       });
 
@@ -381,7 +385,7 @@ export default function ProjectDetailPage() {
       setNewFlowDeadlineTime("09:00");
       setSelectedFlowMembers([]);
       setNewFlowParentId(null);
-      // Optionally, refetch workspaces
+      
       setWorkspaceLoading(true);
       setWorkspaceError("");
       dFetch(`/api/projects/${id}/workflows`, { credentials: "include" })
@@ -403,7 +407,6 @@ export default function ProjectDetailPage() {
     }
   };
 
-  // Fetches and aggregates all deadlines associated with a given list of user workflows
   const loadDeadlinesForWorkflows = async (workflows) => {
     if (!Array.isArray(workflows) || workflows.length === 0) {
       setDeadlines([]);
@@ -424,8 +427,6 @@ export default function ProjectDetailPage() {
     setDeadlines(allDeadlines.flat());
   };
 
-  // Effect that fetches workflows, members, and all their respective deadlines
-  // whenever the "Manager Deadline" modal is opened.
   useEffect(() => {
     if (!showDeadlineModal || !id) return;
 
@@ -483,7 +484,6 @@ export default function ProjectDetailPage() {
     loadDeadlineData();
   }, [showDeadlineModal, id]);
 
-  // Validates inputs and creates a new deadline associated with the selected workflow
   const handleCreateDeadline = async (event) => {
     event.preventDefault();
     setDeadlineError("");
@@ -532,7 +532,6 @@ export default function ProjectDetailPage() {
     }
   };
 
-  // Sends an API request to update the status (e.g., pending, completed) of an existing deadline
   const handleDeadlineStatusChange = async (deadline, status) => {
     setUpdatingDeadlineId(deadline.id);
     setDeadlineError("");
@@ -560,7 +559,6 @@ export default function ProjectDetailPage() {
     }
   };
 
-  // Deletes a specific deadline after prompting the user for confirmation
   const handleDeleteDeadline = async (deadline) => {
     if (!window.confirm(`Delete deadline "${deadline.title}"?`)) return;
 
@@ -608,7 +606,6 @@ export default function ProjectDetailPage() {
     }));
   };
 
-  // Persists edited changes (title, due date, assignee) of a deadline draft to the backend
   const saveDeadlineEdit = async (deadline) => {
     const draft = deadlineDrafts[deadline.id];
     if (!draft) return;
@@ -637,11 +634,11 @@ export default function ProjectDetailPage() {
         prev.map((item) =>
           item.id === deadline.id
             ? {
-              ...item,
-              title: (draft.title || item.title).trim(),
-              due_date: draft.due_date ? `${draft.due_date}T09:00` : item.due_date,
-              assigned_to: draft.assigned_to || item.assigned_to,
-            }
+                ...item,
+                title: (draft.title || item.title).trim(),
+                due_date: draft.due_date ? `${draft.due_date}T09:00` : item.due_date,
+                assigned_to: draft.assigned_to || item.assigned_to,
+              }
             : item
         )
       );
@@ -665,7 +662,6 @@ export default function ProjectDetailPage() {
     completed: "Completed",
   };
 
-  // Fetch workspaces when modal opens
   useEffect(() => {
     if (!showWorkspaceModal || !id) return;
     setWorkspaceLoading(true);
@@ -686,13 +682,8 @@ export default function ProjectDetailPage() {
       .finally(() => setWorkspaceLoading(false));
   }, [showWorkspaceModal, id]);
 
-  // Initial fetch effect that loads the current user's profile, project detail metadata,
-  // and project member lists when the page is first mounted.
   useEffect(() => {
-    if (!id) {
-      setLoading(false);
-      return;
-    }
+    if (!id) return;
     const fetchData = async () => {
       try {
         const profileRes = await dFetch("/api/profile", { credentials: "include" });
@@ -724,12 +715,11 @@ export default function ProjectDetailPage() {
       }
     };
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, router]);
 
   const handleWorkspaceStatusChange = async (workspaceId, newStatus) => {
     try {
-      const res = await fetch(`/api/workflows/${workspaceId}`, {
+      const res = await dFetch(`/api/workflows/${workspaceId}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -746,29 +736,47 @@ export default function ProjectDetailPage() {
     const children = workspaces.filter(ws => (ws.parent_id || null) === parentId);
     if (children.length === 0) return null;
     return children.map((ws, idx) => (
-      <div key={ws.id} className="w-full flex flex-col mb-3">
-        <div 
-          className="w-full min-h-[56px] py-2 bg-stone-500 rounded-[14px] flex flex-wrap sm:flex-nowrap items-center justify-between px-3 sm:px-4 gap-3 relative" 
+      <motion.div
+        key={ws.id}
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: idx * 0.05 }}
+        className="w-full flex flex-col mb-3"
+      >
+        <motion.div 
+          whileHover={{ scale: 1.01 }}
+          onHoverStart={() => setHoveredWorkspace(ws.id)}
+          onHoverEnd={() => setHoveredWorkspace(null)}
+          className="w-full min-h-[56px] py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-xl flex flex-wrap sm:flex-nowrap items-center justify-between px-3 sm:px-4 gap-3 relative shadow-md" 
           style={{ marginLeft: `${level * 24}px`, width: `calc(100% - ${level * 24}px)` }}
         >
           <div className="flex items-center gap-2 sm:gap-4 overflow-hidden min-w-[40%]">
-            <div className="shrink-0 w-7 h-7 bg-zinc-300 rounded-[14px] flex items-center justify-center text-black text-base font-['Habibi']">{idx + 1}</div>
-            <div className="text-white text-sm sm:text-base font-normal font-['Habibi'] truncate" title={ws.name}>Flow: {ws.name}</div>
-            <div className="hidden md:block text-white text-[13px] font-normal font-['Habibi'] shrink-0">{ws.created_at ? new Date(ws.created_at).toLocaleDateString("en-GB") : "-"}</div>
+            <div className="shrink-0 w-7 h-7 bg-white/20 rounded-xl flex items-center justify-center text-white text-base font-bold">
+              {idx + 1}
+            </div>
+            <div className="text-white text-sm sm:text-base font-medium truncate" title={ws.name}>
+              {level > 0 && <GitBranch className="w-3 h-3 inline mr-1" />}
+              {ws.name}
+            </div>
+            <div className="hidden md:block text-white/70 text-xs shrink-0">
+              {ws.created_at ? new Date(ws.created_at).toLocaleDateString("en-GB") : "-"}
+            </div>
           </div>
           <div className="flex items-center justify-end gap-2 shrink-0 flex-wrap">
             <select
               value={ws.status || "in_process"}
               onChange={(e) => handleWorkspaceStatusChange(ws.id, e.target.value)}
-              className="bg-stone-600 text-white text-[12px] sm:text-[13px] rounded px-1 sm:px-2 py-1 outline-none border border-stone-400 max-w-[100px] sm:max-w-none"
+              className="bg-white/20 text-white text-xs sm:text-sm rounded-lg px-2 py-1 outline-none border border-white/30 hover:bg-white/30 transition-colors"
             >
-              <option value="in_process">In process</option>
-              <option value="pause">Pause</option>
-              <option value="completed">Completed</option>
+              <option value="in_process" className="text-gray-900">In process</option>
+              <option value="pause" className="text-gray-900">Pause</option>
+              <option value="completed" className="text-gray-900">Completed</option>
             </select>
             {level < 5 && (
-              <button
-                className="px-2 h-6 bg-zinc-200 rounded-md flex items-center justify-center text-black text-[11px] sm:text-xs font-bold hover:bg-zinc-100 whitespace-nowrap"
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-2 h-6 bg-white/20 rounded-lg flex items-center justify-center text-white text-xs font-semibold hover:bg-white/30 transition-all whitespace-nowrap"
                 onClick={() => {
                   setNewFlowParentId(ws.id);
                   if (!newFlowDeadline) setNewFlowDeadline(formatDateKey(new Date()));
@@ -778,14 +786,18 @@ export default function ProjectDetailPage() {
                 title="Create Sub-Flow"
               >
                 + Sub-flow
-              </button>
+              </motion.button>
             )}
           </div>
-        </div>
+        </motion.div>
         {renderWorkflowTree(ws.id, level + 1)}
-      </div>
+      </motion.div>
     ));
   };
+
+  const totalDeadlines = deadlines.length;
+  const completedDeadlines = deadlines.filter(d => d.status === "completed").length;
+  const completionRate = totalDeadlines > 0 ? Math.round((completedDeadlines / totalDeadlines) * 100) : 0;
 
   if (loading || userLoading) {
     return (
@@ -799,405 +811,650 @@ export default function ProjectDetailPage() {
   return (
     <AppShell user={currentUser} activePath="/project" contentClassName="flex-1 bg-gradient-to-br from-gray-50 via-white to-gray-50">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 xl:px-16 py-8 sm:py-10 lg:py-12">
-        {/* Project Info */}
-        <div className="mb-10">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-normal font-['Habibi'] text-neutral-950 mb-6 sm:mb-8 break-words">{project.title}</h1>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-8">
-            <div className="flex flex-col gap-2">
-              <span className="text-black text-2xl font-normal font-['Habibi']">Day Create</span>
-              <span className="text-black text-xl font-normal font-['Habibi'] text-gray-600">
-                {project.created_at ? new Date(project.created_at).toLocaleDateString("en-GB") : "-"}
-              </span>
-            </div>
-            
-            <div className="flex flex-col gap-2">
-              <span className="text-black text-2xl font-normal font-['Habibi']">Status</span>
-              <span className="text-black text-xl font-normal font-['Habibi'] text-gray-600">
-                {project.status === "in_process" ? "In process" : (project.status === "pause" ? "Pause" : (project.status === "completed" ? "Completed" : project.status))}
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <span className="text-black text-2xl font-normal font-['Arimo']">Created by</span>
-              <span className="text-black text-base font-normal font-['Arimo'] text-gray-600">
-                {project.creator?.full_name || project.creator?.username || "Unknown"}
-              </span>
+        
+        {/* Project Header with Gradient */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative mb-10 overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 p-6 border border-gray-100 shadow-sm"
+        >
+          <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-r from-indigo-200/20 to-purple-200/20 rounded-full blur-3xl" />
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-4">
+              <div 
+                className="w-14 h-14 rounded-xl flex items-center justify-center shadow-md"
+                style={{ backgroundColor: project.color || "#6366f1" }}
+              >
+                <FolderOpen className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                  {project.title}
+                </h1>
+                <div className="flex items-center gap-3 mt-2">
+                  <StatusBadge status={project.status || "in_process"} />
+                  <span className="text-xs text-gray-500">
+                    Created by {project.creator?.full_name || project.creator?.username || "Unknown"}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
+        </motion.div>
+
+        {/* Info Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+                <CalendarDays className="w-5 h-5 text-indigo-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900">Day Create</h3>
+            </div>
+            <p className="text-2xl font-bold text-gray-900">
+              {project.created_at ? new Date(project.created_at).toLocaleDateString("en-GB") : "-"}
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                <Target className="w-5 h-5 text-emerald-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900">Status</h3>
+            </div>
+            <StatusBadge status={project.status || "in_process"} />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                <UserCheck className="w-5 h-5 text-purple-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900">Created by</h3>
+            </div>
+            <p className="text-base font-medium text-gray-700">
+              {project.creator?.full_name || project.creator?.username || "Unknown"}
+            </p>
+          </motion.div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap gap-4 mb-8">
-          <button
-            className="px-6 py-3 bg-black rounded-md text-white text-base font-normal font-['Arimo'] hover:bg-gray-800 transition"
+        <div className="flex flex-wrap gap-4 mb-10">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="px-6 py-3 bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl text-white text-base font-medium hover:shadow-lg transition-all flex items-center gap-2"
             onClick={() => setShowWorkspaceModal(true)}
           >
-            Manage workspace
-          </button>
-          <button
-            className="px-6 py-3 bg-black rounded-md text-white text-base font-normal font-['Arimo'] hover:bg-gray-800 transition"
+            <Layers className="w-4 h-4" />
+            Manage Workspace
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-xl text-white text-base font-medium hover:shadow-lg transition-all flex items-center gap-2"
             onClick={() => setShowDeadlineModal(true)}
           >
+            <Flag className="w-4 h-4" />
             Manager Deadline
-          </button>
+          </motion.button>
         </div>
-      {/* Deadlines Modal */}
-      {showDeadlineModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-3 sm:p-4">
-          <div className="relative w-full max-w-4xl h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-            <div className="w-full h-14 px-6 bg-white border-b border-black/10 flex items-center justify-between">
-              <span className="text-neutral-950 text-lg font-bold font-['Arimo']">Manager Deadlines</span>
-              <button
-                className="text-2xl text-gray-400 hover:text-gray-700"
-                onClick={() => {
-                  setShowDeadlineModal(false);
-                  setEditingDeadlineId(null);
-                  setDeadlineError("");
-                }}
-              >
-                &times;
-              </button>
+
+        {/* Members Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-2xl p-6 shadow-xl"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-indigo-500/20 rounded-xl flex items-center justify-center">
+              <Users className="w-5 h-5 text-indigo-400" />
             </div>
+            <h2 className="text-2xl font-bold text-white">Team Members</h2>
+            <span className="text-white/50 text-sm">({members.length})</span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            {members.length === 0 ? (
+              <div className="col-span-full text-center text-white/50 py-10">
+                No members found
+              </div>
+            ) : (
+              members.map((member, idx) => (
+                <motion.div
+                  key={member.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="bg-white/10 backdrop-blur-sm rounded-xl p-4 flex items-center justify-between hover:bg-white/15 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                      {(member.full_name || member.username || "?")[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">{member.full_name || member.username}</p>
+                      <p className="text-white/50 text-xs">{member.email || member.username}</p>
+                    </div>
+                  </div>
+                  {member.role === "lead" && (
+                    <span className="px-2 py-1 bg-amber-500/20 text-amber-400 rounded-lg text-xs font-semibold">
+                      LEAD
+                    </span>
+                  )}
+                </motion.div>
+              ))
+            )}
+          </div>
+        </motion.div>
+      </main>
 
-            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 bg-slate-50/60">
-              {deadlineError && (
-                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {deadlineError}
+      {/* Manage Workspace Modal */}
+      <AnimatePresence>
+        {showWorkspaceModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="relative w-full max-w-4xl h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="relative px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
+                      <Layers className="w-4 h-4 text-white" />
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900">Workspace Flows</h2>
+                  </div>
+                  <button
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/50 text-gray-400 hover:text-gray-600 transition-colors"
+                    onClick={() => setShowWorkspaceModal(false)}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
-              )}
+              </div>
 
-              <form
-                onSubmit={handleCreateDeadline}
-                className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm"
-              >
-                <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-4">Create Deadline</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+                {workspaceError && (
+                  <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    {workspaceError}
+                  </div>
+                )}
+                
+                {workspaceLoading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                  </div>
+                ) : workspaces.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+                      <Layers className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <p className="text-gray-500 font-medium">No workspace flows found</p>
+                    <p className="text-xs text-gray-400 mt-1">Click &quot;Create Flow&quot; to get started</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {renderWorkflowTree(null, 0)}
+                  </div>
+                )}
+
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="mt-6 w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center gap-2 text-white font-medium hover:shadow-lg transition-all"
+                  onClick={() => {
+                    setNewFlowParentId(null);
+                    if (!newFlowDeadline) {
+                      setNewFlowDeadline(formatDateKey(new Date()));
+                    }
+                    setNewFlowDeadlineTime((prev) => prev || "09:00");
+                    setShowCreateFlowModal(true);
+                  }}
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Flow
+                </motion.button>
+              </div>
+
+              <div className="border-t border-gray-100 px-6 py-4 bg-white flex justify-end">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowWorkspaceModal(false)}
+                  className="px-5 py-2 bg-gray-900 rounded-xl text-white text-sm font-medium hover:bg-gray-800 transition-all"
+                >
+                  Close
+                </motion.button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Create Flow Modal */}
+      <AnimatePresence>
+        {showCreateFlowModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-lg h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
+                      <GitBranch className="w-4 h-4 text-white" />
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900">Create Workspace Flow</h2>
+                  </div>
+                  <button
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/50 text-gray-400 hover:text-gray-600 transition-colors"
+                    onClick={() => setShowCreateFlowModal(false)}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <form className="flex-1 overflow-y-auto p-6 space-y-4" onSubmit={handleCreateFlowSubmit}>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Flow Name *</label>
                   <input
                     type="text"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
-                    placeholder="Deadline title"
-                    value={deadlineTitle}
-                    onChange={(event) => setDeadlineTitle(event.target.value)}
-                    disabled={creatingDeadline || deadlineWorkflows.length === 0}
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+                    value={newFlowName}
+                    onChange={e => setNewFlowName(e.target.value)}
                     required
+                    placeholder="e.g., Design Review"
                   />
-                  <input
-                    type="date"
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
-                    value={deadlineDueDate}
-                    onChange={(event) => setDeadlineDueDate(event.target.value)}
-                    disabled={creatingDeadline || deadlineWorkflows.length === 0}
-                    required
-                  />
-                  <select
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
-                    value={deadlineWorkflowId}
-                    onChange={(event) => setDeadlineWorkflowId(event.target.value)}
-                    disabled={creatingDeadline || deadlineWorkflows.length === 0}
-                    required
-                  >
-                    {deadlineWorkflows.length === 0 && <option value="">No workflows</option>}
-                    {deadlineWorkflows.map((workflow) => (
-                      <option key={workflow.id} value={workflow.id}>
-                        {workflow.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
-                    value={deadlineAssignee}
-                    onChange={(event) => setDeadlineAssignee(event.target.value)}
-                    disabled={creatingDeadline || deadlineMembers.length === 0}
-                    required
-                  >
-                    {deadlineMembers.length === 0 && <option value="">No members</option>}
-                    {deadlineMembers.map((member) => (
-                      <option key={member.id} value={member.username}>
-                        {member.full_name || member.username}
-                      </option>
-                    ))}
-                  </select>
                 </div>
-                <div className="mt-4 flex justify-end">
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                  <textarea
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+                    value={newFlowDesc}
+                    onChange={e => setNewFlowDesc(e.target.value)}
+                    rows={3}
+                    placeholder="Describe the purpose of this workflow..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Deadline (Optional)</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <DateDropdown
+                      value={newFlowDeadline}
+                      onChange={setNewFlowDeadline}
+                    />
+                    <TimeDropdown
+                      value={newFlowDeadlineTime}
+                      onChange={setNewFlowDeadlineTime}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Assign Members</label>
+                  <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-xl p-3">
+                    {members.map(member => (
+                      <label key={member.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedFlowMembers.includes(member.id)}
+                          onChange={e => handleFlowMemberToggle(member.id, e.target.checked)}
+                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="text-sm text-gray-700">
+                          {member.full_name || member.username}
+                        </span>
+                        {member.role === "lead" && (
+                          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">LEAD</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateFlowModal(false)}
+                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
                   <button
                     type="submit"
-                    disabled={creatingDeadline || deadlineWorkflows.length === 0 || deadlineMembers.length === 0}
-                    className="px-4 py-2 rounded-md bg-black text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-all"
                   >
-                    {creatingDeadline ? "Creating..." : "Create Deadline"}
+                    Create Flow
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
-              {deadlineLoading ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-                  Loading deadlines...
+      {/* Deadline Modal */}
+      <AnimatePresence>
+        {showDeadlineModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="relative w-full max-w-4xl h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="relative px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
+                      <Flag className="w-4 h-4 text-white" />
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900">Manager Deadlines</h2>
+                  </div>
+                  <button
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/50 text-gray-400 hover:text-gray-600 transition-colors"
+                    onClick={() => {
+                      setShowDeadlineModal(false);
+                      setEditingDeadlineId(null);
+                      setDeadlineError("");
+                    }}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
-              ) : deadlines.length === 0 ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-                  No deadlines found for this project.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {deadlines.map((deadline) => {
-                    const isEditing = editingDeadlineId === deadline.id;
-                    const draft = deadlineDrafts[deadline.id] || {};
-                    const assigneeProfile = deadlineMemberMap[deadline.assigned_to || ""];
+                {totalDeadlines > 0 && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${completionRate}%` }}
+                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-gray-600">{completionRate}% completed</span>
+                  </div>
+                )}
+              </div>
 
-                    return (
-                      <div key={deadline.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                        {isEditing ? (
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                            <input
-                              type="text"
-                              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
-                              value={draft.title || ""}
-                              onChange={(event) =>
-                                handleDeadlineDraftChange(deadline.id, "title", event.target.value)
-                              }
-                            />
-                            <input
-                              type="date"
-                              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
-                              value={draft.due_date || ""}
-                              onChange={(event) =>
-                                handleDeadlineDraftChange(deadline.id, "due_date", event.target.value)
-                              }
-                            />
+              <div className="flex-1 overflow-y-auto px-6 py-5 bg-gray-50">
+                {deadlineError && (
+                  <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    {deadlineError}
+                  </div>
+                )}
+
+                <form onSubmit={handleCreateDeadline} className="mb-6 rounded-xl bg-white p-5 shadow-sm border border-gray-100">
+                  <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Plus className="w-4 h-4 text-indigo-500" />
+                    Create New Deadline
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <input
+                      type="text"
+                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+                      placeholder="Deadline title"
+                      value={deadlineTitle}
+                      onChange={(event) => setDeadlineTitle(event.target.value)}
+                      disabled={creatingDeadline || deadlineWorkflows.length === 0}
+                      required
+                    />
+                    <input
+                      type="date"
+                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+                      value={deadlineDueDate}
+                      onChange={(event) => setDeadlineDueDate(event.target.value)}
+                      disabled={creatingDeadline || deadlineWorkflows.length === 0}
+                      required
+                    />
+                    <select
+                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+                      value={deadlineWorkflowId}
+                      onChange={(event) => setDeadlineWorkflowId(event.target.value)}
+                      disabled={creatingDeadline || deadlineWorkflows.length === 0}
+                      required
+                    >
+                      {deadlineWorkflows.length === 0 && <option value="">No workflows</option>}
+                      {deadlineWorkflows.map((workflow) => (
+                        <option key={workflow.id} value={workflow.id}>
+                          {workflow.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+                      value={deadlineAssignee}
+                      onChange={(event) => setDeadlineAssignee(event.target.value)}
+                      disabled={creatingDeadline || deadlineMembers.length === 0}
+                      required
+                    >
+                      {deadlineMembers.length === 0 && <option value="">No members</option>}
+                      {deadlineMembers.map((member) => (
+                        <option key={member.id} value={member.username}>
+                          {member.full_name || member.username}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={creatingDeadline || deadlineWorkflows.length === 0 || deadlineMembers.length === 0}
+                      className="px-5 py-2 rounded-xl bg-gradient-to-r from-gray-900 to-gray-800 text-white text-sm font-medium hover:shadow-lg transition-all disabled:opacity-50"
+                    >
+                      {creatingDeadline ? "Creating..." : "Create Deadline"}
+                    </button>
+                  </div>
+                </form>
+
+                {deadlineLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                  </div>
+                ) : deadlines.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center bg-white rounded-xl border border-gray-100">
+                    <Clock className="w-12 h-12 text-gray-300 mb-3" />
+                    <p className="text-gray-500 font-medium">No deadlines found</p>
+                    <p className="text-xs text-gray-400 mt-1">Create your first deadline above</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {deadlines.map((deadline, idx) => {
+                      const isEditing = editingDeadlineId === deadline.id;
+                      const draft = deadlineDrafts[deadline.id] || {};
+                      const assigneeProfile = deadlineMemberMap[deadline.assigned_to || ""];
+                      const dueDate = new Date(deadline.due_date);
+                      const isOverdue = dueDate < new Date() && deadline.status !== "completed";
+
+                      return (
+                        <motion.div
+                          key={deadline.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.05 }}
+                          className={`rounded-xl bg-white p-4 shadow-sm border transition-all ${
+                            isOverdue ? 'border-red-200 bg-red-50/30' : 'border-gray-100 hover:shadow-md'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-900"
+                                  value={draft.title || ""}
+                                  onChange={(event) =>
+                                    handleDeadlineDraftChange(deadline.id, "title", event.target.value)
+                                  }
+                                />
+                              ) : (
+                                <h4 className="font-semibold text-gray-900">{deadline.title}</h4>
+                              )}
+                              <p className="text-xs text-gray-500 mt-1">
+                                Workflow: {deadline.workflow?.name || "Unknown"}
+                              </p>
+                            </div>
+                            <DeadlineStatusBadge status={deadline.status || "pending"} />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 mb-3">
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <CalendarIcon className="w-4 h-4 text-gray-400" />
+                              {isEditing ? (
+                                <input
+                                  type="date"
+                                  className="flex-1 rounded-lg border border-gray-200 px-2 py-1 text-sm"
+                                  value={draft.due_date || ""}
+                                  onChange={(event) =>
+                                    handleDeadlineDraftChange(deadline.id, "due_date", event.target.value)
+                                  }
+                                />
+                              ) : (
+                                <span className={isOverdue ? "text-red-500 font-medium" : ""}>
+                                  Due: {new Date(deadline.due_date).toLocaleDateString("en-GB")}
+                                  {isOverdue && " (Overdue)"}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <Users className="w-4 h-4 text-gray-400" />
+                              {isEditing ? (
+                                <select
+                                  className="flex-1 rounded-lg border border-gray-200 px-2 py-1 text-sm"
+                                  value={draft.assigned_to || ""}
+                                  onChange={(event) =>
+                                    handleDeadlineDraftChange(deadline.id, "assigned_to", event.target.value)
+                                  }
+                                >
+                                  {deadlineMembers.map((member) => (
+                                    <option key={member.id} value={member.username}>
+                                      {member.full_name || member.username}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <span>Assignee: {assigneeProfile?.full_name || deadline.assigned_to || "-"}</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-gray-100">
                             <select
-                              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
-                              value={draft.assigned_to || ""}
-                              onChange={(event) =>
-                                handleDeadlineDraftChange(deadline.id, "assigned_to", event.target.value)
-                              }
-                            >
-                              {deadlineMembers.map((member) => (
-                                <option key={member.id} value={member.username}>
-                                  {member.full_name || member.username}
-                                </option>
-                              ))}
-                            </select>
-                            <select
-                              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
+                              className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                               value={deadline.status || "pending"}
-                              onChange={(event) =>
-                                handleDeadlineStatusChange(deadline, event.target.value)
-                              }
+                              onChange={(event) => handleDeadlineStatusChange(deadline, event.target.value)}
                               disabled={updatingDeadlineId === deadline.id}
                             >
                               <option value="pending">Pending</option>
                               <option value="in_progress">In Progress</option>
                               <option value="completed">Completed</option>
                             </select>
+                            
+                            {isEditing ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingDeadlineId(null)}
+                                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => saveDeadlineEdit(deadline)}
+                                  disabled={updatingDeadlineId === deadline.id}
+                                  className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700 disabled:opacity-50"
+                                >
+                                  {updatingDeadlineId === deadline.id ? "Saving..." : "Save"}
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => startDeadlineEdit(deadline)}
+                                  className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteDeadline(deadline)}
+                                  disabled={deletingDeadlineId === deadline.id}
+                                  className="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50"
+                                >
+                                  {deletingDeadlineId === deadline.id ? "Deleting..." : "Delete"}
+                                </button>
+                              </>
+                            )}
                           </div>
-                        ) : (
-                          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
-                            <div>
-                              <div className="text-base font-semibold text-slate-900">{deadline.title}</div>
-                              <div className="text-xs sm:text-sm text-slate-600 mt-1">
-                                Workflow: {deadline.workflow?.name || "Unknown"}
-                              </div>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-slate-700">
-                              <span className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200">
-                                Due: {deadline.due_date ? new Date(deadline.due_date).toLocaleDateString("en-GB") : "-"}
-                              </span>
-                              <span className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200">
-                                Assignee: {assigneeProfile?.full_name || deadline.assigned_to || "-"}
-                              </span>
-                              <span className="px-2.5 py-1 rounded-full bg-slate-900 text-white">
-                                {deadlineStatusLabel[deadline.status] || "Pending"}
-                              </span>
-                            </div>
-                          </div>
-                        )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          {isEditing ? (
-                            <>
-                              <button
-                                type="button"
-                                className="px-3 py-1.5 rounded-md border border-slate-300 text-sm text-slate-700 hover:bg-slate-50"
-                                onClick={() => setEditingDeadlineId(null)}
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                type="button"
-                                className="px-3 py-1.5 rounded-md bg-black text-white text-sm hover:bg-gray-800 disabled:opacity-50"
-                                onClick={() => saveDeadlineEdit(deadline)}
-                                disabled={updatingDeadlineId === deadline.id}
-                              >
-                                {updatingDeadlineId === deadline.id ? "Saving..." : "Save"}
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <select
-                                className="rounded-md border border-gray-300 px-2 py-1.5 text-sm text-black"
-                                value={deadline.status || "pending"}
-                                onChange={(event) => handleDeadlineStatusChange(deadline, event.target.value)}
-                                disabled={updatingDeadlineId === deadline.id}
-                              >
-                                <option value="pending">Pending</option>
-                                <option value="in_progress">In Progress</option>
-                                <option value="completed">Completed</option>
-                              </select>
-                              <button
-                                type="button"
-                                className="px-3 py-1.5 rounded-md border border-slate-300 text-sm text-slate-700 hover:bg-slate-50"
-                                onClick={() => startDeadlineEdit(deadline)}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className="px-3 py-1.5 rounded-md border border-red-200 text-red-700 text-sm hover:bg-red-50 disabled:opacity-50"
-                                onClick={() => handleDeleteDeadline(deadline)}
-                                disabled={deletingDeadlineId === deadline.id}
-                              >
-                                {deletingDeadlineId === deadline.id ? "Deleting..." : "Delete"}
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-slate-200 px-6 py-4 bg-white flex justify-end">
-              <button
-                className="px-4 py-2 bg-black rounded-md text-white text-sm hover:bg-gray-800"
-                onClick={() => {
-                  setShowDeadlineModal(false);
-                  setEditingDeadlineId(null);
-                }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Manage Workspace Modal */}
-      {showWorkspaceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-3 sm:p-4">
-          <div className="relative w-full max-w-4xl h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-            {/* Header */}
-            <div className="w-full h-14 px-6 bg-white/60 border-b border-black/10 flex items-center justify-between">
-              <span className="text-neutral-950 text-lg font-bold font-['Arimo']">Workspace</span>
-              <button className="text-2xl text-gray-400 hover:text-gray-700" onClick={() => setShowWorkspaceModal(false)}>&times;</button>
-            </div>
-            {/* Modal Content */}
-            <div className="flex-1 bg-white flex flex-col items-center pt-6">
-              <div className="w-full flex flex-col items-center">
-                <div className="w-full max-w-3xl min-h-[240px] max-h-[56dvh] bg-zinc-300 rounded-[16px] mx-auto relative p-4 overflow-y-auto">
-                  {workspaceError && (
-                    <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                      {workspaceError}
-                    </div>
-                  )}
-                  {workspaceLoading ? (
-                    <div className="text-center text-gray-500 text-base mt-16">Loading workspace flows...</div>
-                  ) : workspaces.length === 0 ? (
-                    <div className="text-center text-gray-500 text-base mt-16">No workspace flows found.</div>
-                  ) : (
-                    renderWorkflowTree(null, 0)
-                  )}
-                  {/* Create Flow Button */}
-                  <button
-                    className="mt-6 w-full h-12 bg-stone-400 rounded-[14px] flex items-center justify-center text-white text-base font-normal font-['Habibi'] hover:bg-stone-500 transition"
-                    onClick={() => {
-                      setNewFlowParentId(null);
-                      if (!newFlowDeadline) {
-                        setNewFlowDeadline(formatDateKey(new Date()));
-                      }
-                      setNewFlowDeadlineTime((prev) => prev || "09:00");
-                      setShowCreateFlowModal(true);
-                    }}
-                  >
-                    + Create Flow
-                  </button>
-                      {/* Create Flow Modal */}
-                      {showCreateFlowModal && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-3 sm:p-4">
-                          <div className="relative w-full max-w-[480px] h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-visible flex flex-col">
-                            {/* Header */}
-                            <div className="w-full h-14 px-6 bg-white/60 border-b border-black/10 flex items-center justify-between">
-                              <span className="text-neutral-950 text-lg font-bold font-['Arimo']">Create Workspace Flow</span>
-                              <button className="text-2xl text-gray-400 hover:text-gray-700" onClick={() => setShowCreateFlowModal(false)}>&times;</button>
-                            </div>
-                            {/* Modal Content */}
-                            <form className="flex-1 bg-white flex flex-col items-center pt-6 px-6" onSubmit={handleCreateFlowSubmit}>
-                              <div className="w-full flex flex-col gap-4">
-                                <label className="text-black text-base font-normal font-['Arimo']">Flow Name</label>
-                                <input type="text" className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black" value={newFlowName} onChange={e => setNewFlowName(e.target.value)} required />
-                                <label className="text-black text-base font-normal font-['Arimo']">Description</label>
-                                <textarea className="w-full rounded-md border border-gray-300 px-3 py-2 text-base text-black" value={newFlowDesc} onChange={e => setNewFlowDesc(e.target.value)} />
-                                <label className="text-black text-base font-normal font-['Arimo']">Deadline</label>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                  <DateDropdown
-                                    value={newFlowDeadline}
-                                    onChange={setNewFlowDeadline}
-                                  />
-                                  <TimeDropdown
-                                    value={newFlowDeadlineTime}
-                                    onChange={setNewFlowDeadlineTime}
-                                  />
-                                </div>
-                                <label className="text-black text-base font-normal font-['Arimo']">Assign Members</label>
-                                <div className="w-full flex flex-col gap-2">
-                                  {members.map(member => (
-                                    <label key={member.id} className="flex items-center gap-2">
-                                      <input
-                                        type="checkbox"
-                                        checked={selectedFlowMembers.includes(member.id)}
-                                        onChange={e => handleFlowMemberToggle(member.id, e.target.checked)}
-                                      />
-                                      <span className="text-black text-base font-normal font-['Arimo']">{member.full_name || member.username} ({member.username})</span>
-                                    </label>
-                                  ))}
-                                </div>
-                              </div>
-                              <button type="submit" className="mt-6 w-full h-12 bg-black rounded-md flex items-center justify-center text-white text-base font-normal font-['Arimo'] hover:bg-gray-800 transition">Finish</button>
-                            </form>
-                          </div>
-                        </div>
-                      )}
-                </div>
-                <button type="button" onClick={() => setShowWorkspaceModal(false)} className="mt-8 mb-6 w-40 h-10 bg-gray-950 rounded-md flex items-center justify-center hover:bg-gray-800 transition">
-                  <span className="text-white text-base font-normal font-['Arimo']">Finish</span>
+              <div className="border-t border-gray-100 px-6 py-4 bg-white flex justify-end">
+                <button
+                  className="px-5 py-2 bg-gray-900 rounded-xl text-white text-sm font-medium hover:bg-gray-800 transition-all"
+                  onClick={() => {
+                    setShowDeadlineModal(false);
+                    setEditingDeadlineId(null);
+                  }}
+                >
+                  Close
                 </button>
               </div>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
-        {/* Member List */}
-        <div className="bg-zinc-300 rounded-2xl p-4 sm:p-6 min-h-[320px]">
-          <div className="text-white text-2xl font-bold mb-6 px-2">Members</div>
-          <div className="flex flex-col gap-4 max-h-[50dvh] overflow-y-auto pr-2">
-            {members.length === 0 ? (
-              <div className="text-center text-gray-500 mt-10">No members found</div>
-            ) : (
-              members.map((member) => (
-                <div key={member.id} className="w-full bg-stone-500 rounded-2xl flex items-center px-4 sm:px-8 py-3 sm:py-4 relative">
-                  <div className="text-black text-base sm:text-xl md:text-2xl font-normal font-['ABeeZee'] break-words">
-                    {member.full_name || member.username} 
-                    <span className="text-lg opacity-70 ml-2">({member.username})</span>
-                    {member.role && <span className="text-sm ml-2 opacity-60 uppercase">- {member.role}</span>}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </main>
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
+        }
+      `}</style>
     </AppShell>
   );
 }
