@@ -3,8 +3,10 @@
 import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { CheckCircle2, Clock, Loader2, PauseCircle } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
+import { dFetch } from "@/lib/api";
 
 function formatDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -275,7 +277,7 @@ function DeadlineStatusBadge({ status }) {
 // Main page component to display a project's details, manage its workflows, and oversee task deadlines
 export default function ProjectDetailPage() {
   const params = useParams();
-  const id = params.id;
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const router = useRouter();
   const [project, setProject] = useState(null);
   const [members, setMembers] = useState([]);
@@ -687,7 +689,10 @@ export default function ProjectDetailPage() {
   // Initial fetch effect that loads the current user's profile, project detail metadata,
   // and project member lists when the page is first mounted.
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      return;
+    }
     const fetchData = async () => {
       try {
         const profileRes = await dFetch("/api/profile", { credentials: "include" });
