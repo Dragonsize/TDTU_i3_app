@@ -15,7 +15,9 @@ export async function dFetch(url, options = {}) {
   const cacheKey = JSON.stringify({ url, credentials: options.credentials });
   
   if (pendingRequests.has(cacheKey)) {
-    return pendingRequests.get(cacheKey);
+    // Clone so each caller gets their own readable body
+    const cached = await pendingRequests.get(cacheKey);
+    return cached.clone();
   }
 
   const requestPromise = (async () => {
@@ -37,5 +39,7 @@ export async function dFetch(url, options = {}) {
   })();
 
   pendingRequests.set(cacheKey, requestPromise);
-  return requestPromise;
+  // Return a clone so the cached version remains readable
+  const response = await requestPromise;
+  return response.clone();
 }

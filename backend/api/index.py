@@ -288,6 +288,7 @@ class CreateWorkflowRequest(BaseModel):
     title: str = Field(..., min_length=1)
     description: Optional[str] = ""
     member_ids: Optional[List[str]] = None
+    parent_id: Optional[str] = None
 
 
 class AssignWorkflowMemberRequest(BaseModel):
@@ -2019,6 +2020,7 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
             "description": request.description or "",
             "creator_id": creator_id,
             "members": member_ids,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
@@ -2027,6 +2029,7 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
             "creator_id": creator_id,
             "status": "in_process",
             "members": member_ids,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
@@ -2034,12 +2037,14 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
             "description": request.description or "",
             "status": "active",
             "members": member_ids,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
             "name": request.title,
             "description": request.description or "",
             "members": member_ids,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
@@ -2047,6 +2052,7 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
             "description": request.description or "",
             "creator_id": creator_id,
             "members": member_ids,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
@@ -2055,6 +2061,7 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
             "creator_id": creator_id,
             "status": "in_process",
             "members": member_ids,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
@@ -2062,18 +2069,21 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
             "description": request.description or "",
             "status": "active",
             "members": member_ids,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
             "title": request.title,
             "description": request.description or "",
             "members": member_ids,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
             "title": request.title,
             "description": request.description or "",
             "creator_id": creator_id,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
@@ -2081,23 +2091,27 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
             "description": request.description or "",
             "creator_id": creator_id,
             "status": "in_process",
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
             "title": request.title,
             "description": request.description or "",
             "status": "active",
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
             "title": request.title,
             "description": request.description or "",
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
             "name": request.title,
             "description": request.description or "",
             "creator_id": creator_id,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
@@ -2105,17 +2119,20 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
             "description": request.description or "",
             "creator_id": creator_id,
             "status": "in_process",
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
             "name": request.title,
             "description": request.description or "",
             "status": "active",
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
             "name": request.title,
             "description": request.description or "",
+            "parent_id": request.parent_id,
         },
     ]
 
