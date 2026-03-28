@@ -732,6 +732,101 @@ export default function ProjectDetailPage() {
     }
   };
 
+  const handleAddMember = async (e) => {
+    e.preventDefault();
+    setAddMemberError("");
+    if (!newMemberUsername.trim()) {
+      setAddMemberError("Please enter a username");
+      return;
+    }
+
+    setAddingMember(true);
+    try {
+      const res = await dFetch(`/api/projects/${id}/members`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ member_username: newMemberUsername.trim() }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to add member");
+      }
+
+      // Reload members
+      const memRes = await dFetch(`/api/projects/${id}/members`, { credentials: "include" });
+      if (memRes.ok) {
+        const memData = await memRes.json();
+        setMembers(memData);
+      }
+
+      setNewMemberUsername("");
+      setShowAddMemberForm(false);
+    } catch (err) {
+      setAddMemberError(err.message);
+    } finally {
+      setAddingMember(false);
+    }
+  };
+
+  const handleLinkProjectSubmit = async (e) => {
+    e.preventDefault();
+    setLinkProjectError("");
+    if (!selectedSourceProject) {
+      setLinkProjectError("Please select a project to link");
+      return;
+    }
+
+    setLinkingProject(true);
+    try {
+      const res = await dFetch(`/api/projects/${id}/link-project`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source_project_id: selectedSourceProject }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to link project");
+      }
+
+      const result = await res.json();
+
+      // Reload members
+      const memRes = await dFetch(`/api/projects/${id}/members`, { credentials: "include" });
+      if (memRes.ok) {
+        const memData = await memRes.json();
+        setMembers(memData);
+      }
+
+      setShowLinkProjectModal(false);
+      setSelectedSourceProject(null);
+      setLinkedProjectMembers([]);
+      alert(`Successfully added ${result.added_count} members from linked project`);
+    } catch (err) {
+      setLinkProjectError(err.message);
+    } finally {
+      setLinkingProject(false);
+    }
+  };
+
+  const loadProjectsForLinking = async () => {
+    try {
+      const res = await dFetch("/api/projects", { credentials: "include" });
+      if (res.ok) {
+        const projectsList = await res.json();
+        // Filter out current project
+        const filteredProjects = (Array.isArray(projectsList) ? projectsList : []).filter((p) => p.id !== id);
+        setAllProjects(filteredProjects);
+      }
+    } catch (err) {
+      console.error("Error loading projects:", err);
+      setAllProjects([]);
+    }
+  };
+
   const renderWorkflowTree = (parentId = null, level = 0) => {
     const children = workspaces.filter(ws => (ws.parent_id || null) === parentId);
     if (children.length === 0) return null;

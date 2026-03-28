@@ -307,6 +307,10 @@ class AddMemberRequest(BaseModel):
         return value
 
 
+class LinkProjectRequest(BaseModel):
+    source_project_id: str = Field(..., min_length=1)
+
+
 class CreateWorkflowRequest(BaseModel):
     title: str = Field(..., min_length=1)
     description: Optional[str] = ""
@@ -2119,6 +2123,59 @@ def add_project_member(project_id: str, request: AddMemberRequest, user=Depends(
     if not insert_response.data:
         raise HTTPException(status_code=500, detail="Failed to add member")
     return insert_response.data[0]
+
+
+@app.post("/api/projects/{project_id}/link-project")
+def link_project_members(project_id: str, request: LinkProjectRequest, user=Depends(get_current_user)):
+    """Link a project by adding all its members to the current project"""
+    db = require_db_client()
+    require_project_lead(user.get("sub"), project_id)
+    
+    # Verify source project exists and user is a member
+    require_project_member(user.get("sub"), request.source_project_id)
+    
+    # Get all members from source project
+    response = db.table("project_members").select("user_id, role").eq("project_id", request.source_project_id).execute()
+    if getattr(response, "error", None):
+        raise HTTPException(status_code=500, detail="Failed to fetch source project members")
+    
+    source_members = response.data or []
+    if not source_members:
+        raise HTTPException(status_code=400, detail="Source project has no members")
+    
+    # Add all members to target project (skip if already exists)
+    added_count = 0
+    failed_members = []
+    
+    for member_data in source_members:
+        user_id = member_data.get("user_id")
+        role = member_data.get("role", "member")
+        
+        # Check if member already exists in target project
+        existing = db.table("project_members").select("id").eq("project_id", project_id).eq("user_id", user_id).execute()
+        if existing.data:
+            continue  # Skip if already a member
+        
+        # Add member
+        try:
+            insert_response = db.table("project_members").insert({
+                "project_id": project_id,
+                "user_id": user_id,
+                "role": role,
+            }).execute()
+            if insert_response.data:
+                added_count += 1
+            else:
+                failed_members.append(user_id)
+        except Exception as e:
+            failed_members.append(user_id)
+    
+    return {
+        "success": True,
+        "added_count": added_count,
+        "failed_count": len(failed_members),
+        "message": f"Successfully added {added_count} members from linked project"
+    }
 
 
 @app.get("/api/projects/{project_id}/workflows")

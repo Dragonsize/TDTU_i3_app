@@ -601,6 +601,212 @@ export default function ChatRoom({ user }) {
           </div>
         )}
 
+        {/* Rename Chat Modal */}
+        {showRenameModal && (
+          <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-xl flex items-center justify-center p-4">
+            <div className="bg-white rounded-[40px] shadow-2xl p-10 w-full max-w-md border border-white relative">
+              <button 
+                className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center rounded-2xl bg-gray-50 text-gray-400 hover:text-gray-900 transition-all"
+                onClick={() => { setShowRenameModal(false); setRenameValue(""); }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <div className="mb-8">
+                <span className="inline-flex items-center gap-2 px-3 py-1 bg-purple-50 text-purple-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
+                   <Edit3 className="w-3 h-3" /> Rename
+                </span>
+                <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">Rename Chat</h3>
+                <p className="text-sm text-gray-400 mt-2 font-medium">Give this conversation a new name.</p>
+              </div>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!renameValue.trim() || !activeChannel) return;
+                try {
+                  await dFetch(`/api/chat/channels/${activeChannel.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: renameValue.trim() })
+                  });
+                  setChannels(prev => prev.map(c => c.id === activeChannel.id ? { ...c, name: renameValue.trim() } : c));
+                  setActiveChannel(prev => prev ? { ...prev, name: renameValue.trim() } : null);
+                  setShowRenameModal(false);
+                  setRenameValue("");
+                } catch (err) {
+                  console.error("Failed to rename:", err);
+                }
+              }} className="space-y-6">
+                <input
+                  type="text"
+                  autoFocus
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  placeholder="New chat name..."
+                  className="w-full h-14 bg-gray-50 border-0 rounded-2xl px-4 text-sm font-bold outline-none focus:bg-white focus:ring-4 focus:ring-purple-500/5 transition-all"
+                />
+                <button
+                  type="submit"
+                  disabled={!renameValue.trim()}
+                  className="w-full h-14 bg-gray-900 text-white font-bold rounded-2xl hover:bg-black transition-all shadow-xl shadow-gray-200 disabled:opacity-20"
+                >
+                  Rename Chat
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Invite Teammate Modal */}
+        {showAddMemberModal && (
+          <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-xl flex items-center justify-center p-4">
+            <div className="bg-white rounded-[40px] shadow-2xl p-10 w-full max-w-md border border-white relative">
+              <button 
+                className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center rounded-2xl bg-gray-50 text-gray-400 hover:text-gray-900 transition-all"
+                onClick={() => { setShowAddMemberModal(false); setAddMemberValue(""); }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <div className="mb-8">
+                <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
+                   <UserPlus className="w-3 h-3" /> Invite
+                </span>
+                <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">Invite Teammate</h3>
+                <p className="text-sm text-gray-400 mt-2 font-medium">Add someone to this chat thread.</p>
+              </div>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!addMemberValue.trim() || !activeChannel) return;
+                try {
+                  await dFetch(`/api/chat/channels/${activeChannel.id}/members`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: addMemberValue.trim() })
+                  });
+                  // Reload members
+                  const res = await dFetch(`/api/chat/channels/${activeChannel.id}/members`);
+                  if (res.ok) setChannelMembers(await res.json());
+                  setShowAddMemberModal(false);
+                  setAddMemberValue("");
+                } catch (err) {
+                  console.error("Failed to add member:", err);
+                }
+              }} className="space-y-6">
+                <input
+                  type="text"
+                  autoFocus
+                  value={addMemberValue}
+                  onChange={(e) => setAddMemberValue(e.target.value)}
+                  placeholder="Enter username..."
+                  className="w-full h-14 bg-gray-50 border-0 rounded-2xl px-4 text-sm font-bold outline-none focus:bg-white focus:ring-4 focus:ring-green-500/5 transition-all"
+                />
+                <button
+                  type="submit"
+                  disabled={!addMemberValue.trim()}
+                  className="w-full h-14 bg-gray-900 text-white font-bold rounded-2xl hover:bg-black transition-all shadow-xl shadow-gray-200 disabled:opacity-20"
+                >
+                  Add Teammate
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Link to Project Modal */}
+        {showAssignProjectModal && (
+          <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-xl flex items-center justify-center p-4">
+            <div className="bg-white rounded-[40px] shadow-2xl p-10 w-full max-w-md border border-white relative max-h-[85vh] flex flex-col">
+              <button 
+                className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center rounded-2xl bg-gray-50 text-gray-400 hover:text-gray-900 transition-all"
+                onClick={() => { setShowAssignProjectModal(false); setAssignProjectValue(""); }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+              
+              <div className="mb-8 shrink-0">
+                <span className="inline-flex items-center gap-2 px-3 py-1 bg-orange-50 text-orange-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
+                   <Target className="w-3 h-3" /> Link Project
+                </span>
+                <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">Link Project</h3>
+                <p className="text-sm text-gray-400 mt-2 font-medium">Attach a project and add all its members to this chat.</p>
+              </div>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!assignProjectValue || !activeChannel) return;
+                try {
+                  // Get members from source project
+                  const membersRes = await dFetch(`/api/projects/${assignProjectValue}/members`);
+                  const sourceMembers = membersRes.ok ? await membersRes.json() : [];
+                  
+                  // Add each member to chat
+                  for (const member of sourceMembers) {
+                    try {
+                      await dFetch(`/api/chat/channels/${activeChannel.id}/members`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ username: member.username })
+                      });
+                    } catch (err) {
+                      console.error(`Failed to add ${member.username}:`, err);
+                    }
+                  }
+                  
+                  // Reload members
+                  const res = await dFetch(`/api/chat/channels/${activeChannel.id}/members`);
+                  if (res.ok) setChannelMembers(await res.json());
+                  
+                  setShowAssignProjectModal(false);
+                  setAssignProjectValue("");
+                } catch (err) {
+                  console.error("Failed to link project:", err);
+                }
+              }} className="space-y-6 flex flex-col flex-1">
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  <div className="space-y-3 pr-4">
+                    {projects.length === 0 ? (
+                      <p className="text-sm text-gray-400 py-8 text-center">No projects available</p>
+                    ) : (
+                      projects.map(p => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setAssignProjectValue(p.id)}
+                          className={`w-full p-4 rounded-2xl text-left transition-all border-2 ${
+                            assignProjectValue === p.id
+                              ? "bg-orange-50 border-orange-300"
+                              : "bg-gray-50 border-gray-100 hover:border-gray-200"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {assignProjectValue === p.id && <CheckCircle2 className="w-5 h-5 text-orange-600" />}
+                            <div className={assignProjectValue === p.id ? "hidden" : ""} />
+                            <div>
+                              <p className="font-bold text-sm text-gray-900">{p.title || p.name}</p>
+                              <p className="text-[11px] font-medium text-gray-400">
+                                {p.members?.length || 0} members
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={!assignProjectValue}
+                  className="w-full h-14 bg-gray-900 text-white font-bold rounded-2xl hover:bg-black transition-all shadow-xl shadow-gray-200 disabled:opacity-20 mt-auto"
+                >
+                  Link Project & Add Members
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
