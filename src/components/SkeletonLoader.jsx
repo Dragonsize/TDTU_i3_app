@@ -7,17 +7,17 @@ export default function SkeletonLoader({ count = 3, type = "file-list" }) {
         {Array.from({ length: count }).map((_, idx) => (
           <div
             key={idx}
-            className="bg-white border border-gray-100 rounded-2xl p-4 animate-pulse"
+            className="bg-white dark:bg-neutral-900 border border-gray-100 dark:border-white/10 rounded-2xl p-4 animate-pulse"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3 flex-1 min-w-0">
-                <div className="w-10 h-10 bg-gray-200 rounded-lg flex-shrink-0" />
+                <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-                  <div className="h-3 bg-gray-100 rounded w-1/2" />
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2" />
+                  <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-1/2" />
                 </div>
               </div>
-              <div className="w-20 h-8 bg-gray-200 rounded-lg flex-shrink-0" />
+              <div className="w-20 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex-shrink-0" />
             </div>
           </div>
         ))}
@@ -31,13 +31,13 @@ export default function SkeletonLoader({ count = 3, type = "file-list" }) {
         {Array.from({ length: count }).map((_, idx) => (
           <div
             key={idx}
-            className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse"
+            className="bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-white/10 overflow-hidden animate-pulse"
           >
-            <div className="w-full h-48 bg-gray-200" />
+            <div className="w-full h-48 bg-gray-200 dark:bg-gray-700" />
             <div className="p-4 space-y-2">
-              <div className="h-4 bg-gray-200 rounded w-3/4" />
-              <div className="h-3 bg-gray-100 rounded w-1/2" />
-              <div className="h-3 bg-gray-100 rounded w-2/3" />
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+              <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-1/2" />
+              <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-2/3" />
             </div>
           </div>
         ))}
@@ -50,10 +50,10 @@ export default function SkeletonLoader({ count = 3, type = "file-list" }) {
       <div className="space-y-4 mb-6">
         <div className="flex items-center justify-between gap-4 animate-pulse">
           <div className="flex-1">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-2" />
-            <div className="h-4 bg-gray-100 rounded w-1/3" />
+            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-2" />
+            <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-1/3" />
           </div>
-          <div className="w-24 h-10 bg-gray-200 rounded-xl" />
+          <div className="w-24 h-10 bg-gray-200 dark:bg-gray-700 rounded-xl" />
         </div>
       </div>
     );
@@ -62,12 +62,12 @@ export default function SkeletonLoader({ count = 3, type = "file-list" }) {
   if (type === "preview") {
     return (
       <div className="space-y-4 animate-pulse">
-        <div className="h-12 bg-gray-200 rounded-xl w-1/3" />
-        <div className="bg-gray-200 rounded-2xl h-96" />
+        <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded-xl w-1/3" />
+        <div className="bg-gray-200 dark:bg-gray-700 rounded-2xl h-96" />
         <div className="space-y-2">
-          <div className="h-3 bg-gray-200 rounded w-full" />
-          <div className="h-3 bg-gray-200 rounded w-5/6" />
-          <div className="h-3 bg-gray-200 rounded w-4/6" />
+          <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full" />
+          <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-5/6" />
+          <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-4/6" />
         </div>
       </div>
     );
@@ -240,7 +240,7 @@ export default function SkeletonLoader({ count = 3, type = "file-list" }) {
             >
               {/* Project header gradient area */}
               <div className="h-24 bg-gradient-to-r from-gray-200 to-gray-100 dark:from-gray-700 dark:to-gray-600" />
-              
+
               <div className="p-6 space-y-4">
                 <div className="space-y-2">
                   <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-2/3" />

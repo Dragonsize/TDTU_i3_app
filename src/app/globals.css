@@ -8,11 +8,11 @@
 }
 
 body {
-  @apply bg-[#f7f6f8] text-[#0f172a] transition-colors duration-300 font-sans;
+  @apply bg-gray-50 text-gray-950 transition-colors duration-300 font-sans;
 }
 
 .dark body {
-  @apply bg-[#050505] text-white;
+  @apply bg-neutral-950 text-white;
 }
 
 .grid-bg {
