@@ -3,7 +3,7 @@ uvicorn==0.24.0
 python-jose[cryptography]==3.3.0
 python-multipart==0.0.6
 supabase==2.4.2
-websockets==15.0.1
+websockets>=11,<13
 python-dotenv==1.0.0
 httpx==0.25.2
 gotrue==2.4.2

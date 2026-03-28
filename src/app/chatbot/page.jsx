@@ -70,6 +70,7 @@ export default function ChatbotPage() {
 
     try {
       const apiKey = localStorage.getItem("chatbot_api_key") || "";
+      const provider = localStorage.getItem("chatbot_provider") || "openai-compatible";
       const apiBase = localStorage.getItem("chatbot_api_base") || "";
       const model = localStorage.getItem("chatbot_api_model") || "";
 
@@ -81,6 +82,7 @@ export default function ChatbotPage() {
         },
         body: JSON.stringify({
           question: trimmed,
+          ...(provider ? { provider } : {}),
           ...(apiBase ? { api_base: apiBase } : {}),
           ...(model ? { model } : {}),
         }),
