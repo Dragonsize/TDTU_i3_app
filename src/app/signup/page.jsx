@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { dFetch } from '@/lib/api';
 
 export default function SignUp() {
   const router = useRouter();
@@ -59,7 +60,7 @@ export default function SignUp() {
 
       // Call backend register endpoint with email/password
       // Backend will create user in Supabase, auto-confirm, and create JWT session
-      const registerResponse = await fetch('/api/auth/register-direct', {
+      const registerResponse = await dFetch('/api/auth/register-direct', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -69,7 +70,6 @@ export default function SignUp() {
           password,
           fullname: normalizedFullName,
         }),
-        credentials: 'include',
       });
 
       if (registerResponse.ok) {
@@ -107,7 +107,7 @@ export default function SignUp() {
 
       if (signUpData.session?.access_token) {
         const token = signUpData.session.access_token;
-        const registerViaTokenResponse = await fetch('/api/auth/register', {
+        const registerViaTokenResponse = await dFetch('/api/auth/register', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -116,7 +116,6 @@ export default function SignUp() {
             access_token: token,
             fullname: normalizedFullName,
           }),
-          credentials: 'include',
         });
 
         if (!registerViaTokenResponse.ok) {

@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
+import SkeletonLoader from "@/components/SkeletonLoader";
 import { dFetch } from "@/lib/api";
 import { Bot, Send, Sparkles, AlertCircle, Loader2 } from "lucide-react";
 
@@ -33,7 +34,7 @@ export default function ChatbotPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await dFetch('/api/profile', { credentials: 'include' });
+        const response = await dFetch('/api/profile');
         const data = await response.json();
         if (!data.profile) { router.push('/login'); return; }
         setUser(data.profile);
@@ -50,7 +51,9 @@ export default function ChatbotPage() {
   if (loading) {
     return (
       <AppShell user={user} activePath="/chatbot" contentClassName="flex-1">
-        <PageLoader label="Loading..." />
+        <div className="max-w-2xl mx-auto px-4 py-8 h-full flex flex-col">
+          <SkeletonLoader type="chat" />
+        </div>
       </AppShell>
     );
   }
@@ -70,9 +73,8 @@ export default function ChatbotPage() {
       const apiBase = localStorage.getItem("chatbot_api_base") || "";
       const model = localStorage.getItem("chatbot_api_model") || "";
 
-      const res = await fetch("/api/chatbot", {
+      const res = await dFetch("/api/chatbot", {
         method: "POST",
-        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           ...(apiKey ? { "x-chatbot-api-key": apiKey } : {}),

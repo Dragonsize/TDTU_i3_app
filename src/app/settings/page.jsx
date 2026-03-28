@@ -19,7 +19,8 @@ export default function SettingsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    dFetch("/api/profile", { credentials: "include" })
+    dFetch("/api/profile")
+
       .then((res) => res.json())
       .then((data) => {
         if (data.profile) setProfile(data.profile);
@@ -38,10 +39,9 @@ export default function SettingsPage() {
     setSaving(true);
     setError("");
     try {
-      const res = await fetch("/api/profile", {
+      const res = await dFetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ full_name: newName })
       });
       if (!res.ok) throw new Error("Failed to update name");
@@ -59,7 +59,7 @@ export default function SettingsPage() {
   const handleLogout = async () => {
     try {
       // 1. Backend logout
-      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      await dFetch("/api/auth/logout", { method: "POST" });
       
       // 2. Supabase logout
       const { supabase } = await import("@/lib/supabaseClient");
@@ -108,6 +108,7 @@ export default function SettingsPage() {
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 flex flex-col items-center text-center transition-all hover:shadow-md">
               <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-blue-100 to-indigo-100 flex items-center justify-center text-5xl font-bold text-blue-600 border-4 border-white shadow-xl overflow-hidden mb-5">
                 {profile.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
                 ) : (
                   <span>{profile.full_name ? profile.full_name[0].toUpperCase() : "U"}</span>

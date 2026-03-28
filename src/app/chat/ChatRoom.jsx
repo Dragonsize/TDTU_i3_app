@@ -167,7 +167,7 @@ export default function ChatRoom({ user }) {
     e.preventDefault();
     if (!inputText.trim() || !activeChannel) return;
     try {
-      const res = await fetch("/api/chat/messages", {
+      const res = await dFetch("/api/chat/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ channel_id: activeChannel.id, message: inputText.trim() }),
@@ -183,7 +183,7 @@ export default function ChatRoom({ user }) {
     if (selectedUsers.length === 0) return;
     try {
       const payload = { emails: selectedUsers.map(u => u.email) };
-      const res = await fetch("/api/chat/channels", {
+      const res = await dFetch("/api/chat/channels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -202,7 +202,7 @@ export default function ChatRoom({ user }) {
   const handleRenameChannel = async (e) => {
     e.preventDefault();
     if (!renameValue.trim() || !activeChannel) return;
-    const res = await fetch(`/api/chat/channels/${activeChannel.id}`, {
+    const res = await dFetch(`/api/chat/channels/${activeChannel.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: renameValue.trim() })
@@ -216,7 +216,8 @@ export default function ChatRoom({ user }) {
   };
 
   const fetchProjects = useCallback(async () => {
-    const res = await dFetch("/api/projects", { credentials: "include" });
+    const res = await dFetch("/api/projects");
+
     if (res.ok) {
         const data = await res.json();
         setProjects(Array.isArray(data) ? data : []);
@@ -404,6 +405,7 @@ export default function ChatRoom({ user }) {
                 <div className={`w-10 h-10 shrink-0 flex items-end justify-center ${isLastInGroup ? "opacity-100" : "opacity-0"}`}>
                    <div className="w-10 h-10 rounded-2xl bg-gray-100 border border-gray-200 flex items-center justify-center text-xs font-black text-gray-600 overflow-hidden">
                       {msg.profiles?.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={msg.profiles.avatar_url} alt="Profile" className="w-full h-full object-cover" />
                       ) : (msg.profiles?.username?.[0] || "U").toUpperCase()}
                    </div>
@@ -574,7 +576,10 @@ export default function ChatRoom({ user }) {
                   <div key={m.id} className="flex items-center justify-between p-4 rounded-3xl bg-gray-50/50 border border-gray-100/50">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-sm font-black text-gray-900 overflow-hidden border border-gray-100">
-                        {m.avatar_url ? <img src={m.avatar_url} alt="Av" className="w-full h-full object-cover" /> : (m.username?.[0] || "U").toUpperCase()}
+                        {m.avatar_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={m.avatar_url} alt="Av" className="w-full h-full object-cover" />
+                        ) : (m.username?.[0] || "U").toUpperCase()}
                       </div>
                       <div>
                         <div className="font-bold text-sm text-gray-900 flex items-center gap-2">

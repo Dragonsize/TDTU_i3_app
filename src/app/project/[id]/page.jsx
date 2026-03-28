@@ -8,9 +8,9 @@ import PageLoader from "@/components/PageLoader";
 import { dFetch } from "@/lib/api";
 import {
   FolderOpen, Plus, CalendarDays, Clock, CheckCircle2, PauseCircle, Loader2,
-  X, Check, Calendar, Users, ChevronRight, ChevronLeft, AlertCircle,
+  X, Check, Calendar, Users, ChevronRight, AlertCircle,
   LayoutGrid, Flag, Target, Sparkles, GitBranch, Layers, UserCheck,
-  Calendar as CalendarIcon, Trash2, Pencil, MoreHorizontal, Home
+  Calendar as CalendarIcon, Trash2, Pencil, MoreHorizontal
 } from "lucide-react";
 
 // Helper functions
@@ -315,7 +315,6 @@ export default function ProjectDetailPage() {
   const [selectedFlowMembers, setSelectedFlowMembers] = useState([]);
   const [newFlowParentId, setNewFlowParentId] = useState(null);
   const [hoveredWorkspace, setHoveredWorkspace] = useState(null);
-  const [currentFlowId, setCurrentFlowId] = useState(null);
 
   const handleFlowMemberToggle = (memberId, checked) => {
     if (checked) {
@@ -380,17 +379,12 @@ export default function ProjectDetailPage() {
       }
       
       setShowCreateFlowModal(false);
-      // Navigate to the parent so the new sub-flow is visible
-      const createdParentId = newFlowParentId;
       setNewFlowName("");
       setNewFlowDesc("");
       setNewFlowDeadline("");
       setNewFlowDeadlineTime("09:00");
       setSelectedFlowMembers([]);
       setNewFlowParentId(null);
-      if (createdParentId) {
-        setCurrentFlowId(createdParentId);
-      }
       
       setWorkspaceLoading(true);
       setWorkspaceError("");
@@ -738,23 +732,68 @@ export default function ProjectDetailPage() {
     }
   };
 
-  // Drill-down: get children of the current parent
-  const currentChildren = workspaces.filter(ws => (ws.parent_id || null) === currentFlowId);
-  const hasSubFlows = (flowId) => workspaces.some(ws => ws.parent_id === flowId);
-
-  // Build breadcrumb path from root to currentFlowId
-  const getBreadcrumbs = () => {
-    const crumbs = [];
-    let id = currentFlowId;
-    while (id) {
-      const flow = workspaces.find(ws => ws.id === id);
-      if (!flow) break;
-      crumbs.unshift(flow);
-      id = flow.parent_id || null;
-    }
-    return crumbs;
+  const renderWorkflowTree = (parentId = null, level = 0) => {
+    const children = workspaces.filter(ws => (ws.parent_id || null) === parentId);
+    if (children.length === 0) return null;
+    return children.map((ws, idx) => (
+      <motion.div
+        key={ws.id}
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: idx * 0.05 }}
+        className="w-full flex flex-col mb-3"
+      >
+        <motion.div 
+          whileHover={{ scale: 1.01 }}
+          onHoverStart={() => setHoveredWorkspace(ws.id)}
+          onHoverEnd={() => setHoveredWorkspace(null)}
+          className="w-full min-h-[56px] py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-xl flex flex-wrap sm:flex-nowrap items-center justify-between px-3 sm:px-4 gap-3 relative shadow-md" 
+          style={{ marginLeft: `${level * 24}px`, width: `calc(100% - ${level * 24}px)` }}
+        >
+          <div className="flex items-center gap-2 sm:gap-4 overflow-hidden min-w-[40%]">
+            <div className="shrink-0 w-7 h-7 bg-white/20 rounded-xl flex items-center justify-center text-white text-base font-bold">
+              {idx + 1}
+            </div>
+            <div className="text-white text-sm sm:text-base font-medium truncate" title={ws.name}>
+              {level > 0 && <GitBranch className="w-3 h-3 inline mr-1" />}
+              {ws.name}
+            </div>
+            <div className="hidden md:block text-white/70 text-xs shrink-0">
+              {ws.created_at ? new Date(ws.created_at).toLocaleDateString("en-GB") : "-"}
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-2 shrink-0 flex-wrap">
+            <select
+              value={ws.status || "in_process"}
+              onChange={(e) => handleWorkspaceStatusChange(ws.id, e.target.value)}
+              className="bg-white/20 text-white text-xs sm:text-sm rounded-lg px-2 py-1 outline-none border border-white/30 hover:bg-white/30 transition-colors"
+            >
+              <option value="in_process" className="text-gray-900">In process</option>
+              <option value="pause" className="text-gray-900">Pause</option>
+              <option value="completed" className="text-gray-900">Completed</option>
+            </select>
+            {level < 5 && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-2 h-6 bg-white/20 rounded-lg flex items-center justify-center text-white text-xs font-semibold hover:bg-white/30 transition-all whitespace-nowrap"
+                onClick={() => {
+                  setNewFlowParentId(ws.id);
+                  if (!newFlowDeadline) setNewFlowDeadline(formatDateKey(new Date()));
+                  setNewFlowDeadlineTime(prev => prev || "09:00");
+                  setShowCreateFlowModal(true);
+                }}
+                title="Create Sub-Flow"
+              >
+                + Sub-flow
+              </motion.button>
+            )}
+          </div>
+        </motion.div>
+        {renderWorkflowTree(ws.id, level + 1)}
+      </motion.div>
+    ));
   };
-  const breadcrumbs = getBreadcrumbs();
 
   const totalDeadlines = deadlines.length;
   const completedDeadlines = deadlines.filter(d => d.status === "completed").length;
@@ -961,63 +1000,12 @@ export default function ProjectDetailPage() {
                     {workspaceError}
                   </div>
                 )}
-
-                {/* Breadcrumb Navigation */}
-                {breadcrumbs.length > 0 && (
-                  <div className="flex items-center gap-1.5 mb-5 flex-wrap">
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setCurrentFlowId(null)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm"
-                    >
-                      <Home className="w-3.5 h-3.5" />
-                      Root
-                    </motion.button>
-                    {breadcrumbs.map((crumb, i) => (
-                      <React.Fragment key={crumb.id}>
-                        <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => setCurrentFlowId(crumb.id)}
-                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all shadow-sm truncate max-w-[160px] ${
-                            i === breadcrumbs.length - 1
-                              ? "bg-indigo-100 text-indigo-700 border border-indigo-200"
-                              : "bg-white border border-gray-200 text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
-                          }`}
-                          title={crumb.name}
-                        >
-                          {crumb.name}
-                        </motion.button>
-                      </React.Fragment>
-                    ))}
-                  </div>
-                )}
-
-                {/* Back button when inside a sub-flow */}
-                {currentFlowId && (
-                  <motion.button
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => {
-                      const parent = workspaces.find(ws => ws.id === currentFlowId);
-                      setCurrentFlowId(parent?.parent_id || null);
-                    }}
-                    className="mb-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    Back to {breadcrumbs.length > 1 ? breadcrumbs[breadcrumbs.length - 2].name : "Root"}
-                  </motion.button>
-                )}
-
+                
                 {workspaceLoading ? (
                   <div className="flex items-center justify-center py-20">
                     <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
                   </div>
-                ) : currentChildren.length === 0 && !currentFlowId ? (
+                ) : workspaces.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 text-center">
                     <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
                       <Layers className="w-8 h-8 text-gray-400" />
@@ -1025,91 +1013,9 @@ export default function ProjectDetailPage() {
                     <p className="text-gray-500 font-medium">No workspace flows found</p>
                     <p className="text-xs text-gray-400 mt-1">Click &quot;Create Flow&quot; to get started</p>
                   </div>
-                ) : currentChildren.length === 0 && currentFlowId ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center mb-3">
-                      <GitBranch className="w-7 h-7 text-indigo-400" />
-                    </div>
-                    <p className="text-gray-500 font-medium">No sub-flows yet</p>
-                    <p className="text-xs text-gray-400 mt-1">Create the first sub-flow below</p>
-                  </div>
                 ) : (
-                  <div className="space-y-3">
-                    {currentChildren.map((ws, idx) => {
-                      const childCount = workspaces.filter(w => w.parent_id === ws.id).length;
-                      return (
-                        <motion.div
-                          key={ws.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.04 }}
-                          className="group"
-                        >
-                          <div className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-xl flex items-center justify-between px-4 py-3 shadow-md hover:shadow-lg transition-all">
-                            {/* Left: clickable name area */}
-                            <button
-                              className="flex items-center gap-3 overflow-hidden min-w-0 flex-1 text-left"
-                              onClick={() => {
-                                if (hasSubFlows(ws.id)) {
-                                  setCurrentFlowId(ws.id);
-                                }
-                              }}
-                              title={hasSubFlows(ws.id) ? `Open sub-flows of ${ws.name}` : ws.name}
-                            >
-                              <div className="shrink-0 w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center text-white text-sm font-bold">
-                                {idx + 1}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="text-white text-sm sm:text-base font-semibold truncate flex items-center gap-1.5">
-                                  {ws.name}
-                                  {childCount > 0 && (
-                                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-white/20 rounded-full text-[10px] font-bold text-white/90 ml-1">
-                                      <GitBranch className="w-2.5 h-2.5" />
-                                      {childCount}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-white/60 text-xs mt-0.5">
-                                  {ws.created_at ? new Date(ws.created_at).toLocaleDateString("en-GB") : ""}
-                                </div>
-                              </div>
-                              {childCount > 0 && (
-                                <ChevronRight className="w-5 h-5 text-white/50 group-hover:text-white group-hover:translate-x-0.5 transition-all flex-shrink-0" />
-                              )}
-                            </button>
-
-                            {/* Right: actions */}
-                            <div className="flex items-center gap-2 shrink-0 ml-3">
-                              <select
-                                value={ws.status || "in_process"}
-                                onChange={(e) => { e.stopPropagation(); handleWorkspaceStatusChange(ws.id, e.target.value); }}
-                                onClick={(e) => e.stopPropagation()}
-                                className="bg-white/20 text-white text-xs rounded-lg px-2 py-1 outline-none border border-white/30 hover:bg-white/30 transition-colors"
-                              >
-                                <option value="in_process" className="text-gray-900">In process</option>
-                                <option value="pause" className="text-gray-900">Pause</option>
-                                <option value="completed" className="text-gray-900">Completed</option>
-                              </select>
-                              <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="px-2 h-7 bg-white/20 rounded-lg flex items-center justify-center text-white text-xs font-semibold hover:bg-white/30 transition-all whitespace-nowrap"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setNewFlowParentId(ws.id);
-                                  if (!newFlowDeadline) setNewFlowDeadline(formatDateKey(new Date()));
-                                  setNewFlowDeadlineTime(prev => prev || "09:00");
-                                  setShowCreateFlowModal(true);
-                                }}
-                                title="Create Sub-Flow"
-                              >
-                                + Sub
-                              </motion.button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
+                  <div className="space-y-2">
+                    {renderWorkflowTree(null, 0)}
                   </div>
                 )}
 
@@ -1118,7 +1024,7 @@ export default function ProjectDetailPage() {
                   whileTap={{ scale: 0.98 }}
                   className="mt-6 w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center gap-2 text-white font-medium hover:shadow-lg transition-all"
                   onClick={() => {
-                    setNewFlowParentId(currentFlowId);
+                    setNewFlowParentId(null);
                     if (!newFlowDeadline) {
                       setNewFlowDeadline(formatDateKey(new Date()));
                     }
@@ -1127,7 +1033,7 @@ export default function ProjectDetailPage() {
                   }}
                 >
                   <Plus className="w-4 h-4" />
-                  {currentFlowId ? "Create Sub-Flow" : "Create Flow"}
+                  Create Flow
                 </motion.button>
               </div>
 
