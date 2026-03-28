@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
+import SkeletonLoader from "@/components/SkeletonLoader";
 import { dFetch } from "@/lib/api";
 
 const ChatRoom = dynamic(() => import("./ChatRoom"), { ssr: false });
@@ -18,7 +19,7 @@ export default function ChatPage() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await dFetch('/api/profile', { credentials: 'include' });
+        const response = await dFetch('/api/profile');
         const data = await response.json();
         if (!data.profile) {
           router.push('/login');
@@ -37,7 +38,9 @@ export default function ChatPage() {
   if (loading) {
     return (
       <AppShell user={user} activePath="/chat" contentClassName="flex-1 bg-gray-50/50" fullHeight={true}>
-        <PageLoader label="Loading..." />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 h-full">
+          <SkeletonLoader type="chat-channels" />
+        </div>
       </AppShell>
     );
   }

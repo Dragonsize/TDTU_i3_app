@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import PageLoader from '@/components/PageLoader';
+import { dFetch } from '@/lib/api';
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -44,13 +45,12 @@ export default function AuthCallback() {
         }
 
         // Create backend session
-        const sessionResponse = await fetch('/api/auth/session', {
+        const sessionResponse = await dFetch('/api/auth/session', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ access_token: authSessionData.session.access_token }),
-          credentials: 'include',
         });
 
         if (!sessionResponse.ok) {

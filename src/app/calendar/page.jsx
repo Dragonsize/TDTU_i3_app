@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
+import SkeletonLoader from "@/components/SkeletonLoader";
 import { dFetch } from "@/lib/api";
 import { 
   ChevronLeft, 
@@ -214,6 +215,12 @@ function startOfWeek(date) {
   return d;
 }
 
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
 function monthRange(date) {
   const start = new Date(date.getFullYear(), date.getMonth(), 1);
   const end = new Date(date.getFullYear(), date.getMonth() + 1, 1);
@@ -238,6 +245,18 @@ function rangeForView(view, monthDate, selectedDate) {
 
 function formatDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function defaultMeetingWindow() {
+  const start = new Date();
+  start.setHours(9, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+  end.setHours(18, 0, 0, 0);
+  return {
+    start: toInputDateTime(start.toISOString()),
+    end: toInputDateTime(end.toISOString()),
+  };
 }
 
 // --- MAIN APPLICATION ---
@@ -299,7 +318,7 @@ export default function CalendarPage() {
     try {
       const { start, end } = rangeForView(view, monthDate, selectedDate);
       const url = `/api/calendar/events?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
-      const res = await dFetch(url, { credentials: "include" });
+      const res = await dFetch(url);
       if (!res.ok) throw new Error("Failed to load events");
       const data = await res.json();
       setEvents(Array.isArray(data) ? data : []);
@@ -313,7 +332,7 @@ export default function CalendarPage() {
     if (!teamProjectId) return;
     try {
       const { start, end } = monthRange(currentMonth);
-      const res = await dFetch(`/api/projects/${teamProjectId}/calendar/team?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`, { credentials: "include" });
+      const res = await dFetch(`/api/projects/${teamProjectId}/calendar/team?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
       if (!res.ok) throw new Error("Failed to load team data");
       const data = await res.json();
       setTeamData({
@@ -330,12 +349,12 @@ export default function CalendarPage() {
   useEffect(() => {
     const bootstrap = async () => {
       try {
-        const meRes = await dFetch("/api/profile", { credentials: "include" });
+        const meRes = await dFetch("/api/profile");
         const meData = await meRes.json();
         if (!meData?.profile) { router.push("/login"); return; }
         setUser(meData.profile);
 
-        const projRes = await dFetch("/api/projects", { credentials: "include" });
+        const projRes = await dFetch("/api/projects");
         if (projRes.ok) {
           const projData = await projRes.json();
           const safe = Array.isArray(projData) ? projData : [];
@@ -362,6 +381,17 @@ export default function CalendarPage() {
     fetchTeamCalendar();
   }, [fetchTeamCalendar, loading, teamProjectId, viewMode]);
 
+  useEffect(() => {
+    if (meetingWindowStart && meetingWindowEnd) return;
+    const defaults = defaultMeetingWindow();
+    setMeetingWindowStart(defaults.start);
+    setMeetingWindowEnd(defaults.end);
+  }, [meetingWindowStart, meetingWindowEnd]);
+
+  useEffect(() => {
+    setMeetingSlots([]);
+  }, [teamProjectId, selectedMemberIds.length]);
+
   const monthDays = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -375,8 +405,155 @@ export default function CalendarPage() {
   }, [currentMonth]);
 
   const headerLabel = useMemo(() => {
+    if (calendarView === "day") {
+      return selectedDay.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+    }
+    if (calendarView === "week") {
+      const weekStart = startOfWeek(selectedDay);
+      const weekEnd = addDays(weekStart, 6);
+      const startLabel = weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const endLabel = weekEnd.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      return `${startLabel} - ${endLabel}`;
+    }
     return currentMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-  }, [currentMonth]);
+  }, [calendarView, currentMonth, selectedDay]);
+
+  const weekDays = useMemo(() => {
+    const weekStart = startOfWeek(selectedDay);
+    return Array.from({ length: 7 }, (_, idx) => addDays(weekStart, idx));
+  }, [selectedDay]);
+
+  const memberMap = useMemo(() => {
+    const map = {};
+    for (const member of teamData.members) {
+      map[member.id] = member.full_name || member.username || "Unknown member";
+    }
+    return map;
+  }, [teamData.members]);
+
+  const displayedEvents = useMemo(() => {
+    if (viewMode !== "team") return events;
+    const memberFilter = selectedMemberIds.length > 0 ? new Set(selectedMemberIds) : null;
+    return (teamData.events || []).filter((event) => {
+      if (!memberFilter) return true;
+      return memberFilter.has(event.user_id);
+    });
+  }, [events, teamData.events, selectedMemberIds, viewMode]);
+
+  const sortedUpcomingEvents = useMemo(() => {
+    return [...displayedEvents]
+      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+      .slice(0, 3);
+  }, [displayedEvents]);
+
+  const eventsByDateKey = useMemo(() => {
+    const grouped = {};
+    for (const ev of displayedEvents) {
+      const key = formatDateKey(new Date(ev.start_time));
+      grouped[key] = grouped[key] || [];
+      grouped[key].push(ev);
+    }
+    Object.values(grouped).forEach((list) => list.sort((a, b) => new Date(a.start_time) - new Date(b.start_time)));
+    return grouped;
+  }, [displayedEvents]);
+
+  const navigateCalendar = (direction) => {
+    if (calendarView === "day") {
+      const nextDay = addDays(selectedDay, direction);
+      setSelectedDay(nextDay);
+      setCurrentMonth(new Date(nextDay.getFullYear(), nextDay.getMonth(), 1));
+      return;
+    }
+    if (calendarView === "week") {
+      const nextWeekDay = addDays(selectedDay, direction * 7);
+      setSelectedDay(nextWeekDay);
+      setCurrentMonth(new Date(nextWeekDay.getFullYear(), nextWeekDay.getMonth(), 1));
+      return;
+    }
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + direction, 1));
+  };
+
+  const jumpToToday = () => {
+    const now = new Date();
+    setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+    setSelectedDay(now);
+  };
+
+  const findMeetingSlots = async () => {
+    if (!teamProjectId) {
+      setError("Choose a project before finding slots.");
+      return;
+    }
+    if (!meetingWindowStart || !meetingWindowEnd) {
+      setError("Choose both start and end of planning window.");
+      return;
+    }
+
+    setPlanningMeeting(true);
+    setError("");
+
+    try {
+      const payload = {
+        start_time: toIsoFromLocal(meetingWindowStart),
+        end_time: toIsoFromLocal(meetingWindowEnd),
+        duration_minutes: Number(meetingDuration) || 60,
+        member_ids: selectedMemberIds.length > 0 ? selectedMemberIds : undefined,
+      };
+
+      const res = await dFetch(`/api/projects/${teamProjectId}/calendar/meeting-slots`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.detail || "Failed to find meeting slots");
+
+      setMeetingSlots(Array.isArray(data.slots) ? data.slots : []);
+    } catch (err) {
+      console.error(err);
+      setMeetingSlots([]);
+      setError(err.message || "Unable to find slots.");
+    } finally {
+      setPlanningMeeting(false);
+    }
+  };
+
+  const scheduleFromSlot = async (slot) => {
+    setPlanningMeeting(true);
+    setError("");
+
+    try {
+      const eventDate = new Date(slot.start_time);
+      const prettyDate = eventDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const payload = {
+        title: `Team Meeting (${prettyDate})`,
+        description: "Scheduled from Meeting Finder",
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        member_ids: selectedMemberIds.length > 0 ? selectedMemberIds : undefined,
+        event_type: "meeting",
+      };
+
+      const res = await dFetch(`/api/projects/${teamProjectId}/calendar/meetings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.detail || "Failed to schedule meeting");
+
+      await Promise.all([
+        fetchTeamCalendar(),
+        fetchEventsForView(calendarView, currentMonth, selectedDay),
+      ]);
+      setMeetingSlots((prev) => prev.filter((candidate) => candidate.start_time !== slot.start_time));
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "Unable to schedule meeting.");
+    } finally {
+      setPlanningMeeting(false);
+    }
+  };
 
   const resetForm = () => {
     setEditingEventId(null);
@@ -417,10 +594,9 @@ export default function CalendarPage() {
       };
       const url = editingEventId ? `/api/calendar/events/${editingEventId}` : "/api/calendar/events";
       const method = editingEventId ? "PATCH" : "POST";
-      const res = await fetch(url, {
+      const res = await dFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Save error");
@@ -448,14 +624,16 @@ export default function CalendarPage() {
 
   const deleteEvent = async (id) => {
     if (!confirm("Delete?")) return;
-    await fetch(`/api/calendar/events/${id}`, { method: "DELETE", credentials: "include" });
+    await dFetch(`/api/calendar/events/${id}`, { method: "DELETE" });
     await fetchEventsForView(calendarView, currentMonth, selectedDay);
   };
 
   if (loading) {
     return (
       <AppShell user={user} activePath="/calendar" contentClassName="flex-1 bg-gray-50/50">
-        <PageLoader label="Opening your schedule..." />
+        <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <SkeletonLoader type="calendar" />
+        </main>
       </AppShell>
     );
   }
@@ -475,16 +653,16 @@ export default function CalendarPage() {
               Add Event
             </button>
             <div className="flex items-center bg-white border border-gray-100 rounded-2xl p-1 shadow-sm">
-              <button onClick={() => { const now = new Date(); setCurrentMonth(now); setSelectedDay(now); }} className="px-4 py-1.5 rounded-xl text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all">Today</button>
+              <button onClick={jumpToToday} className="px-4 py-1.5 rounded-xl text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all">Today</button>
               <div className="w-px h-6 bg-gray-100 mx-1" />
               <button 
-                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))} 
+                onClick={() => navigateCalendar(-1)} 
                 className="w-10 h-10 rounded-xl text-gray-500 hover:bg-gray-50 flex items-center justify-center transition-all"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button 
-                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))} 
+                onClick={() => navigateCalendar(1)} 
                 className="w-10 h-10 rounded-xl text-gray-500 hover:bg-gray-50 flex items-center justify-center transition-all"
               >
                 <ChevronRight className="w-5 h-5" />
@@ -532,6 +710,12 @@ export default function CalendarPage() {
           </div>
         </div>
 
+        {error && (
+          <div className="mb-6 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {error}
+          </div>
+        )}
+
         {/* Layout with Sidebar */}
         <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-8">
           
@@ -573,11 +757,84 @@ export default function CalendarPage() {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 ml-1">Duration</label>
+                      <select
+                        value={meetingDuration}
+                        onChange={(e) => setMeetingDuration(Number(e.target.value))}
+                        className="w-full h-[40px] bg-gray-50 border-0 rounded-xl px-3 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-blue-500/10"
+                      >
+                        {[30, 45, 60, 90, 120].map((minutes) => (
+                          <option key={minutes} value={minutes}>{minutes} min</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 ml-1">Members</label>
+                      <div className="h-[40px] bg-gray-50 rounded-xl px-3 flex items-center text-xs font-bold text-gray-700">
+                        {selectedMemberIds.length || teamData.members.length} people
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 ml-1">Window Start</label>
+                      <input
+                        type="datetime-local"
+                        value={meetingWindowStart}
+                        onChange={(e) => setMeetingWindowStart(e.target.value)}
+                        className="w-full h-[40px] bg-gray-50 border-0 rounded-xl px-3 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-blue-500/10"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 ml-1">Window End</label>
+                      <input
+                        type="datetime-local"
+                        value={meetingWindowEnd}
+                        onChange={(e) => setMeetingWindowEnd(e.target.value)}
+                        className="w-full h-[40px] bg-gray-50 border-0 rounded-xl px-3 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-blue-500/10"
+                      />
+                    </div>
+                  </div>
+
                   <button 
+                    type="button"
+                    onClick={findMeetingSlots}
+                    disabled={planningMeeting || !teamProjectId}
                     className="w-full py-3 bg-gray-900 text-white rounded-2xl text-xs font-bold hover:bg-black transition-all active:scale-[0.98] mt-2 shadow-sm"
                   >
-                    Find Optimum Slots
+                    {planningMeeting ? "Finding..." : "Find Optimum Slots"}
                   </button>
+
+                  <div className="space-y-2 max-h-56 overflow-auto pr-1">
+                    {meetingSlots.length === 0 && (
+                      <p className="text-[11px] font-medium text-gray-400">No suggested slots yet. Pick members and run finder.</p>
+                    )}
+                    {meetingSlots.map((slot) => {
+                      const start = new Date(slot.start_time);
+                      const end = new Date(slot.end_time);
+                      return (
+                        <div key={slot.start_time} className="border border-gray-100 rounded-xl p-3 bg-gray-50/70">
+                          <p className="text-xs font-bold text-gray-900">
+                            {start.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                          </p>
+                          <p className="text-[11px] text-gray-600 mt-0.5">
+                            {start.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })} - {end.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => scheduleFromSlot(slot)}
+                            disabled={planningMeeting}
+                            className="mt-2 w-full py-1.5 rounded-lg bg-white border border-gray-200 text-[11px] font-bold text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-60"
+                          >
+                            Schedule This Slot
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
@@ -587,10 +844,13 @@ export default function CalendarPage() {
                 Upcoming
               </h3>
               <div className="space-y-3">
-                {events.slice(0, 3).map(ev => (
+                {sortedUpcomingEvents.map(ev => (
                   <div key={ev.id} className="group cursor-pointer">
                     <p className="text-xs font-bold text-gray-800 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{ev.title}</p>
                     <p className="text-[10px] font-medium text-gray-400 mt-0.5">{new Date(ev.start_time).toLocaleDateString("en-US", { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}</p>
+                    {viewMode === "team" && ev.user_id && (
+                      <p className="text-[10px] font-bold text-indigo-500 mt-0.5">{memberMap[ev.user_id] || "Team member"}</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -599,46 +859,135 @@ export default function CalendarPage() {
 
           {/* Calendar Grid Container */}
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-            <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50/50">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <div key={day} className="py-3 text-center text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">{day}</div>
-              ))}
-            </div>
-            <div className="grid grid-cols-7 flex-1 min-h-[700px]">
-              {monthDays.map((d, idx) => {
-                const isCurrentMonth = d.getMonth() === currentMonth.getMonth();
-                const isToday = isSameDate(d, new Date());
-                const dayKey = formatDateKey(d);
-                const dayEvents = (events.filter(e => isSameDate(new Date(e.start_time), d))).slice(0, 4);
-                
-                return (
-                  <div
-                    key={d.toISOString()}
-                    className={`min-h-[120px] p-3 text-left border-r border-b border-gray-50 last:border-r-0 transition-colors ${!isCurrentMonth ? "bg-gray-50/20" : "bg-white hover:bg-gray-50/30"}`}
-                  >
-                    <div className="flex justify-between items-center mb-2">
-                      <span className={`text-xs font-extrabold px-1.5 py-0.5 rounded-lg ${isToday ? "bg-gray-900 text-white" : (isCurrentMonth ? "text-gray-900" : "text-gray-300")}`}>
-                        {d.getDate()}
-                      </span>
+            {calendarView === "month" && (
+              <>
+                <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50/50">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                    <div key={day} className="py-3 text-center text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">{day}</div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 flex-1 min-h-[700px]">
+                  {monthDays.map((d) => {
+                    const isCurrentMonth = d.getMonth() === currentMonth.getMonth();
+                    const isToday = isSameDate(d, new Date());
+                    const key = formatDateKey(d);
+                    const allDayEvents = eventsByDateKey[key] || [];
+                    const visibleEvents = allDayEvents.slice(0, 4);
+
+                    return (
+                      <button
+                        type="button"
+                        key={d.toISOString()}
+                        onClick={() => setSelectedDay(d)}
+                        className={`min-h-[120px] p-3 text-left border-r border-b border-gray-50 last:border-r-0 transition-colors ${!isCurrentMonth ? "bg-gray-50/20" : "bg-white hover:bg-gray-50/30"}`}
+                      >
+                        <div className="flex justify-between items-center mb-2">
+                          <span className={`text-xs font-extrabold px-1.5 py-0.5 rounded-lg ${isToday ? "bg-gray-900 text-white" : (isCurrentMonth ? "text-gray-900" : "text-gray-300")}`}>
+                            {d.getDate()}
+                          </span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {visibleEvents.map((ev) => (
+                            <div
+                              key={`${ev.id}-${ev.user_id || "self"}`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                startEditEvent(ev);
+                              }}
+                              style={{ backgroundColor: ev.color || STATUS_CONFIG[ev.status]?.hex || "#111827" }}
+                              className="w-full text-left truncate rounded-xl px-2.5 py-1.5 text-[10px] font-bold text-white transition-all transform hover:scale-[1.02] shadow-sm active:scale-[0.98]"
+                              title={`${ev.title} (${ev.status || "scheduled"})`}
+                            >
+                              {viewMode === "team" ? `${memberMap[ev.user_id] || "Member"}: ${ev.title}` : ev.title}
+                            </div>
+                          ))}
+                          {allDayEvents.length > 4 && <div className="text-[9px] font-bold text-gray-400 pl-1">+ {allDayEvents.length - 4} more</div>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            {calendarView === "week" && (
+              <div className="grid grid-cols-1 md:grid-cols-7 min-h-[700px] divide-y md:divide-y-0 md:divide-x divide-gray-100">
+                {weekDays.map((day) => {
+                  const key = formatDateKey(day);
+                  const dayEvents = eventsByDateKey[key] || [];
+                  const isToday = isSameDate(day, new Date());
+                  const isSelected = isSameDate(day, selectedDay);
+                  return (
+                    <div key={key} className="p-3 sm:p-4 bg-white">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDay(day)}
+                        className={`mb-3 inline-flex items-center gap-2 px-2.5 py-1 rounded-xl text-xs font-bold ${isToday ? "bg-gray-900 text-white" : isSelected ? "bg-gray-100 text-gray-900" : "text-gray-600 hover:bg-gray-50"}`}
+                      >
+                        {day.toLocaleDateString("en-US", { weekday: "short", day: "numeric" })}
+                      </button>
+                      <div className="space-y-2">
+                        {dayEvents.length === 0 && <div className="text-xs text-gray-400">No events</div>}
+                        {dayEvents.map((ev) => (
+                          <button
+                            key={`${ev.id}-${ev.user_id || "self"}`}
+                            type="button"
+                            onClick={() => startEditEvent(ev)}
+                            style={{ backgroundColor: ev.color || STATUS_CONFIG[ev.status]?.hex || "#111827" }}
+                            className="w-full text-left rounded-xl px-3 py-2 text-[11px] font-bold text-white"
+                          >
+                            <div className="truncate">{viewMode === "team" ? `${memberMap[ev.user_id] || "Member"}: ${ev.title}` : ev.title}</div>
+                            <div className="text-[10px] opacity-90 mt-0.5">
+                              {new Date(ev.start_time).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
-                      {dayEvents.map(ev => (
-                        <button
-                          key={ev.id}
-                          onClick={() => startEditEvent(ev)}
+                  );
+                })}
+              </div>
+            )}
+
+            {calendarView === "day" && (
+              <div className="min-h-[700px] p-4 sm:p-6 bg-white">
+                <div className="mb-4">
+                  <h3 className="text-lg font-extrabold text-gray-900">
+                    {selectedDay.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                  </h3>
+                </div>
+                <div className="space-y-3">
+                  {(eventsByDateKey[formatDateKey(selectedDay)] || []).length === 0 && (
+                    <div className="rounded-2xl border border-dashed border-gray-200 p-6 text-sm text-gray-400">No events for this day.</div>
+                  )}
+                  {(eventsByDateKey[formatDateKey(selectedDay)] || []).map((ev) => (
+                    <button
+                      key={`${ev.id}-${ev.user_id || "self"}`}
+                      type="button"
+                      onClick={() => startEditEvent(ev)}
+                      className="w-full text-left rounded-2xl border border-gray-100 px-4 py-3 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-gray-900 truncate">{viewMode === "team" ? `${memberMap[ev.user_id] || "Member"}: ${ev.title}` : ev.title}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {new Date(ev.start_time).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                            {" - "}
+                            {new Date(ev.end_time).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
+                        <span
+                          className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold text-white"
                           style={{ backgroundColor: ev.color || STATUS_CONFIG[ev.status]?.hex || "#111827" }}
-                          className="w-full text-left truncate rounded-xl px-2.5 py-1.5 text-[10px] font-bold text-white transition-all transform hover:scale-[1.02] shadow-sm active:scale-[0.98]"
-                          title={`${ev.title} (${ev.status})`}
                         >
-                          {ev.title}
-                        </button>
-                      ))}
-                      {dayEvents.length > 3 && <div className="text-[9px] font-bold text-gray-400 pl-1">+ More</div>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                          {(STATUS_CONFIG[ev.status]?.label || ev.status || "Event").toUpperCase()}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

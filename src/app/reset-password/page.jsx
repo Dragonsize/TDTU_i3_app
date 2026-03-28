@@ -65,7 +65,7 @@ export default function ResetPassword() {
 
   return (
     <div className="w-full min-h-screen bg-gray-50/50 dark:bg-neutral-950 flex items-center justify-center p-4 transition-colors duration-300 font-['Inter']">
-      
+
       <div className="w-full max-w-[440px] relative z-10">
         {/* Header/Logo Area */}
         <div className="text-center mb-8">
@@ -75,7 +75,7 @@ export default function ResetPassword() {
             </div>
             <span className="text-xl font-bold text-gray-950 dark:text-white tracking-tight font-['Arimo'] uppercase">A+ Flow</span>
           </Link>
-          
+
           <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tight uppercase leading-tight">
             Reset Protocol
           </h1>
@@ -86,7 +86,7 @@ export default function ResetPassword() {
 
         {/* Clean Dashboard-style Card */}
         <div className="bg-white dark:bg-neutral-900 rounded-[2.5rem] border border-gray-100 dark:border-white/10 shadow-xl p-8 md:p-10 relative overflow-hidden">
-          
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
               {/* Password Input */}
@@ -152,7 +152,7 @@ export default function ResetPassword() {
             {/* Bottom Link */}
             <div className="text-center mt-6">
               <Link href="/login" className="text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors inline-flex items-center gap-2 group">
-                <span className="transition-transform group-hover:translate-x-[-2px]">←</span> Return to Login
+                <span className="transition-transform group-hover:translate-x-[-2px]">←</span> Go to Login
               </Link>
             </div>
           </form>

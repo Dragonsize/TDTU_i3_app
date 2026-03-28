@@ -10,6 +10,11 @@ from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Response, Cookie, Depends, File, UploadFile, Form, Request, Query, WebSocket, WebSocketDisconnect, BackgroundTasks, Header
 import asyncio
+import sys
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 def sanitize_chat_input(text: str) -> str:
     # Remove dangerous SQL/meta chars and trim
     if not isinstance(text, str):
@@ -22,6 +27,23 @@ def sanitize_chat_input(text: str) -> str:
     if len(text) > 2000:
         raise HTTPException(status_code=400, detail="Message too long")
     return text
+
+
+def validate_url_safe(url: str) -> str:
+    """Validate that URL is safe (no javascript: or data: URIs, etc.)"""
+    if not isinstance(url, str):
+        raise HTTPException(status_code=400, detail="Invalid URL type")
+    url = url.strip()
+    # Block Javascript, data, vbscript, blob protocols
+    dangerous_protocols = ['javascript:', 'data:', 'vbscript:', 'blob:', 'file://']
+    url_lower = url.lower()
+    for protocol in dangerous_protocols:
+        if url_lower.startswith(protocol):
+            raise HTTPException(status_code=400, detail="URL contains invalid protocol")
+    # Only validate format if it looks like a full URL (contains ://)
+    if '://' in url and not (url.startswith('http://') or url.startswith('https://')):
+        raise HTTPException(status_code=400, detail="URL must use http or https")
+    return url
 
 from fastapi.middleware.cors import CORSMiddleware
 from jose import JWTError, jwt
@@ -288,6 +310,7 @@ class CreateWorkflowRequest(BaseModel):
     title: str = Field(..., min_length=1)
     description: Optional[str] = ""
     member_ids: Optional[List[str]] = None
+    parent_id: Optional[str] = None
 
 
 class AssignWorkflowMemberRequest(BaseModel):
@@ -462,6 +485,22 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"]
 )
+
+
+# Add security response headers middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    # Prevent MIME type sniffing
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    # Prevent clickjacking (allow framing only from same origin)
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    # Enable XSS protection in older browsers
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    # Content Security Policy: restrict inline scripts, only allow from trusted origins
+    csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' fastly.jsdelivr.net https: data:; font-src 'self'; connect-src 'self' https:; frame-ancestors 'self'"
+    response.headers["Content-Security-Policy"] = csp
+    return response
 
 
 CHATBOT_KNOWLEDGE = {
@@ -2019,6 +2058,7 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
             "description": request.description or "",
             "creator_id": creator_id,
             "members": member_ids,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
@@ -2027,6 +2067,7 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
             "creator_id": creator_id,
             "status": "in_process",
             "members": member_ids,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
@@ -2034,12 +2075,14 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
             "description": request.description or "",
             "status": "active",
             "members": member_ids,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
             "name": request.title,
             "description": request.description or "",
             "members": member_ids,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
@@ -2047,6 +2090,7 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
             "description": request.description or "",
             "creator_id": creator_id,
             "members": member_ids,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
@@ -2055,6 +2099,7 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
             "creator_id": creator_id,
             "status": "in_process",
             "members": member_ids,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
@@ -2062,18 +2107,21 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
             "description": request.description or "",
             "status": "active",
             "members": member_ids,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
             "title": request.title,
             "description": request.description or "",
             "members": member_ids,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
             "title": request.title,
             "description": request.description or "",
             "creator_id": creator_id,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
@@ -2081,23 +2129,27 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
             "description": request.description or "",
             "creator_id": creator_id,
             "status": "in_process",
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
             "title": request.title,
             "description": request.description or "",
             "status": "active",
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
             "title": request.title,
             "description": request.description or "",
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
             "name": request.title,
             "description": request.description or "",
             "creator_id": creator_id,
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
@@ -2105,17 +2157,20 @@ def create_workflow(project_id: str, request: CreateWorkflowRequest, user=Depend
             "description": request.description or "",
             "creator_id": creator_id,
             "status": "in_process",
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
             "name": request.title,
             "description": request.description or "",
             "status": "active",
+            "parent_id": request.parent_id,
         },
         {
             "project_id": project_id,
             "name": request.title,
             "description": request.description or "",
+            "parent_id": request.parent_id,
         },
     ]
 
@@ -2776,10 +2831,14 @@ def upload_document(request: UploadDocumentRequest, user=Depends(get_current_use
     db = require_db_client()
     if request.project_id:
         require_project_member(user.get("sub"), request.project_id)
+    
+    # Validate file_url is safe (prevent javascript: / data: URI injection)
+    validate_url_safe(request.file_url)
+    
     response = db.table("documents").insert({
         "project_id": request.project_id,
         "workflow_id": request.workflow_id,
-        "filename": request.filename,
+        "filename": sanitize_chat_input(request.filename),
         "file_url": request.file_url,
         "uploaded_by": user.get("sub"),
     }).execute()
@@ -2892,6 +2951,12 @@ def get_document_download_url(document_id: str, user=Depends(get_current_user)):
     file_path = document.get("file_url")
     if not file_path:
         raise HTTPException(status_code=404, detail="File path missing")
+
+    # Reject dangerous URLs even from database (defense in depth)
+    try:
+        validate_url_safe(file_path)
+    except HTTPException:
+        raise HTTPException(status_code=500, detail="Invalid file path in database")
 
     # Always generate signed URL, even if file_url is a public URL
     # If file_url is a public URL, try to extract the storage path

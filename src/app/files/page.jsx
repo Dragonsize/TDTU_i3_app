@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
+import SkeletonLoader from "@/components/SkeletonLoader";
 import { useRouter } from "next/navigation";
 import { dFetch } from "@/lib/api";
 import {
@@ -18,7 +19,7 @@ function FileImagePreview({ file }) {
   useEffect(() => {
     let isMounted = true;
     setLoading(true); setError(""); setImgUrl(null);
-    dFetch(`/api/documents/${file.id}/download`, { credentials: "include" })
+    dFetch(`/api/documents/${file.id}/download`)
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to fetch file");
         const data = await res.json().catch(() => null);
@@ -32,9 +33,11 @@ function FileImagePreview({ file }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.id]);
 
-  if (loading) return <div className="flex items-center gap-2 text-gray-400 text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div>;
+  if (loading) return <div className="h-80 bg-gray-200 rounded-xl animate-pulse" />;
   if (error) return <span className="text-red-500 text-sm">{error}</span>;
   if (!imgUrl) return <span className="text-gray-400 text-sm">No image</span>;
+  // Blob/object URLs are generated at runtime, so native img is intentional here.
+  // eslint-disable-next-line @next/next/no-img-element
   return <img src={imgUrl} alt={file.filename || "Preview"} className="max-h-80 max-w-full rounded-xl shadow border border-gray-100 object-contain" />;
 }
 
@@ -46,7 +49,7 @@ function TextPreview({ fileId }) {
   useEffect(() => {
     let isMounted = true;
     setLoading(true); setError(""); setContent("");
-    dFetch(`/api/documents/${fileId}/download`, { credentials: "include" })
+    dFetch(`/api/documents/${fileId}/download`)
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to fetch file");
         const data = await res.json().catch(() => null);
@@ -59,7 +62,14 @@ function TextPreview({ fileId }) {
     return () => { isMounted = false; };
   }, [fileId]);
 
-  if (loading) return <div className="flex items-center gap-2 text-gray-400 text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div>;
+  if (loading) return (
+    <div className="space-y-3 animate-pulse">
+      <div className="h-4 bg-gray-200 rounded w-full" />
+      <div className="h-4 bg-gray-200 rounded w-5/6" />
+      <div className="h-4 bg-gray-200 rounded w-4/6" />
+      <div className="h-40 bg-gray-200 rounded-xl mt-4" />
+    </div>
+  );
   if (error) return <span className="text-red-500 text-sm">{error}</span>;
   if (!content) return <span className="text-gray-400 text-sm">No content</span>;
   return (
@@ -105,11 +115,11 @@ export default function FilesPage() {
 
   const canManageSelectedAccess = Boolean(selectedFile && currentUser && selectedFile.uploaded_by === currentUser.id);
 
-  const router = typeof window !== "undefined" ? require("next/navigation").useRouter() : null;
+  const router = useRouter();
 
   const fetchFiles = async () => {
     try {
-      const response = await dFetch("/api/documents", { credentials: "include" });
+      const response = await dFetch("/api/documents");
       if (!response.ok) throw new Error("Failed to load files");
       const data = await response.json();
       setFiles(Array.isArray(data) ? data : []);
@@ -123,7 +133,7 @@ export default function FilesPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await dFetch("/api/projects", { credentials: "include" });
+      const response = await dFetch("/api/projects");
       if (!response.ok) return;
       const data = await response.json();
       setProjects(Array.isArray(data) ? data : []);
@@ -133,15 +143,14 @@ export default function FilesPage() {
   useEffect(() => {
     fetchFiles();
     fetchProjects();
-    dFetch("/api/profile", { credentials: "include" })
+    dFetch("/api/profile")
       .then((res) => res.json())
       .then((data) => {
         if (data.profile) setCurrentUser(data.profile);
         else if (router) router.push("/login");
       })
       .catch(() => { if (router) router.push("/login"); });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (!selectedFile) { setAccessError(""); return; }
@@ -159,7 +168,7 @@ export default function FilesPage() {
       formData.append("file", file);
       if (shareScope === "project" && !selectedProject) throw new Error("Choose a project to share with all members.");
       if (shareScope === "project" && selectedProject) formData.append("project_id", selectedProject);
-      const response = await fetch("/api/documents/upload", { method: "POST", body: formData, credentials: "include" });
+      const response = await dFetch("/api/documents/upload", { method: "POST", body: formData });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.detail || "Upload failed");
@@ -174,7 +183,7 @@ export default function FilesPage() {
 
   const handleDownload = async (documentId, filename) => {
     try {
-      const response = await dFetch(`/api/documents/${documentId}/download`, { credentials: "include" });
+      const response = await dFetch(`/api/documents/${documentId}/download`);
       if (!response.ok) throw new Error("Failed to download");
       const data = await response.json();
       if (data.url) {
@@ -198,7 +207,7 @@ export default function FilesPage() {
     setDeleting(true);
     setDeleteError("");
     try {
-      const resp = await fetch(`/api/documents/${documentId}/delete`, { method: "POST", credentials: "include" });
+      const resp = await dFetch(`/api/documents/${documentId}/delete`, { method: "POST" });
       if (!resp.ok) {
         const data = await resp.json().catch(() => ({}));
         throw new Error(data.detail || "Failed to delete file");
@@ -222,10 +231,9 @@ export default function FilesPage() {
     setAccessSaving(true);
     setAccessError("");
     try {
-      const response = await fetch(`/api/documents/${selectedFile.id}/access`, {
+      const response = await dFetch(`/api/documents/${selectedFile.id}/access`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ project_id: targetProjectId }),
       });
       if (!response.ok) {
@@ -251,8 +259,11 @@ export default function FilesPage() {
 
   if (loading) {
     return (
-      <AppShell user={currentUser} activePath="/files" contentClassName="flex-1">
-        <PageLoader label="Loading files..." />
+      <AppShell user={currentUser} activePath="/files" contentClassName="flex-1 bg-gray-50/50">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+          <SkeletonLoader count={2} type="header" />
+          <SkeletonLoader count={6} type="file-list" />
+        </div>
       </AppShell>
     );
   }
