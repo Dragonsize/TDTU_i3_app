@@ -6,15 +6,15 @@ import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
 import SkeletonLoader from "@/components/SkeletonLoader";
 import { dFetch } from "@/lib/api";
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Plus, 
-  Calendar as CalendarIcon, 
-  Clock, 
-  Users, 
-  Search, 
-  CheckCircle2, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Calendar as CalendarIcon,
+  Clock,
+  Users,
+  Search,
+  CheckCircle2,
   AlertCircle,
   X,
   Trash2,
@@ -92,24 +92,20 @@ function TimeDropdown({ value, onChange, dark = false }) {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`w-full h-[44px] rounded-xl px-4 text-sm text-left flex items-center justify-between transition-all ${
-          dark
-            ? "border border-gray-700 bg-gray-800 text-white focus:ring-2 focus:ring-blue-500/20"
-            : "border border-gray-100 bg-gray-50 text-gray-900 focus:bg-white focus:ring-2 focus:ring-gray-900/10"
-        }`}
+        className={`w-full h-[44px] rounded-xl px-4 text-sm text-left flex items-center justify-between transition-all border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-neutral-800 text-gray-900 dark:text-white focus:bg-white dark:focus:bg-neutral-700 focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10`}
       >
         <span className="font-medium">{formatTimeLabel(value)}</span>
         <ChevronRight className="w-4 h-4 text-gray-400 rotate-90" />
       </button>
 
       {open && (
-        <div className={`absolute left-0 right-0 mt-2 max-h-52 overflow-y-auto rounded-2xl shadow-xl z-50 border ${dark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
+        <div className={`absolute left-0 right-0 mt-2 max-h-52 overflow-y-auto rounded-2xl shadow-xl z-50 border bg-white dark:bg-neutral-900 border-gray-100 dark:border-white/10`}>
           {TIME_OPTIONS.map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => { onChange(option); setOpen(false); }}
-              className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${option === value ? (dark ? "bg-gray-700 text-white" : "bg-gray-900 text-white") : (dark ? "text-gray-300 hover:bg-gray-700" : "text-gray-700 hover:bg-gray-50")}`}
+              className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${option === value ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900" : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800"}`}
             >
               {formatTimeLabel(option)}
             </button>
@@ -141,22 +137,18 @@ function DateDropdown({ value, onChange, dark = false }) {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`w-full h-[44px] rounded-xl px-4 text-sm text-left flex items-center justify-between transition-all ${
-          dark
-            ? "border border-gray-700 bg-gray-800 text-white focus:ring-2 focus:ring-blue-500/20"
-            : "border border-gray-100 bg-gray-50 text-gray-900 focus:bg-white focus:ring-2 focus:ring-gray-900/10"
-        }`}
+        className={`w-full h-[44px] rounded-xl px-4 text-sm text-left flex items-center justify-between transition-all border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-neutral-800 text-gray-900 dark:text-white focus:bg-white dark:focus:bg-neutral-700 focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10`}
       >
         <span className="font-medium">{selected ? selected.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Select date"}</span>
         <ChevronRight className="w-4 h-4 text-gray-400 rotate-90" />
       </button>
 
       {open && (
-        <div className={`absolute left-0 mt-2 w-[300px] rounded-2xl shadow-2xl z-50 p-4 border ${dark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"}`}>
+        <div className={`absolute left-0 mt-2 w-[300px] rounded-2xl shadow-2xl z-50 p-4 border bg-white dark:bg-neutral-900 border-gray-100 dark:border-white/10`}>
           <div className="flex items-center justify-between mb-4">
-            <button type="button" onClick={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() - 1, 1))} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${dark ? "text-gray-300 hover:bg-gray-700" : "text-gray-700 hover:bg-gray-100"}`}><ChevronLeft className="w-4 h-4" /></button>
-            <div className={`text-sm font-bold ${dark ? "text-white" : "text-gray-900"}`}>{displayMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</div>
-            <button type="button" onClick={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 1))} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${dark ? "text-gray-300 hover:bg-gray-700" : "text-gray-700 hover:bg-gray-100"}`}><ChevronRight className="w-4 h-4" /></button>
+            <button type="button" onClick={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() - 1, 1))} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800`}><ChevronLeft className="w-4 h-4" /></button>
+            <div className={`text-sm font-bold text-gray-900 dark:text-white`}>{displayMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}</div>
+            <button type="button" onClick={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 1))} className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800`}><ChevronRight className="w-4 h-4" /></button>
           </div>
           <div className="grid grid-cols-7 gap-1">
             {["M", "T", "W", "T", "F", "S", "S"].map(d => <div key={d} className="text-center text-[10px] font-bold text-gray-400 py-1">{d}</div>)}
@@ -168,7 +160,7 @@ function DateDropdown({ value, onChange, dark = false }) {
                   key={day.toISOString()}
                   type="button"
                   onClick={() => { onChange(`${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`); setOpen(false); }}
-                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-xs font-bold transition-all ${isSelected ? (dark ? "bg-white text-gray-900 shadow-lg" : "bg-gray-900 text-white shadow-lg shadow-gray-200") : (inMonth ? (dark ? "text-white hover:bg-gray-700" : "text-gray-700 hover:bg-gray-100") : "text-gray-300")}`}
+                  className={`w-9 h-9 flex items-center justify-center rounded-xl text-xs font-bold transition-all ${isSelected ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg shadow-gray-200 dark:shadow-none" : (inMonth ? "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-neutral-800" : "text-gray-300 dark:text-gray-700")}`}
                 >
                   {day.getDate()}
                 </button>
@@ -630,7 +622,7 @@ export default function CalendarPage() {
 
   if (loading) {
     return (
-      <AppShell user={user} activePath="/calendar" contentClassName="flex-1 bg-gray-50/50">
+      <AppShell user={user} activePath="/calendar" contentClassName="flex-1 bg-gray-50/50 dark:bg-neutral-950/50">
         <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <SkeletonLoader type="calendar" />
         </main>
@@ -639,40 +631,40 @@ export default function CalendarPage() {
   }
 
   return (
-    <AppShell user={user} activePath="/calendar" contentClassName="flex-1 bg-gray-50/50">
+    <AppShell user={user} activePath="/calendar" contentClassName="flex-1 bg-gray-50/50 dark:bg-neutral-950/50">
       <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-64px)]">
-        
+
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
           <div className="flex items-center gap-4">
             <button
               onClick={openCreateEventModal}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-gray-900 text-white text-sm font-bold hover:bg-black transition-all active:scale-[0.98] shadow-sm"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-sm font-bold hover:bg-black transition-all active:scale-[0.98] shadow-sm"
             >
               <Plus className="w-4 h-4" />
               Add Event
             </button>
-            <div className="flex items-center bg-white border border-gray-100 rounded-2xl p-1 shadow-sm">
-              <button onClick={jumpToToday} className="px-4 py-1.5 rounded-xl text-gray-700 text-sm font-bold hover:bg-gray-50 transition-all">Today</button>
+            <div className="flex items-center bg-white dark:bg-neutral-900 border border-gray-100 dark:border-white/10 rounded-2xl p-1 shadow-sm">
+              <button onClick={jumpToToday} className="px-4 py-1.5 rounded-xl text-gray-700 text-sm font-bold hover:bg-gray-50 dark:bg-neutral-800 transition-all">Today</button>
               <div className="w-px h-6 bg-gray-100 mx-1" />
-              <button 
-                onClick={() => navigateCalendar(-1)} 
-                className="w-10 h-10 rounded-xl text-gray-500 hover:bg-gray-50 flex items-center justify-center transition-all"
+              <button
+                onClick={() => navigateCalendar(-1)}
+                className="w-10 h-10 rounded-xl text-gray-500 hover:bg-gray-50 dark:bg-neutral-800 flex items-center justify-center transition-all"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <button 
-                onClick={() => navigateCalendar(1)} 
-                className="w-10 h-10 rounded-xl text-gray-500 hover:bg-gray-50 flex items-center justify-center transition-all"
+              <button
+                onClick={() => navigateCalendar(1)}
+                className="w-10 h-10 rounded-xl text-gray-500 hover:bg-gray-50 dark:bg-neutral-800 flex items-center justify-center transition-all"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
             </div>
-            <h1 className="ml-2 text-2xl font-extrabold text-gray-900 tracking-tight">{headerLabel}</h1>
+            <h1 className="ml-2 text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">{headerLabel}</h1>
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="inline-flex items-center rounded-2xl border border-gray-100 bg-white p-1 shadow-sm">
+            <div className="inline-flex items-center rounded-2xl border border-gray-100 dark:border-white/10 bg-white dark:bg-neutral-900 p-1 shadow-sm">
               {[
                 { key: "day", label: "Day", icon: Layout },
                 { key: "week", label: "Week", icon: List },
@@ -681,26 +673,25 @@ export default function CalendarPage() {
                 <button
                   key={item.key}
                   onClick={() => setCalendarView(item.key)}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                    calendarView === item.key ? "bg-gray-900 text-white shadow-md shadow-gray-200 border-transparent" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
-                  }`}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${calendarView === item.key ? "bg-gray-900 text-white shadow-md shadow-gray-200 border-transparent" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                    }`}
                 >
                   <item.icon className="w-4 h-4" />
                   {item.label}
                 </button>
               ))}
             </div>
-            
-            <div className="flex items-center bg-white border border-gray-100 rounded-2xl p-1 shadow-sm">
-              <button 
-                onClick={() => setViewMode("personal")} 
+
+            <div className="flex items-center bg-white dark:bg-neutral-900 border border-gray-100 dark:border-white/10 rounded-2xl p-1 shadow-sm">
+              <button
+                onClick={() => setViewMode("personal")}
                 className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === "personal" ? "bg-blue-50 text-blue-600 shadow-sm" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}
               >
                 <Target className="w-4 h-4" />
                 Personal
               </button>
-              <button 
-                onClick={() => setViewMode("team")} 
+              <button
+                onClick={() => setViewMode("team")}
                 className={`flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold transition-all ${viewMode === "team" ? "bg-indigo-50 text-indigo-600 shadow-sm" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}`}
               >
                 <Users className="w-4 h-4" />
@@ -718,12 +709,12 @@ export default function CalendarPage() {
 
         {/* Layout with Sidebar */}
         <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-8">
-          
+
           {/* Sidebar */}
           <aside className="space-y-6">
             {viewMode === "team" && (
-              <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
-                <h3 className="text-sm font-extrabold text-gray-900 mb-4 flex items-center gap-2">
+              <div className="bg-white dark:bg-neutral-900 rounded-3xl border border-gray-100 dark:border-white/10 p-6 shadow-sm">
+                <h3 className="text-sm font-extrabold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                   <Search className="w-4 h-4 text-blue-500" />
                   Meeting Finder
                 </h3>
@@ -733,12 +724,12 @@ export default function CalendarPage() {
                     <select
                       value={teamProjectId}
                       onChange={(e) => setTeamProjectId(e.target.value)}
-                      className="w-full h-[40px] bg-gray-50 border-0 rounded-xl px-4 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-blue-500/10"
+                      className="w-full h-[40px] bg-gray-50 dark:bg-neutral-800 border-0 rounded-xl px-4 text-sm font-medium text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/10"
                     >
                       {projects.map(p => <option key={p.id} value={p.id}>{p.title || p.name}</option>)}
                     </select>
                   </div>
-                  
+
                   <div>
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 ml-1">Team Members</label>
                     <div className="space-y-1.5 max-h-48 overflow-auto pr-2 custom-scrollbar">
@@ -763,7 +754,7 @@ export default function CalendarPage() {
                       <select
                         value={meetingDuration}
                         onChange={(e) => setMeetingDuration(Number(e.target.value))}
-                        className="w-full h-[40px] bg-gray-50 border-0 rounded-xl px-3 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-blue-500/10"
+                        className="w-full h-[40px] bg-gray-50 dark:bg-neutral-800 border-0 rounded-xl px-3 text-sm font-medium text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/10"
                       >
                         {[30, 45, 60, 90, 120].map((minutes) => (
                           <option key={minutes} value={minutes}>{minutes} min</option>
@@ -772,7 +763,7 @@ export default function CalendarPage() {
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 ml-1">Members</label>
-                      <div className="h-[40px] bg-gray-50 rounded-xl px-3 flex items-center text-xs font-bold text-gray-700">
+                      <div className="h-[40px] bg-gray-50 dark:bg-neutral-800 rounded-xl px-3 flex items-center text-xs font-bold text-gray-700">
                         {selectedMemberIds.length || teamData.members.length} people
                       </div>
                     </div>
@@ -785,7 +776,7 @@ export default function CalendarPage() {
                         type="datetime-local"
                         value={meetingWindowStart}
                         onChange={(e) => setMeetingWindowStart(e.target.value)}
-                        className="w-full h-[40px] bg-gray-50 border-0 rounded-xl px-3 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-blue-500/10"
+                        className="w-full h-[40px] bg-gray-50 dark:bg-neutral-800 border-0 rounded-xl px-3 text-sm font-medium text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/10"
                       />
                     </div>
                     <div>
@@ -794,16 +785,16 @@ export default function CalendarPage() {
                         type="datetime-local"
                         value={meetingWindowEnd}
                         onChange={(e) => setMeetingWindowEnd(e.target.value)}
-                        className="w-full h-[40px] bg-gray-50 border-0 rounded-xl px-3 text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-blue-500/10"
+                        className="w-full h-[40px] bg-gray-50 dark:bg-neutral-800 border-0 rounded-xl px-3 text-sm font-medium text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/10"
                       />
                     </div>
                   </div>
 
-                  <button 
+                  <button
                     type="button"
                     onClick={findMeetingSlots}
                     disabled={planningMeeting || !teamProjectId}
-                    className="w-full py-3 bg-gray-900 text-white rounded-2xl text-xs font-bold hover:bg-black transition-all active:scale-[0.98] mt-2 shadow-sm"
+                    className="w-full py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl text-xs font-bold hover:bg-black transition-all active:scale-[0.98] mt-2 shadow-sm"
                   >
                     {planningMeeting ? "Finding..." : "Find Optimum Slots"}
                   </button>
@@ -816,8 +807,8 @@ export default function CalendarPage() {
                       const start = new Date(slot.start_time);
                       const end = new Date(slot.end_time);
                       return (
-                        <div key={slot.start_time} className="border border-gray-100 rounded-xl p-3 bg-gray-50/70">
-                          <p className="text-xs font-bold text-gray-900">
+                        <div key={slot.start_time} className="border border-gray-100 dark:border-white/10 rounded-xl p-3 bg-gray-50 dark:bg-neutral-800/70">
+                          <p className="text-xs font-bold text-gray-900 dark:text-white">
                             {start.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                           </p>
                           <p className="text-[11px] text-gray-600 mt-0.5">
@@ -827,7 +818,7 @@ export default function CalendarPage() {
                             type="button"
                             onClick={() => scheduleFromSlot(slot)}
                             disabled={planningMeeting}
-                            className="mt-2 w-full py-1.5 rounded-lg bg-white border border-gray-200 text-[11px] font-bold text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-60"
+                            className="mt-2 w-full py-1.5 rounded-lg bg-white dark:bg-neutral-900 border border-gray-200 text-[11px] font-bold text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-60"
                           >
                             Schedule This Slot
                           </button>
@@ -838,16 +829,16 @@ export default function CalendarPage() {
                 </div>
               </div>
             )}
-            <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
-              <h3 className="text-sm font-extrabold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white dark:bg-neutral-900 rounded-3xl border border-gray-100 dark:border-white/10 p-6 shadow-sm">
+              <h3 className="text-sm font-extrabold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <Bell className="w-4 h-4 text-amber-500" />
                 Upcoming
               </h3>
               <div className="space-y-3">
                 {sortedUpcomingEvents.map(ev => (
                   <div key={ev.id} className="group cursor-pointer">
-                    <p className="text-xs font-bold text-gray-800 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{ev.title}</p>
-                    <p className="text-[10px] font-medium text-gray-400 mt-0.5">{new Date(ev.start_time).toLocaleDateString("en-US", { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'})}</p>
+                    <p className="text-xs font-bold text-gray-800 dark:text-gray-200 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{ev.title}</p>
+                    <p className="text-[10px] font-medium text-gray-400 mt-0.5">{new Date(ev.start_time).toLocaleDateString("en-US", { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                     {viewMode === "team" && ev.user_id && (
                       <p className="text-[10px] font-bold text-indigo-500 mt-0.5">{memberMap[ev.user_id] || "Team member"}</p>
                     )}
@@ -858,10 +849,10 @@ export default function CalendarPage() {
           </aside>
 
           {/* Calendar Grid Container */}
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+          <div className="bg-white dark:bg-neutral-900 rounded-3xl border border-gray-100 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
             {calendarView === "month" && (
               <>
-                <div className="grid grid-cols-7 border-b border-gray-100 bg-gray-50/50">
+                <div className="grid grid-cols-7 border-b border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-neutral-800/50">
                   {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
                     <div key={day} className="py-3 text-center text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">{day}</div>
                   ))}
@@ -879,10 +870,20 @@ export default function CalendarPage() {
                         type="button"
                         key={d.toISOString()}
                         onClick={() => setSelectedDay(d)}
-                        className={`min-h-[120px] p-3 text-left border-r border-b border-gray-50 last:border-r-0 transition-colors ${!isCurrentMonth ? "bg-gray-50/20" : "bg-white hover:bg-gray-50/30"}`}
+                        className={`min-h-[120px] p-3 text-left border-r border-b border-gray-100 dark:border-white/10 last:border-r-0 transition-colors ${!isCurrentMonth
+                          ? "bg-gray-50/20 dark:bg-neutral-800/30"
+                          : "bg-white dark:bg-neutral-900 hover:bg-gray-50/30 dark:hover:bg-neutral-800"
+                          }`}
                       >
                         <div className="flex justify-between items-center mb-2">
-                          <span className={`text-xs font-extrabold px-1.5 py-0.5 rounded-lg ${isToday ? "bg-gray-900 text-white" : (isCurrentMonth ? "text-gray-900" : "text-gray-300")}`}>
+                          <span
+                            className={`text-xs font-extrabold px-1.5 py-0.5 rounded-lg ${isToday
+                                ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
+                                : isCurrentMonth
+                                  ? "text-gray-900 dark:text-white"
+                                  : "text-gray-300 dark:text-gray-600"
+                              }`}
+                          >
                             {d.getDate()}
                           </span>
                         </div>
@@ -918,7 +919,7 @@ export default function CalendarPage() {
                   const isToday = isSameDate(day, new Date());
                   const isSelected = isSameDate(day, selectedDay);
                   return (
-                    <div key={key} className="p-3 sm:p-4 bg-white">
+                    <div key={key} className="p-3 sm:p-4 bg-white dark:bg-neutral-900">
                       <button
                         type="button"
                         onClick={() => setSelectedDay(day)}
@@ -950,9 +951,9 @@ export default function CalendarPage() {
             )}
 
             {calendarView === "day" && (
-              <div className="min-h-[700px] p-4 sm:p-6 bg-white">
+              <div className="min-h-[700px] p-4 sm:p-6 bg-white dark:bg-neutral-900">
                 <div className="mb-4">
-                  <h3 className="text-lg font-extrabold text-gray-900">
+                  <h3 className="text-lg font-extrabold text-gray-900 dark:text-white">
                     {selectedDay.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
                   </h3>
                 </div>
@@ -965,11 +966,11 @@ export default function CalendarPage() {
                       key={`${ev.id}-${ev.user_id || "self"}`}
                       type="button"
                       onClick={() => startEditEvent(ev)}
-                      className="w-full text-left rounded-2xl border border-gray-100 px-4 py-3 hover:bg-gray-50 transition-colors"
+                      className="w-full text-left rounded-2xl border border-gray-100 dark:border-white/10 px-4 py-3 hover:bg-gray-50 dark:bg-neutral-800 transition-colors"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-sm font-bold text-gray-900 truncate">{viewMode === "team" ? `${memberMap[ev.user_id] || "Member"}: ${ev.title}` : ev.title}</p>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{viewMode === "team" ? `${memberMap[ev.user_id] || "Member"}: ${ev.title}` : ev.title}</p>
                           <p className="text-xs text-gray-500 mt-1">
                             {new Date(ev.start_time).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
                             {" - "}
@@ -994,10 +995,10 @@ export default function CalendarPage() {
         {/* Modal: Redesigned as White Premium Card */}
         {showEventModal && (
           <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="w-full max-w-xl rounded-[32px] bg-white text-gray-900 shadow-2xl p-8 border border-white relative">
-              <button 
-                onClick={() => setShowEventModal(false)} 
-                className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-2xl bg-gray-50 text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all"
+            <div className="w-full max-w-xl rounded-[32px] bg-white dark:bg-neutral-900 text-gray-900 dark:text-white shadow-2xl p-8 border border-white relative">
+              <button
+                onClick={() => setShowEventModal(false)}
+                className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-2xl bg-gray-50 dark:bg-neutral-800 text-gray-400 hover:text-gray-900 dark:text-white hover:bg-gray-100 transition-all"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1006,7 +1007,7 @@ export default function CalendarPage() {
                 <span className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold uppercase tracking-wider mb-2">
                   <Zap className="w-3 h-3" /> {editingEventId ? "Update Session" : "New Event Entry"}
                 </span>
-                <h2 className="text-3xl font-extrabold tracking-tight text-gray-900">{editingEventId ? "Edit Event" : "Create Event"}</h2>
+                <h2 className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white">{editingEventId ? "Edit Event" : "Create Event"}</h2>
               </div>
 
               <form onSubmit={submitEvent} className="space-y-6">
@@ -1019,7 +1020,7 @@ export default function CalendarPage() {
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="Product Workshop..."
-                      className="w-full h-14 bg-gray-50 border-0 rounded-2xl pl-12 pr-4 text-sm font-bold placeholder:text-gray-300 outline-none focus:ring-4 focus:ring-blue-500/10 focus:bg-white transition-all"
+                      className="w-full h-14 bg-gray-50 dark:bg-neutral-800 border-0 rounded-2xl pl-12 pr-4 text-sm font-bold placeholder:text-gray-300 outline-none focus:ring-4 focus:ring-blue-500/10 focus:bg-white dark:bg-neutral-900 transition-all"
                     />
                   </div>
                 </div>
@@ -1052,7 +1053,7 @@ export default function CalendarPage() {
                     <select
                       value={eventType}
                       onChange={(e) => setEventType(e.target.value)}
-                      className="w-full h-11 bg-gray-50 border-0 rounded-2xl px-4 text-sm font-bold outline-none focus:bg-white focus:ring-4 focus:ring-blue-500/5 transition-all appearance-none"
+                      className="w-full h-11 bg-gray-50 dark:bg-neutral-800 border-0 rounded-2xl px-4 text-sm font-bold outline-none focus:bg-white dark:bg-neutral-900 focus:ring-4 focus:ring-blue-500/5 transition-all appearance-none"
                     >
                       <option value="meeting">Meeting</option>
                       <option value="task">Task / Job</option>
@@ -1061,15 +1062,14 @@ export default function CalendarPage() {
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 ml-1">Status</label>
-                    <div className="flex gap-1 p-1 bg-gray-50 rounded-2xl border border-gray-100 h-11">
+                    <div className="flex gap-1 p-1 bg-gray-50 dark:bg-neutral-800 rounded-2xl border border-gray-100 dark:border-white/10 h-11">
                       {Object.entries(STATUS_CONFIG).map(([key, config]) => (
                         <button
                           key={key}
                           type="button"
                           onClick={() => setStatus(key)}
-                          className={`flex-1 rounded-xl flex items-center justify-center text-[9px] font-black uppercase tracking-tight transition-all ${
-                            status === key ? `${config.color} text-white shadow-sm` : "text-gray-400 hover:bg-white hover:text-gray-900"
-                          }`}
+                          className={`flex-1 rounded-xl flex items-center justify-center text-[9px] font-black uppercase tracking-tight transition-all ${status === key ? `${config.color} text-white shadow-sm` : "text-gray-400 hover:bg-white hover:text-gray-900"
+                            }`}
                           title={config.label}
                         >
                           {key === "in_process" ? "Proc" : key === "finished" ? "Done" : key === "pause" ? "Wait" : "Pend"}
@@ -1082,39 +1082,39 @@ export default function CalendarPage() {
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-3 ml-1">Custom Identification Color</label>
                   <div className="flex flex-wrap gap-3 ml-1">
-                     {PRESET_COLORS.map(c => (
-                        <button
-                          key={c.hex}
-                          type="button"
-                          onClick={() => setColor(c.hex)}
-                          className={`w-8 h-8 rounded-full ${c.bg} transition-all transform hover:scale-110 active:scale-90 border-2 ${color === c.hex ? "border-gray-900 scale-110 shadow-md ring-4 ring-gray-100" : "border-transparent"}`}
-                          title={c.name}
-                        />
-                     ))}
-                     <button
+                    {PRESET_COLORS.map(c => (
+                      <button
+                        key={c.hex}
                         type="button"
-                        onClick={() => setColor("")}
-                        className={`px-4 h-8 rounded-full bg-gray-50 text-[9px] font-bold uppercase tracking-widest text-gray-400 hover:text-gray-900 border-2 transition-all ${!color ? "border-gray-900 bg-white" : "border-transparent"}`}
-                     >
-                        Auto (By Status)
-                     </button>
+                        onClick={() => setColor(c.hex)}
+                        className={`w-8 h-8 rounded-full ${c.bg} transition-all transform hover:scale-110 active:scale-90 border-2 ${color === c.hex ? "border-gray-900 scale-110 shadow-md ring-4 ring-gray-100" : "border-transparent"}`}
+                        title={c.name}
+                      />
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setColor("")}
+                      className={`px-4 h-8 rounded-full bg-gray-50 text-[9px] font-bold uppercase tracking-widest text-gray-400 hover:text-gray-900 border-2 transition-all ${!color ? "border-gray-900 bg-white" : "border-transparent"}`}
+                    >
+                      Auto (By Status)
+                    </button>
                   </div>
                 </div>
 
                 <div className="pt-4 flex gap-3">
                   {editingEventId && (
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={() => deleteEvent(editingEventId)}
                       className="w-14 h-14 flex items-center justify-center rounded-2xl bg-red-50 text-red-500 hover:bg-red-100 transition-all border border-red-50"
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
                   )}
-                  <button 
-                    type="submit" 
-                    disabled={submitting} 
-                    className="flex-1 h-14 bg-gray-900 text-white rounded-2xl text-sm font-bold hover:bg-black transition-all active:scale-[0.98] shadow-lg shadow-gray-200"
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="flex-1 h-14 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl text-sm font-bold hover:bg-black transition-all active:scale-[0.98] shadow-lg shadow-gray-200"
                   >
                     {submitting ? "Processing..." : (editingEventId ? "Apply Changes" : "Confirm Event")}
                   </button>

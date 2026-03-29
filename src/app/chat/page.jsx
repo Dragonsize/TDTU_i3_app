@@ -37,7 +37,7 @@ export default function ChatPage() {
 
   if (loading) {
     return (
-      <AppShell user={user} activePath="/chat" contentClassName="flex-1 bg-gray-50/50" fullHeight={true}>
+      <AppShell user={user} activePath="/chat" contentClassName="flex-1 bg-gray-50/50 dark:bg-neutral-950/50" fullHeight={true}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 h-full">
           <SkeletonLoader type="chat-channels" />
         </div>

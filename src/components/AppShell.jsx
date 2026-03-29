@@ -50,7 +50,7 @@ export default function AppShell({ user, activePath, contentClassName = "", full
     const savedTheme = localStorage.getItem("theme");
     const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     const initialTheme = savedTheme || systemTheme;
-    
+
     setTheme(initialTheme);
     if (initialTheme === "dark") {
       document.documentElement.classList.add("dark");
@@ -63,7 +63,7 @@ export default function AppShell({ user, activePath, contentClassName = "", full
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
     localStorage.setItem("theme", newTheme);
-    
+
     if (newTheme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
@@ -76,15 +76,15 @@ export default function AppShell({ user, activePath, contentClassName = "", full
     try {
       // 1. Backend logout (clears HttpOnly cookies)
       await dFetch("/api/auth/logout", { method: "POST" });
-      
+
       // 2. Supabase logout (clears client-side session)
       if (supabase) {
         await supabase.auth.signOut();
       }
-      
+
       // 3. Clear local cache
       localStorage.removeItem("userProfile");
-      
+
       // 4. Redirect
       router.push("/login");
     } catch (err) {
@@ -127,7 +127,7 @@ export default function AppShell({ user, activePath, contentClassName = "", full
 
         <div className="flex items-center gap-4 sm:gap-6">
           {/* Theme Toggle Button */}
-          <button 
+          <button
             onClick={toggleTheme}
             className="p-2 rounded-xl bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-all active:scale-95 shadow-sm"
             aria-label="Toggle Theme"
@@ -135,7 +135,7 @@ export default function AppShell({ user, activePath, contentClassName = "", full
             {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
           </button>
 
-          <div 
+          <div
             className="relative"
             onMouseEnter={() => setIsMenuOpen(true)}
             onMouseLeave={() => setIsMenuOpen(false)}
@@ -171,17 +171,17 @@ export default function AppShell({ user, activePath, contentClassName = "", full
                     <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{displayName}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{internalUser?.email}</p>
                   </div>
-                  
+
                   <div className="p-2">
-                    <Link 
-                      href="/settings" 
+                    <Link
+                      href="/settings"
                       className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                     >
                       <User className="w-4 h-4" />
                       View Profile
                     </Link>
-                    <Link 
-                      href="/settings" 
+                    <Link
+                      href="/settings"
                       className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                     >
                       <Settings className="w-4 h-4" />
@@ -205,7 +205,7 @@ export default function AppShell({ user, activePath, contentClassName = "", full
         </div>
       </header>
 
-      <nav className="md:hidden border-b border-black/10 bg-white px-3 py-2 overflow-x-auto shrink-0">
+      <nav className="md:hidden border-b border-black/10 dark:border-white/10 bg-white dark:bg-neutral-900 px-3 py-2 overflow-x-auto shrink-0">
         <div className="flex items-center gap-2 min-w-max">
           {NAV_ITEMS.map((item) => (
             <Link
@@ -213,8 +213,8 @@ export default function AppShell({ user, activePath, contentClassName = "", full
               href={item.href}
               className={
                 isActiveNav(activePath, item.href)
-                  ? "px-3 py-1.5 rounded-full bg-black text-white text-xs font-medium"
-                  : "px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 text-xs font-medium hover:bg-gray-200"
+                  ? "px-3 py-1.5 rounded-full bg-black dark:bg-white text-white dark:text-neutral-950 text-xs font-medium"
+                  : "px-3 py-1.5 rounded-full bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 text-xs font-medium hover:bg-gray-200 dark:hover:bg-neutral-700"
               }
             >
               {item.label}

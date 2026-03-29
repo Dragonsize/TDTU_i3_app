@@ -4,19 +4,19 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { dFetch } from "@/lib/api";
-import { 
-  ArrowLeft, 
-  Plus, 
-  MoreVertical, 
-  Send, 
-  Search, 
-  Settings, 
-  Users, 
-  MessageSquare, 
-  Trash2, 
-  UserPlus, 
-  Edit3, 
-  Menu, 
+import {
+  ArrowLeft,
+  Plus,
+  MoreVertical,
+  Send,
+  Search,
+  Settings,
+  Users,
+  MessageSquare,
+  Trash2,
+  UserPlus,
+  Edit3,
+  Menu,
   X,
   Target,
   Hash,
@@ -103,7 +103,7 @@ export default function ChatRoom({ user }) {
     if (!activeChannel || !user) return;
 
     setMessages([]);
-    
+
     // Fetch initial history
     const fetchInitialMessages = async () => {
       try {
@@ -117,7 +117,7 @@ export default function ChatRoom({ user }) {
         console.error("Failed to fetch messages", error);
       }
     };
-    
+
     fetchInitialMessages();
 
     let ws = null;
@@ -219,8 +219,8 @@ export default function ChatRoom({ user }) {
     const res = await dFetch("/api/projects");
 
     if (res.ok) {
-        const data = await res.json();
-        setProjects(Array.isArray(data) ? data : []);
+      const data = await res.json();
+      setProjects(Array.isArray(data) ? data : []);
     }
   }, []);
 
@@ -241,26 +241,26 @@ export default function ChatRoom({ user }) {
   };
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-gray-50/50">
-      
+    <div className="flex h-full w-full overflow-hidden bg-gray-50/50 dark:bg-neutral-950 text-gray-900 dark:text-white">
+
       {/* Sidebar - Redesigned as modern panel */}
-      <aside 
-        className={`${isSidebarOpen ? "w-80" : "w-0"} bg-white border-r border-gray-100 flex flex-col transition-all duration-300 overflow-hidden shrink-0 shadow-sm`}
+      <aside
+        className={`${isSidebarOpen ? "w-80" : "w-0"} bg-white dark:bg-neutral-900 border-r border-gray-100 dark:border-white/10 flex flex-col transition-all duration-300 overflow-hidden shrink-0 shadow-sm`}
       >
         <div className="p-6 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-4">
-            <Link 
+            <Link
               href="/dashboard"
-              className="w-10 h-10 rounded-2xl bg-gray-50 hover:bg-gray-100 flex items-center justify-center transition-all text-gray-500 hover:text-gray-900 group"
+              className="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-neutral-800 hover:bg-gray-100 dark:hover:bg-neutral-700 flex items-center justify-center transition-all text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white group"
               title="Dashboard"
             >
               <ChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
             </Link>
-            <h2 className="font-extrabold text-2xl text-gray-900 tracking-tight">Chats</h2>
+            <h2 className="font-extrabold text-2xl text-gray-900 dark:text-white tracking-tight">Chats</h2>
           </div>
-          <button 
+          <button
             onClick={() => setShowNewChannelModal(true)}
-            className="w-10 h-10 rounded-2xl bg-gray-900 hover:bg-black flex items-center justify-center transition-all text-white shadow-lg shadow-gray-200"
+            className="w-10 h-10 rounded-2xl bg-gray-900 dark:bg-white hover:bg-black dark:hover:bg-gray-200 flex items-center justify-center transition-all text-white dark:text-gray-900 shadow-lg shadow-gray-200 dark:shadow-none"
             title="New Chat"
           >
             <Plus className="w-5 h-5" />
@@ -270,10 +270,10 @@ export default function ChatRoom({ user }) {
         <div className="px-4 pb-4 shrink-0">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="Search conversations..." 
-              className="w-full h-11 bg-gray-50 border-0 rounded-2xl pl-12 pr-4 text-sm font-medium text-gray-900 outline-none focus:bg-white focus:ring-4 focus:ring-gray-900/5 transition-all"
+            <input
+              type="text"
+              placeholder="Search conversations..."
+              className="w-full h-11 bg-gray-50 dark:bg-neutral-800 border-0 rounded-2xl pl-12 pr-4 text-sm font-medium text-gray-900 dark:text-white outline-none focus:bg-white dark:focus:bg-neutral-700 focus:ring-4 focus:ring-gray-900/5 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
             />
           </div>
         </div>
@@ -283,15 +283,13 @@ export default function ChatRoom({ user }) {
             <button
               key={channel.id}
               onClick={() => setActiveChannel(channel)}
-              className={`w-full text-left p-3.5 rounded-2xl transition-all flex items-center gap-4 group ${
-                activeChannel?.id === channel.id
-                  ? "bg-gray-900 text-white shadow-lg shadow-gray-200"
-                  : "bg-white hover:bg-gray-50 border border-transparent hover:border-gray-100"
-              }`}
+              className={`w-full text-left p-3.5 rounded-2xl transition-all flex items-center gap-4 group ${activeChannel?.id === channel.id
+                ? "bg-gray-900 dark:bg-neutral-800 text-white shadow-lg shadow-gray-200 dark:shadow-none"
+                : "bg-white dark:bg-neutral-900 hover:bg-gray-50 dark:hover:bg-neutral-800 border border-transparent hover:border-gray-100 dark:hover:border-white/5"
+                }`}
             >
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-lg flex-shrink-0 shadow-inner ${
-                activeChannel?.id === channel.id ? "bg-white/20" : "bg-blue-600 shadow-blue-200/50"
-              }`}>
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-lg flex-shrink-0 shadow-inner ${activeChannel?.id === channel.id ? "bg-white/20" : "bg-blue-600 shadow-blue-200/50"
+                }`}>
                 {getChannelInitials(channel.name)}
               </div>
               <div className="flex-1 min-w-0">
@@ -303,7 +301,7 @@ export default function ChatRoom({ user }) {
                 </div>
               </div>
               {activeChannel?.id !== channel.id && (
-                 <div className="w-2 h-2 rounded-full bg-blue-500 opacity-0 group-hover:opacity-100" />
+                <div className="w-2 h-2 rounded-full bg-blue-500 opacity-0 group-hover:opacity-100" />
               )}
             </button>
           ))}
@@ -312,13 +310,13 @@ export default function ChatRoom({ user }) {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col h-full relative min-w-0 overflow-hidden">
-        
+
         {/* Header - Premium Navigation Bar */}
-        <header className="h-20 border-b border-gray-100 flex items-center px-8 justify-between bg-white/80 backdrop-blur-sm shrink-0 sticky top-0 z-10">
+        <header className="h-20 border-b border-gray-100 dark:border-white/10 flex items-center px-8 justify-between bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm shrink-0 sticky top-0 z-10">
           <div className="flex items-center gap-4 min-w-0 flex-1">
-            <button 
+            <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${isSidebarOpen ? "bg-gray-50 text-gray-500" : "bg-gray-900 text-white shadow-lg"}`}
+              className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${isSidebarOpen ? "bg-gray-50 dark:bg-neutral-800 text-gray-500 dark:text-gray-400" : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg"}`}
             >
               {isSidebarOpen ? <Menu className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5 rotate-180" />}
             </button>
@@ -329,7 +327,7 @@ export default function ChatRoom({ user }) {
                 </div>
               )}
               <div className="truncate">
-                <h3 className="font-extrabold text-lg text-gray-900 leading-tight truncate">
+                <h3 className="font-extrabold text-lg text-gray-900 dark:text-white leading-tight truncate">
                   {activeChannel ? activeChannel.name : "Select a conversation"}
                 </h3>
                 <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-0.5 flex items-center gap-1.5">
@@ -342,7 +340,7 @@ export default function ChatRoom({ user }) {
           <div className="flex items-center gap-2">
             {activeChannel && (
               <>
-                <button 
+                <button
                   onClick={() => setShowMembersModal(true)}
                   className="w-10 h-10 rounded-2xl bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-all border border-gray-100"
                   title="Team Members"
@@ -350,7 +348,7 @@ export default function ChatRoom({ user }) {
                   <Users className="w-5 h-5" />
                 </button>
                 <div className="relative">
-                  <button 
+                  <button
                     onClick={() => setShowDropdown(!showDropdown)}
                     className="w-10 h-10 rounded-2xl bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-all border border-gray-100"
                   >
@@ -358,7 +356,7 @@ export default function ChatRoom({ user }) {
                   </button>
                   {showDropdown && (
                     <div className="absolute right-0 top-full mt-3 w-56 bg-white rounded-3xl shadow-2xl border border-gray-100 p-2 z-20 animate-fadeIn origin-top-right">
-                       <button onClick={() => { setShowRenameModal(true); setShowDropdown(false); }} className="w-full px-4 py-3 text-left text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl flex items-center gap-3 transition-colors">
+                      <button onClick={() => { setShowRenameModal(true); setShowDropdown(false); }} className="w-full px-4 py-3 text-left text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl flex items-center gap-3 transition-colors">
                         <Edit3 className="w-4 h-4 text-gray-400" /> Rename Chat
                       </button>
                       <button onClick={() => { setShowAddMemberModal(true); setShowDropdown(false); }} className="w-full px-4 py-3 text-left text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl flex items-center gap-3 transition-colors">
@@ -379,8 +377,8 @@ export default function ChatRoom({ user }) {
         </header>
 
         {/* Message Stream */}
-        <div 
-          className="flex-1 overflow-y-auto px-8 py-8 space-y-8 bg-white/50 custom-scrollbar"
+        <div
+          className="flex-1 overflow-y-auto px-8 py-8 space-y-8 bg-white/50 dark:bg-neutral-950/50 custom-scrollbar"
           ref={chatContainerRef}
         >
           {messages.length === 0 && activeChannel && (
@@ -389,8 +387,8 @@ export default function ChatRoom({ user }) {
                 <MessageSquare className="w-8 h-8" />
               </div>
               <div>
-                 <h4 className="font-extrabold text-xl text-gray-900">Beginning of the story</h4>
-                 <p className="text-sm text-gray-400 max-w-xs mx-auto mt-2">Send your first message to start the collaboration in this channel.</p>
+                <h4 className="font-extrabold text-xl text-gray-900">Beginning of the story</h4>
+                <p className="text-sm text-gray-400 max-w-xs mx-auto mt-2">Send your first message to start the collaboration in this channel.</p>
               </div>
             </div>
           )}
@@ -399,37 +397,36 @@ export default function ChatRoom({ user }) {
             const isSelf = msg.sender_id === user?.id;
             const nextMsg = messages[index + 1];
             const isLastInGroup = !nextMsg || nextMsg.sender_id !== msg.sender_id;
-            
+
             return (
               <div key={msg.id || index} className={`flex gap-4 ${isSelf ? "flex-row-reverse" : "flex-row"} group`}>
                 <div className={`w-10 h-10 shrink-0 flex items-end justify-center ${isLastInGroup ? "opacity-100" : "opacity-0"}`}>
-                   <div className="w-10 h-10 rounded-2xl bg-gray-100 border border-gray-200 flex items-center justify-center text-xs font-black text-gray-600 overflow-hidden">
-                      {msg.profiles?.avatar_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={msg.profiles.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-                      ) : (msg.profiles?.username?.[0] || "U").toUpperCase()}
-                   </div>
+                  <div className="w-10 h-10 rounded-2xl bg-gray-100 border border-gray-200 flex items-center justify-center text-xs font-black text-gray-600 overflow-hidden">
+                    {msg.profiles?.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={msg.profiles.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (msg.profiles?.username?.[0] || "U").toUpperCase()}
+                  </div>
                 </div>
 
                 <div className={`flex flex-col max-w-[70%] ${isSelf ? "items-end text-right" : "items-start text-left"}`}>
                   {!isSelf && isLastInGroup && (
                     <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 ml-2">
-                       {msg.profiles?.username || "Teammate"} • {formatTime(msg.sent_at)}
+                      {msg.profiles?.username || "Teammate"} • {formatTime(msg.sent_at)}
                     </span>
                   )}
-                  <div 
-                    className={`px-5 py-3.5 rounded-[28px] text-sm font-semibold leading-relaxed shadow-sm transition-transform active:scale-[0.99] ${
-                      isSelf 
-                        ? "bg-gray-900 text-white rounded-tr-none" 
-                        : "bg-white text-gray-900 border border-gray-100 rounded-tl-none"
-                    }`}
+                  <div
+                    className={`px-5 py-3.5 rounded-[28px] text-sm font-semibold leading-relaxed shadow-sm transition-transform active:scale-[0.99] ${isSelf
+                      ? "bg-gray-900 dark:bg-blue-600 text-white rounded-tr-none"
+                      : "bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 border border-gray-100 dark:border-white/5 rounded-tl-none"
+                      }`}
                   >
                     {msg.message}
                   </div>
                   {isSelf && isLastInGroup && (
                     <div className="flex items-center gap-1.5 mt-2 mr-2">
-                       <span className="text-[10px] font-bold text-gray-400 uppercase">{formatTime(msg.sent_at)}</span>
-                       <CheckCircle2 className="w-3 h-3 text-blue-500" />
+                      <span className="text-[10px] font-bold text-gray-400 uppercase">{formatTime(msg.sent_at)}</span>
+                      <CheckCircle2 className="w-3 h-3 text-blue-500" />
                     </div>
                   )}
                 </div>
@@ -440,63 +437,63 @@ export default function ChatRoom({ user }) {
         </div>
 
         {/* Input Bar - Floating Style */}
-        <div className="px-8 py-8 shrink-0 relative bg-white/80 backdrop-blur-md border-t border-gray-100">
-           <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto flex items-end gap-4">
-              <div className="flex-1 bg-gray-50 border border-gray-100 rounded-[32px] p-2 hover:bg-gray-100/50 hover:border-gray-200 transition-all flex items-end gap-2 shadow-sm focus-within:bg-white focus-within:ring-4 focus-within:ring-gray-900/5 focus-within:border-gray-900/10">
-                 <button type="button" className="w-12 h-12 flex items-center justify-center text-gray-400 hover:text-gray-900 transition-colors bg-white rounded-[24px] border border-gray-100 ml-1 mb-1">
-                    <PlusCircle className="w-5 h-5" />
-                 </button>
-                 <textarea
-                    rows={1}
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage(e);
-                      }
-                    }}
-                    placeholder={activeChannel ? `Communicate in #${activeChannel.name}...` : "Select a thread..."}
-                    disabled={!activeChannel}
-                    className="flex-1 bg-transparent border-0 outline-none text-sm font-bold text-gray-900 py-4 px-2 min-h-[56px] max-h-48 resize-none placeholder:text-gray-300"
-                 />
-                 <button
-                    type="submit"
-                    disabled={!inputText.trim() || !activeChannel}
-                    className="w-12 h-12 bg-gray-900 text-white rounded-[24px] flex items-center justify-center hover:bg-black disabled:opacity-30 disabled:hover:bg-gray-900 transition-all transform active:scale-95 shadow-lg shadow-gray-200 mr-1 mb-1"
-                 >
-                    <Send className="w-5 h-5" />
-                 </button>
-              </div>
-           </form>
-           <p className="text-center text-[9px] font-extrabold text-gray-400 uppercase tracking-[0.2em] mt-6">
-              Encrypted Real-time Professional Communication
-           </p>
+        <div className="px-8 py-8 shrink-0 relative bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border-t border-gray-100 dark:border-white/10">
+          <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto flex items-end gap-4">
+            <div className="flex-1 bg-gray-50 dark:bg-neutral-800 border border-gray-100 dark:border-white/10 rounded-[32px] p-2 hover:bg-gray-100/50 dark:hover:bg-neutral-700 hover:border-gray-200 dark:hover:border-white/20 transition-all flex items-end gap-2 shadow-sm focus-within:bg-white dark:focus-within:bg-neutral-900 focus-within:ring-4 focus-within:ring-gray-900/5 dark:focus-within:ring-white/5 focus-within:border-gray-900/10 dark:focus-within:border-white/10">
+              <button type="button" className="w-12 h-12 flex items-center justify-center text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-white dark:bg-neutral-800 rounded-[24px] border border-gray-100 dark:border-white/10 ml-1 mb-1">
+                <PlusCircle className="w-5 h-5" />
+              </button>
+              <textarea
+                rows={1}
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage(e);
+                  }
+                }}
+                placeholder={activeChannel ? `Communicate in #${activeChannel.name}...` : "Select a thread..."}
+                disabled={!activeChannel}
+                className="flex-1 bg-transparent border-0 outline-none text-sm font-bold text-gray-900 dark:text-white py-4 px-2 min-h-[56px] max-h-48 resize-none placeholder:text-gray-300 dark:placeholder:text-gray-500"
+              />
+              <button
+                type="submit"
+                disabled={!inputText.trim() || !activeChannel}
+                className="w-12 h-12 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-[24px] flex items-center justify-center hover:bg-black dark:hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-gray-900 dark:disabled:hover:bg-white transition-all transform active:scale-95 shadow-lg shadow-gray-200 dark:shadow-none mr-1 mb-1"
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            </div>
+          </form>
+          <p className="text-center text-[9px] font-extrabold text-gray-400 uppercase tracking-[0.2em] mt-6">
+            Encrypted Real-time Professional Communication
+          </p>
         </div>
 
         {/* Modals: Standardized rounded-3xl White Cards */}
         {showNewChannelModal && (
           <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-xl flex items-center justify-center p-4">
-            <div className="bg-white rounded-[40px] shadow-2xl p-10 w-full max-w-xl border border-white relative">
-              <button 
+            <div className="bg-white dark:bg-neutral-900 rounded-[40px] shadow-2xl p-10 w-full max-w-xl border border-white dark:border-white/10 relative">
+              <button
                 className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center rounded-2xl bg-gray-50 text-gray-400 hover:text-gray-900 transition-all"
                 onClick={() => setShowNewChannelModal(false)}
               >
                 <X className="w-5 h-5" />
               </button>
-              
+
               <div className="mb-8">
                 <span className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
-                   <Plus className="w-3 h-3" /> New Discussion
+                  <Plus className="w-3 h-3" /> New Discussion
                 </span>
-                <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">Start Conversation</h3>
+                <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Start Conversation</h3>
                 <p className="text-sm text-gray-400 mt-2 font-medium">Select teammates to create a new collaboration thread.</p>
               </div>
 
               <form onSubmit={handleCreateChannel} className="space-y-6">
                 <div>
-                   <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest block mb-3 ml-1">Team Selection</label>
-                   <div className="flex flex-wrap gap-2 mb-4 min-h-[44px]">
+                  <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest block mb-3 ml-1">Team Selection</label>
+                  <div className="flex flex-wrap gap-2 mb-4 min-h-[44px]">
                     {selectedUsers.length === 0 && <p className="text-xs text-gray-300 italic py-2 ml-1">No one selected yet...</p>}
                     {selectedUsers.map(u => (
                       <div key={u.id} className="flex items-center gap-2 bg-gray-50 border border-gray-100 pl-4 pr-1 py-1 rounded-2xl animate-fadeIn">
@@ -515,11 +512,11 @@ export default function ChatRoom({ user }) {
                       value={targetEmail}
                       onChange={(e) => setTargetEmail(e.target.value)}
                       placeholder="Search by name or email address..."
-                      className="w-full h-14 bg-gray-50 border-0 rounded-2xl pl-12 pr-4 text-sm font-bold outline-none focus:bg-white focus:ring-4 focus:ring-blue-500/5 transition-all"
+                      className="w-full h-14 bg-gray-50 dark:bg-neutral-800 border-0 rounded-2xl pl-12 pr-4 text-sm font-bold text-gray-900 dark:text-white outline-none focus:bg-white dark:focus:bg-neutral-700 focus:ring-4 focus:ring-blue-500/5 transition-all"
                       autoFocus
                     />
                   </div>
-                  
+
                   {searchResults.length > 0 && (
                     <div className="mt-2 rounded-2xl overflow-hidden border border-gray-50 shadow-xl divide-y divide-gray-50">
                       {searchResults.map((u) => (
@@ -533,7 +530,7 @@ export default function ChatRoom({ user }) {
                           }}
                         >
                           <div>
-                            <p className="font-bold text-sm text-gray-900">{u.full_name || u.username}</p>
+                            <p className="font-bold text-sm text-gray-900 dark:text-white">{u.full_name || u.username}</p>
                             <p className="text-[11px] font-medium text-gray-400">{u.email}</p>
                           </div>
                           <PlusCircle className="w-5 h-5 text-gray-200 group-hover:text-blue-500 transition-colors" />
@@ -558,16 +555,16 @@ export default function ChatRoom({ user }) {
         {/* Members List Modal - Redesigned */}
         {showMembersModal && (
           <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-xl flex items-center justify-center p-4">
-             <div className="bg-white rounded-[40px] shadow-2xl p-10 w-full max-w-xl border border-white relative max-h-[85vh] flex flex-col">
+            <div className="bg-white dark:bg-neutral-900 rounded-[40px] shadow-2xl p-10 w-full max-w-xl border border-white dark:border-white/10 relative max-h-[85vh] flex flex-col">
               <button className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center rounded-2xl bg-gray-50 text-gray-400 hover:text-gray-900 transition-all" onClick={() => setShowMembersModal(false)}>
                 <X className="w-5 h-5" />
               </button>
-              
+
               <div className="mb-8 shrink-0">
                 <span className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
-                   <Users className="w-3 h-3" /> Team Directory
+                  <Users className="w-3 h-3" /> Team Directory
                 </span>
-                <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">Active Members</h3>
+                <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Active Members</h3>
                 <p className="text-sm text-gray-400 mt-2 font-medium">Managing collaborators for this discussion.</p>
               </div>
 
@@ -583,8 +580,8 @@ export default function ChatRoom({ user }) {
                       </div>
                       <div>
                         <div className="font-bold text-sm text-gray-900 flex items-center gap-2">
-                           {m.full_name || m.username}
-                           {m.role === 'admin' && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
+                          {m.full_name || m.username}
+                          {m.role === 'admin' && <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
                         </div>
                         <div className={`text-[10px] font-bold uppercase tracking-widest ${m.role === 'admin' ? "text-blue-500" : "text-gray-400"}`}>{m.role || 'Member'}</div>
                       </div>
@@ -604,19 +601,19 @@ export default function ChatRoom({ user }) {
         {/* Rename Chat Modal */}
         {showRenameModal && (
           <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-xl flex items-center justify-center p-4">
-            <div className="bg-white rounded-[40px] shadow-2xl p-10 w-full max-w-md border border-white relative">
-              <button 
+            <div className="bg-white dark:bg-neutral-900 rounded-[40px] shadow-2xl p-10 w-full max-w-md border border-white dark:border-white/10 relative">
+              <button
                 className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center rounded-2xl bg-gray-50 text-gray-400 hover:text-gray-900 transition-all"
                 onClick={() => { setShowRenameModal(false); setRenameValue(""); }}
               >
                 <X className="w-5 h-5" />
               </button>
-              
+
               <div className="mb-8">
                 <span className="inline-flex items-center gap-2 px-3 py-1 bg-purple-50 text-purple-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
-                   <Edit3 className="w-3 h-3" /> Rename
+                  <Edit3 className="w-3 h-3" /> Rename
                 </span>
-                <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">Rename Chat</h3>
+                <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Rename Chat</h3>
                 <p className="text-sm text-gray-400 mt-2 font-medium">Give this conversation a new name.</p>
               </div>
 
@@ -660,19 +657,19 @@ export default function ChatRoom({ user }) {
         {/* Invite Teammate Modal */}
         {showAddMemberModal && (
           <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-xl flex items-center justify-center p-4">
-            <div className="bg-white rounded-[40px] shadow-2xl p-10 w-full max-w-md border border-white relative">
-              <button 
+            <div className="bg-white dark:bg-neutral-900 rounded-[40px] shadow-2xl p-10 w-full max-w-md border border-white dark:border-white/10 relative">
+              <button
                 className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center rounded-2xl bg-gray-50 text-gray-400 hover:text-gray-900 transition-all"
                 onClick={() => { setShowAddMemberModal(false); setAddMemberValue(""); }}
               >
                 <X className="w-5 h-5" />
               </button>
-              
+
               <div className="mb-8">
                 <span className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
-                   <UserPlus className="w-3 h-3" /> Invite
+                  <UserPlus className="w-3 h-3" /> Invite
                 </span>
-                <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">Invite Teammate</h3>
+                <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Invite Teammate</h3>
                 <p className="text-sm text-gray-400 mt-2 font-medium">Add someone to this chat thread.</p>
               </div>
 
@@ -717,19 +714,19 @@ export default function ChatRoom({ user }) {
         {/* Link to Project Modal */}
         {showAssignProjectModal && (
           <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-xl flex items-center justify-center p-4">
-            <div className="bg-white rounded-[40px] shadow-2xl p-10 w-full max-w-md border border-white relative max-h-[85vh] flex flex-col">
-              <button 
+            <div className="bg-white dark:bg-neutral-900 rounded-[40px] shadow-2xl p-10 w-full max-w-md border border-white dark:border-white/10 relative max-h-[85vh] flex flex-col">
+              <button
                 className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center rounded-2xl bg-gray-50 text-gray-400 hover:text-gray-900 transition-all"
                 onClick={() => { setShowAssignProjectModal(false); setAssignProjectValue(""); }}
               >
                 <X className="w-5 h-5" />
               </button>
-              
+
               <div className="mb-8 shrink-0">
                 <span className="inline-flex items-center gap-2 px-3 py-1 bg-orange-50 text-orange-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
-                   <Target className="w-3 h-3" /> Link Project
+                  <Target className="w-3 h-3" /> Link Project
                 </span>
-                <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">Link Project</h3>
+                <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Link Project</h3>
                 <p className="text-sm text-gray-400 mt-2 font-medium">Attach a project and add all its members to this chat.</p>
               </div>
 
@@ -740,7 +737,7 @@ export default function ChatRoom({ user }) {
                   // Get members from source project
                   const membersRes = await dFetch(`/api/projects/${assignProjectValue}/members`);
                   const sourceMembers = membersRes.ok ? await membersRes.json() : [];
-                  
+
                   // Add each member to chat
                   for (const member of sourceMembers) {
                     try {
@@ -753,11 +750,11 @@ export default function ChatRoom({ user }) {
                       console.error(`Failed to add ${member.username}:`, err);
                     }
                   }
-                  
+
                   // Reload members
                   const res = await dFetch(`/api/chat/channels/${activeChannel.id}/members`);
                   if (res.ok) setChannelMembers(await res.json());
-                  
+
                   setShowAssignProjectModal(false);
                   setAssignProjectValue("");
                 } catch (err) {
@@ -774,17 +771,16 @@ export default function ChatRoom({ user }) {
                           key={p.id}
                           type="button"
                           onClick={() => setAssignProjectValue(p.id)}
-                          className={`w-full p-4 rounded-2xl text-left transition-all border-2 ${
-                            assignProjectValue === p.id
-                              ? "bg-orange-50 border-orange-300"
-                              : "bg-gray-50 border-gray-100 hover:border-gray-200"
-                          }`}
+                          className={`w-full p-4 rounded-2xl text-left transition-all border-2 ${assignProjectValue === p.id
+                            ? "bg-orange-50 border-orange-300"
+                            : "bg-gray-50 border-gray-100 hover:border-gray-200"
+                            }`}
                         >
                           <div className="flex items-center gap-3">
                             {assignProjectValue === p.id && <CheckCircle2 className="w-5 h-5 text-orange-600" />}
                             <div className={assignProjectValue === p.id ? "hidden" : ""} />
                             <div>
-                              <p className="font-bold text-sm text-gray-900">{p.title || p.name}</p>
+                              <p className="font-bold text-sm text-gray-900 dark:text-white">{p.title || p.name}</p>
                               <p className="text-[11px] font-medium text-gray-400">
                                 {p.members?.length || 0} members
                               </p>

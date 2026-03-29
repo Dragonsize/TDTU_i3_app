@@ -50,7 +50,7 @@ export default function ChatbotPage() {
 
   if (loading) {
     return (
-      <AppShell user={user} activePath="/chatbot" contentClassName="flex-1">
+      <AppShell user={user} activePath="/chatbot" contentClassName="flex-1 bg-gray-50/50 dark:bg-neutral-950/50">
         <div className="max-w-2xl mx-auto px-4 py-8 h-full flex flex-col">
           <SkeletonLoader type="chat" />
         </div>
@@ -104,16 +104,16 @@ export default function ChatbotPage() {
 
   const handleStarterPrompt = (prompt) => {
     if (sending) return;
-    const syntheticEvent = { preventDefault: () => {} };
+    const syntheticEvent = { preventDefault: () => { } };
     sendQuestion(syntheticEvent, prompt);
   };
 
   return (
-    <AppShell user={user} activePath="/chatbot" contentClassName="flex-1 bg-gray-50/50">
+    <AppShell user={user} activePath="/chatbot" contentClassName="flex-1 bg-gray-50/50 dark:bg-neutral-950/50">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12 h-full flex flex-col">
 
         {/* Header */}
-        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight flex items-center gap-3 mb-6">
+        <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3 mb-6">
           <Bot className="w-8 h-8 text-indigo-500" />
           AI Assistant
         </h1>
@@ -126,7 +126,7 @@ export default function ChatbotPage() {
               type="button"
               onClick={() => handleStarterPrompt(prompt)}
               disabled={sending}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors shadow-sm disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-neutral-900 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800 hover:border-gray-300 dark:hover:border-white/20 transition-colors shadow-sm disabled:opacity-50"
             >
               <Sparkles className="w-3 h-3 text-indigo-400" />
               {prompt}
@@ -135,7 +135,7 @@ export default function ChatbotPage() {
         </div>
 
         {/* Chat Window */}
-        <div className="flex-1 bg-white rounded-3xl border border-gray-100 shadow-sm p-5 overflow-y-auto space-y-4 min-h-0">
+        <div className="flex-1 bg-white dark:bg-neutral-900 rounded-3xl border border-gray-100 dark:border-white/10 shadow-sm p-5 overflow-y-auto space-y-4 min-h-0">
           {messages.map((msg, idx) => (
             <div key={`${msg.role}-${idx}`} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               {msg.role === "assistant" && (
@@ -144,11 +144,10 @@ export default function ChatbotPage() {
                 </div>
               )}
               <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-6 ${
-                  msg.role === "user"
-                    ? "bg-gray-900 text-white rounded-br-sm"
-                    : "bg-gray-50 text-gray-800 border border-gray-100 rounded-bl-sm"
-                }`}
+                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-6 ${msg.role === "user"
+                    ? "bg-gray-900 dark:bg-blue-600 text-white rounded-br-sm"
+                    : "bg-gray-50 dark:bg-neutral-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-white/5 rounded-bl-sm"
+                  }`}
               >
                 {msg.content}
               </div>
@@ -159,7 +158,7 @@ export default function ChatbotPage() {
               <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center mr-2 flex-shrink-0">
                 <Bot className="w-4 h-4 text-indigo-600" />
               </div>
-              <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-2.5">
+              <div className="bg-gray-50 dark:bg-neutral-800 border border-gray-100 dark:border-white/5 rounded-2xl rounded-bl-sm px-4 py-2.5">
                 <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
               </div>
             </div>
@@ -180,13 +179,13 @@ export default function ChatbotPage() {
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             placeholder={placeholderText}
-            className="flex-1 h-11 bg-white border border-gray-200 rounded-xl px-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all shadow-sm"
+            className="flex-1 h-11 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-white/10 rounded-xl px-4 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all shadow-sm"
             disabled={sending}
           />
           <button
             type="submit"
             disabled={sending || !question.trim()}
-            className="inline-flex items-center gap-2 bg-gray-900 text-white rounded-xl px-5 h-11 text-sm font-semibold hover:bg-black transition-all active:scale-[0.98] disabled:opacity-60 shadow-sm"
+            className="inline-flex items-center gap-2 bg-gray-900 text-white dark:bg-white dark:text-gray-900 rounded-xl px-5 h-11 text-sm font-semibold hover:bg-black dark:hover:bg-gray-200 transition-all active:scale-[0.98] disabled:opacity-60 shadow-sm"
           >
             <Send className="w-4 h-4" />
             Send
