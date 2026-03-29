@@ -90,6 +90,14 @@ export default function ProjectDetailPage() {
 
   const handleCreateFlowSubmit = async (e) => {
     e.preventDefault();
+    if (!isLead) {
+      alert("Failed to create workspace flow: Only lead can create flow!");
+      return;
+    }
+    if (!selectedFlowMembers || selectedFlowMembers.length === 0) {
+      alert("Please select at least one member for this flow!");
+      return;
+    }
     try {
       const isoDeadlineDate = (newFlowDeadline || "").trim();
       const hasValidDeadlineDate = /^\d{4}-\d{2}-\d{2}$/.test(isoDeadlineDate);
@@ -1029,7 +1037,8 @@ export default function ProjectDetailPage() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                    disabled={!newFlowName.trim() || selectedFlowMembers.length === 0}
+                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Create Flow
                   </button>

@@ -185,6 +185,10 @@ export default function FilesPage() {
 
   const handleCreateFlow = async (e) => {
     e.preventDefault();
+    if (!isLead) {
+      setFlowError("Insufficient permissions");
+      return;
+    }
     if (!newFlowName.trim() || !selectedFlowMember || !selectedProject) return;
     setCreatingFlow(true);
     setFlowError("");
