@@ -71,7 +71,12 @@ export default function Home() {
     const checkSession = async () => {
       try {
         const response = await dFetch('/api/auth/me', { credentials: 'include' });
-        if (response.ok) {
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        if (data?.authenticated) {
           router.replace('/dashboard');
           return;
         }
