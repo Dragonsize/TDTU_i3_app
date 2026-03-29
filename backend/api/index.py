@@ -1015,8 +1015,15 @@ def get_current_user(
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token: missing user ID")
+
+    # If admin client is unavailable, refresh_tokens checks can be blocked by RLS.
+    # Fall back to JWT validation so authenticated users can still access protected routes.
+    if not supabase_admin:
+        return payload
     
-    db = require_supabase()
+    # Use DB client with service-role fallback so server-side session checks
+    # are not blocked by RLS on refresh_tokens.
+    db = require_db_client()
     now_utc = datetime.now(timezone.utc)
     
     # Get current client info for validation
