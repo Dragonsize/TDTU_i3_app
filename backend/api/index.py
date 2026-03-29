@@ -1000,7 +1000,11 @@ def clear_auth_cookies(response: Response) -> None:
     response.delete_cookie(key="refresh_token", path="/")
 
 
-def get_current_user(access_token: Optional[str] = Cookie(None), http_request: Optional[Request] = None) -> Dict[str, Any]:
+def get_current_user(
+    http_request: Request,
+    access_token: Optional[str] = Cookie(None)
+) -> Dict[str, Any]:
+    """Validate access token and check active session in database"""
     if not access_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     payload = verify_token(access_token)
