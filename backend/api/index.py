@@ -1957,8 +1957,15 @@ def refresh_session(response: Response, http_request: Request, refresh_token: Op
 
 
 @app.get("/api/auth/me")
-def auth_me(access_token: Optional[str] = Cookie(None), user=Depends(get_current_user)):
-    return {"authenticated": True, "user": {"id": user.get("sub"), "email": user.get("email")}, "ws_token": access_token}
+def auth_me(access_token: Optional[str] = Cookie(None)):
+    if not access_token:
+        return {"authenticated": False, "user": None}
+    
+    payload = verify_token(access_token)
+    if not payload or payload.get("type") != "access":
+        return {"authenticated": False, "user": None}
+    
+    return {"authenticated": True, "user": {"id": payload.get("sub"), "email": payload.get("email")}, "ws_token": access_token}
 
 
 @app.post("/api/auth/logout")
