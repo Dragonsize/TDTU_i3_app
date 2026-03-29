@@ -1000,13 +1000,62 @@ def clear_auth_cookies(response: Response) -> None:
     response.delete_cookie(key="refresh_token", path="/")
 
 
-def get_current_user(access_token: Optional[str] = Cookie(None)) -> Dict[str, Any]:
+def get_current_user(access_token: Optional[str] = Cookie(None), http_request: Optional[Request] = None) -> Dict[str, Any]:
     if not access_token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     payload = verify_token(access_token)
     if not payload or payload.get("type") != "access":
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+    
+    # Validate that user has an active session (refresh token exists and is not revoked)
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token: missing user ID")
+    
+    db = require_supabase()
+    now_utc = datetime.now(timezone.utc)
+    
+    # Get current client info for validation
+    current_ip = http_request.client.host if http_request and http_request.client else None
+    current_user_agent = http_request.headers.get("user-agent") if http_request else None
+    
+    # Check if user has at least one active (non-revoked, non-expired) refresh token
+    session_response = db.table("refresh_tokens").select("revoked_at, expires_at, ip_address, user_agent").eq("user_id", user_id).limit(100).execute()
+    
+    has_active_session = False
+    ip_mismatch = False
+    user_agent_mismatch = False
+    
+    for record in session_response.data:
+        if record.get("revoked_at"):
+            continue  # Skip revoked tokens
+        expires_at = parse_timestamp(record.get("expires_at"))
+        if expires_at and expires_at >= now_utc:
+            has_active_session = True
+            
+            # Validate IP and User-Agent match (optional but recommended in production)
+            stored_ip = record.get("ip_address")
+            stored_user_agent = record.get("user_agent")
+            
+            # Check IP mismatch (warning: can be unreliable with proxies/VPN)
+            if stored_ip and current_ip and stored_ip != current_ip:
+                ip_mismatch = True
+            
+            # Check User-Agent mismatch (reliable indicator of hijacking)
+            if stored_user_agent and current_user_agent and stored_user_agent != current_user_agent:
+                user_agent_mismatch = True
+            
+            # If we found multiple mismatches, likely suspicious
+            if ip_mismatch and user_agent_mismatch:
+                raise HTTPException(status_code=401, detail="Session security check failed. Please sign in again")
+            
+            break
+    
+    if not has_active_session:
+        raise HTTPException(status_code=401, detail="Session revoked or expired. Please sign in again")
+    
     return payload
+
 
 
 def require_project_member(user_id: str, project_id: str) -> Dict[str, Any]:
