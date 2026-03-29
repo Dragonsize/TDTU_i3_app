@@ -4,6 +4,7 @@
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { LogOut, User, Settings, ChevronDown, Moon, Sun } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { dFetch } from "@/lib/api";
@@ -30,9 +31,13 @@ export default function AppShell({ user, activePath, contentClassName = "", full
   useEffect(() => {
     // 1. Sync internal user state with prop or localStorage
     if (user) {
-      setInternalUser(user);
-      localStorage.setItem("userProfile", JSON.stringify(user));
-    } else {
+      const savedUser = localStorage.getItem("userProfile");
+      const userStr = JSON.stringify(user);
+      if (savedUser !== userStr) {
+        setInternalUser(user);
+        localStorage.setItem("userProfile", userStr);
+      }
+    } else if (!internalUser) {
       const savedUser = localStorage.getItem("userProfile");
       if (savedUser) {
         try {
@@ -48,16 +53,19 @@ export default function AppShell({ user, activePath, contentClassName = "", full
 
     // 2. Theme Initialization
     const savedTheme = localStorage.getItem("theme");
-    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    const systemTheme = typeof window !== 'undefined' && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     const initialTheme = savedTheme || systemTheme;
 
-    setTheme(initialTheme);
+    if (theme !== initialTheme) {
+      setTheme(initialTheme);
+    }
+    
     if (initialTheme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
-  }, [user]);
+  }, [user, internalUser, theme]);
 
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
@@ -142,10 +150,15 @@ export default function AppShell({ user, activePath, contentClassName = "", full
           >
             <div className="flex items-center gap-2 cursor-pointer group">
               <div className="px-2 sm:px-3.5 py-1.5 rounded-xl flex justify-center items-center gap-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-all duration-200">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-sm font-bold text-white shadow-sm overflow-hidden group-hover:shadow-md transition-all">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-sm font-bold text-white shadow-sm overflow-hidden group-hover:shadow-md transition-all relative">
                   {internalUser?.avatar_url ? (
-                    <img src={internalUser.avatar_url} alt="User" className="w-full h-full object-cover" />
-
+                    <Image 
+                      src={internalUser.avatar_url} 
+                      alt="User Avatar" 
+                      fill
+                      sizes="36px"
+                      className="object-cover" 
+                    />
                   ) : (
                     avatarInitial.toUpperCase()
                   )}

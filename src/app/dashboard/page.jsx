@@ -121,26 +121,55 @@ export default function Dashboard() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await dFetch('/api/auth/me');
-        if (!response.ok) { router.push('/login'); return; }
-        const data = await response.json();
-        setUser(data.user);
-        const profileResponse = await dFetch('/api/profile');
+        // 1. Try to get user from localStorage for instant UI
+        const savedUser = localStorage.getItem('userProfile');
+        if (savedUser) {
+          try {
+            setUser(JSON.parse(savedUser));
+          } catch (e) {
+            console.error("Failed to parse saved profile");
+          }
+        }
 
+        // 2. Verify session
+        const response = await dFetch('/api/auth/me');
+        if (!response.ok) {
+          router.push('/login');
+          return;
+        }
+
+        const data = await response.json();
+        const currentUser = data.user;
+        setUser(currentUser);
+
+        // 3. Get full profile and sync
+        const profileResponse = await dFetch('/api/profile');
         if (profileResponse.ok) {
           const profileData = await profileResponse.json();
-          localStorage.setItem('userProfile', JSON.stringify(profileData.profile));
-          setUser((prev) => ({ ...prev, ...profileData.profile }));
+          const fullUser = { ...currentUser, ...profileData.profile };
+          localStorage.setItem('userProfile', JSON.stringify(fullUser));
+          setUser(fullUser);
         }
+
+        // 4. Load dashboard data
         await fetchDashboardState();
       } catch (err) {
         setDashboardError('Could not load dashboard insights.');
+        console.error('Dashboard load error:', err);
       } finally {
         setLoading(false);
       }
     };
     checkAuth();
   }, [router]);
+
+  const STAT_ITEMS = React.useMemo(() => [
+    { label: 'Projects', value: stats.projects, icon: LayoutGrid, color: 'text-blue-500' },
+    { label: 'Channels', value: stats.channels, icon: MessageSquare, color: 'text-amber-500' },
+    { label: 'Files', value: stats.files, icon: FileText, color: 'text-sky-500' },
+    { label: 'Deadlines (14d)', value: stats.deadlines, icon: Flag, color: 'text-red-500' },
+    { label: 'Events (30d)', value: stats.events, icon: CalendarDays, color: 'text-emerald-500' },
+  ], [stats]);
 
   if (loading) {
     return (
@@ -164,14 +193,6 @@ export default function Dashboard() {
       </AppShell>
     );
   }
-
-  const STAT_ITEMS = [
-    { label: 'Projects', value: stats.projects, icon: LayoutGrid, color: 'text-blue-500' },
-    { label: 'Channels', value: stats.channels, icon: MessageSquare, color: 'text-amber-500' },
-    { label: 'Files', value: stats.files, icon: FileText, color: 'text-sky-500' },
-    { label: 'Deadlines (14d)', value: stats.deadlines, icon: Flag, color: 'text-red-500' },
-    { label: 'Events (30d)', value: stats.events, icon: CalendarDays, color: 'text-emerald-500' },
-  ];
 
   return (
     <AppShell user={user} activePath="/dashboard" contentClassName="flex-1 bg-gray-50/50 dark:bg-neutral-950/50 transition-colors duration-300">
