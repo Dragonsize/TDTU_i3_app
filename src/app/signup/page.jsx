@@ -85,6 +85,9 @@ export default function SignUp() {
       }
 
       const backendError = await registerResponse.json().catch(() => null);
+      if (registerResponse.status === 429) {
+        throw new Error('Sign-up is temporarily down. Please use Continue with Google for now.');
+      }
       const shouldFallback = [404, 405, 500, 502, 503, 504].includes(registerResponse.status);
       if (!shouldFallback) {
         throw new Error(backendError?.detail || 'Failed to create account');
