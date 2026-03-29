@@ -1,11 +1,15 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
+import DateDropdown from "@/components/DateDropdown";
+import TimeDropdown from "@/components/TimeDropdown";
+import StatusBadge, { STATUS_CONFIG } from "@/components/StatusBadge";
 import { dFetch } from "@/lib/api";
+import { formatDateKey } from "@/lib/utils";
 import {
   FolderOpen, Plus, CalendarDays, Clock, CheckCircle2, PauseCircle, Loader2,
   X, Check, Calendar, Users, ChevronRight, AlertCircle,
@@ -13,267 +17,21 @@ import {
   Calendar as CalendarIcon, Trash2, Pencil, MoreHorizontal
 } from "lucide-react";
 
-// Helper functions
-function formatDateKey(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function parseDateOnly(dateValue) {
-  if (!dateValue || !dateValue.includes("-")) return null;
-  const [yearText, monthText, dayText] = dateValue.split("-");
-  const year = Number(yearText);
-  const month = Number(monthText);
-  const day = Number(dayText);
-  if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) return null;
-  return new Date(year, month - 1, day);
-}
-
-function formatDateButtonLabel(dateValue) {
-  const parsed = parseDateOnly(dateValue);
-  if (!parsed) return "Select date";
-  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
-
-function monthGridMonday(date) {
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  const firstDayOffset = (new Date(year, month, 1).getDay() + 6) % 7;
-  const start = new Date(year, month, 1 - firstDayOffset);
-  return Array.from({ length: 42 }, (_, idx) => {
-    const d = new Date(start);
-    d.setDate(start.getDate() + idx);
-    return d;
-  });
-}
-
-function isSameDate(a, b) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-
-const TIME_OPTIONS = Array.from({ length: 96 }, (_, idx) => {
-  const hour = String(Math.floor(idx / 4)).padStart(2, "0");
-  const minute = String((idx % 4) * 15).padStart(2, "0");
-  return `${hour}:${minute}`;
-});
-
-function formatTimeLabel(timeValue) {
-  if (!timeValue || !timeValue.includes(":")) return "Select time";
-  const [hoursText, minutesText] = timeValue.split(":");
-  const hours = Number(hoursText);
-  const minutes = Number(minutesText);
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) return timeValue;
-
-  const period = hours >= 12 ? "PM" : "AM";
-  const twelveHour = hours % 12 || 12;
-  return `${twelveHour}:${String(minutes).padStart(2, "0")} ${period}`;
-}
-
-function DateDropdown({ value, onChange }) {
-  const [open, setOpen] = useState(false);
-  const [displayMonth, setDisplayMonth] = useState(() => parseDateOnly(value) || new Date());
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    const handleOutsideClick = (event) => {
-      if (!containerRef.current?.contains(event.target)) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, []);
-
-  useEffect(() => {
-    const parsed = parseDateOnly(value);
-    if (parsed) setDisplayMonth(parsed);
-  }, [value]);
-
-  const days = monthGridMonday(displayMonth);
-  const selected = parseDateOnly(value);
-
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className="w-full h-[40px] rounded-xl px-3 text-sm text-left flex items-center justify-between border border-gray-200 bg-white text-gray-900 hover:border-indigo-300 transition-colors"
-      >
-        <span>{formatDateButtonLabel(value)}</span>
-        <span className="text-gray-400">▾</span>
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="absolute left-0 mt-1 w-[280px] rounded-xl shadow-xl z-40 p-3 bg-white border border-gray-200"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <button
-                type="button"
-                onClick={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() - 1, 1))}
-                className="w-7 h-7 rounded-full text-slate-700 hover:bg-slate-100"
-              >
-                ‹
-              </button>
-              <div className="text-sm font-medium text-slate-900">
-                {displayMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-              </div>
-              <button
-                type="button"
-                onClick={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 1))}
-                className="w-7 h-7 rounded-full text-slate-700 hover:bg-slate-100"
-              >
-                ›
-              </button>
-            </div>
-
-            <div className="grid grid-cols-7 mb-1">
-              {["M", "T", "W", "T", "F", "S", "S"].map((label, idx) => (
-                <div key={`${label}-${idx}`} className="text-center text-xs py-1 text-slate-500">
-                  {label}
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-7 gap-y-0.5">
-              {days.map((day) => {
-                const inCurrentMonth = day.getMonth() === displayMonth.getMonth();
-                const isSelected = selected && isSameDate(day, selected);
-                return (
-                  <button
-                    key={day.toISOString()}
-                    type="button"
-                    onClick={() => {
-                      onChange(formatDateKey(day));
-                      setOpen(false);
-                    }}
-                    className={`w-9 h-9 mx-auto rounded-full text-sm transition-all ${
-                      isSelected
-                        ? "bg-indigo-600 text-white font-semibold shadow-md"
-                        : inCurrentMonth
-                          ? "text-slate-800 hover:bg-slate-100"
-                          : "text-slate-400"
-                    }`}
-                  >
-                    {day.getDate()}
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function TimeDropdown({ value, onChange }) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef(null);
-
-  useEffect(() => {
-    const handleOutsideClick = (event) => {
-      if (!containerRef.current?.contains(event.target)) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, []);
-
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className="w-full h-[40px] rounded-xl px-3 text-sm text-left flex items-center justify-between border border-gray-200 bg-white text-gray-900 hover:border-indigo-300 transition-colors"
-      >
-        <span>{formatTimeLabel(value)}</span>
-        <span className="text-gray-400">▾</span>
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            className="absolute left-0 right-0 mt-1 max-h-52 overflow-y-auto rounded-xl shadow-xl z-40 bg-white border border-slate-200"
-          >
-            {TIME_OPTIONS.map((option) => {
-              const active = option === value;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => {
-                    onChange(option);
-                    setOpen(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                    active
-                      ? "bg-indigo-50 text-indigo-600 font-semibold"
-                      : "text-slate-800 hover:bg-slate-50"
-                  }`}
-                >
-                  {formatTimeLabel(option)}
-                </button>
-              );
-            })}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-const STATUS_CONFIG = {
-  in_process: { label: "In Progress", icon: Loader2, color: "text-blue-600 bg-blue-50", border: "border-blue-100" },
-  pause: { label: "Paused", icon: PauseCircle, color: "text-amber-600 bg-amber-50", border: "border-amber-100" },
-  completed: { label: "Completed", icon: CheckCircle2, color: "text-emerald-600 bg-emerald-50", border: "border-emerald-100" },
-};
-
-const DEADLINE_STATUS_CONFIG = {
-  pending: { label: "Pending", icon: Clock, color: "text-amber-600 bg-amber-50", gradient: "from-amber-50 to-amber-100" },
-  in_progress: { label: "In Progress", icon: Loader2, color: "text-blue-600 bg-blue-50", gradient: "from-blue-50 to-blue-100" },
-  completed: { label: "Completed", icon: CheckCircle2, color: "text-emerald-600 bg-emerald-50", gradient: "from-emerald-50 to-emerald-100" },
-};
-
-function StatusBadge({ status }) {
-  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.in_process;
-  const Icon = cfg.icon;
-  return (
-    <motion.span
-      initial={{ scale: 0.9 }}
-      animate={{ scale: 1 }}
-      whileHover={{ scale: 1.05 }}
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.color} ${cfg.border}`}
-    >
-      <Icon className="w-3.5 h-3.5" />
-      {cfg.label}
-    </motion.span>
-  );
-}
-
 function DeadlineStatusBadge({ status }) {
-  const cfg = DEADLINE_STATUS_CONFIG[status] || DEADLINE_STATUS_CONFIG.pending;
+  const configs = {
+    pending: { label: "Pending", icon: Clock, color: "text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400", gradient: "from-amber-50 to-amber-100 dark:from-amber-900/10 dark:to-amber-900/20" },
+    in_progress: { label: "In Progress", icon: Loader2, color: "text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400", gradient: "from-blue-50 to-blue-100 dark:from-blue-900/10 dark:to-blue-900/20" },
+    completed: { label: "Completed", icon: CheckCircle2, color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-400", gradient: "from-emerald-50 to-emerald-100 dark:from-emerald-900/10 dark:to-emerald-900/20" },
+  };
+  const cfg = configs[status] || configs.pending;
   const Icon = cfg.icon;
   return (
     <motion.span
       initial={{ scale: 0.95 }}
       animate={{ scale: 1 }}
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-medium bg-gradient-to-r ${cfg.gradient} ${cfg.color}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-medium bg-gradient-to-r ${cfg.gradient} ${cfg.color} border border-black/5 dark:border-white/5`}
     >
-      <Icon className="w-3 h-3" />
+      <Icon className={`w-3 h-3 ${status === 'in_progress' ? 'animate-spin' : ''}`} />
       {cfg.label}
     </motion.span>
   );
@@ -315,6 +73,12 @@ export default function ProjectDetailPage() {
   const [selectedFlowMembers, setSelectedFlowMembers] = useState([]);
   const [newFlowParentId, setNewFlowParentId] = useState(null);
   const [hoveredWorkspace, setHoveredWorkspace] = useState(null);
+
+  const isLead = useMemo(() => {
+    if (!currentUser || members.length === 0) return false;
+    const projectMember = members.find(m => m.id === currentUser.id);
+    return projectMember && (projectMember.role === "lead" || projectMember.role === "admin");
+  }, [currentUser, members]);
 
   const handleFlowMemberToggle = (memberId, checked) => {
     if (checked) {
@@ -398,7 +162,7 @@ export default function ProjectDetailPage() {
         })
         .then((data) => setWorkspaces(Array.isArray(data) ? data : []))
         .catch((err) => {
-          setWorkspaceError(err.message || "Failed to load workspace flows");
+          setWorkspaceError(err.message || "Only Lead of Project can Create new flow!");
           setWorkspaces([]);
         })
         .finally(() => setWorkspaceLoading(false));
@@ -686,7 +450,14 @@ export default function ProjectDetailPage() {
     if (!id) return;
     const fetchData = async () => {
       try {
-        const profileRes = await dFetch("/api/profile", { credentials: "include" });
+        // 1. Fetch profile and project data concurrently
+        const [profileRes, projRes, memRes] = await Promise.all([
+          dFetch("/api/profile", { credentials: "include" }),
+          dFetch(`/api/projects/${id}`, { credentials: "include" }),
+          dFetch(`/api/projects/${id}/members`, { credentials: "include" })
+        ]);
+
+        // 2. Handle Profile
         const profileData = await profileRes.json();
         if (profileData.profile) {
           setCurrentUser(profileData.profile);
@@ -696,11 +467,7 @@ export default function ProjectDetailPage() {
         }
         setUserLoading(false);
 
-        const [projRes, memRes] = await Promise.all([
-          dFetch(`/api/projects/${id}`, { credentials: "include" }),
-          dFetch(`/api/projects/${id}/members`, { credentials: "include" })
-        ]);
-
+        // 3. Handle Project & Members
         if (projRes.ok && memRes.ok) {
           const projData = await projRes.json();
           const memData = await memRes.json();
@@ -708,8 +475,8 @@ export default function ProjectDetailPage() {
           setMembers(memData);
         }
       } catch (error) {
-        router.push("/login");
         console.error("Error loading project:", error);
+        // Don't redirect immediately on every error, maybe only on 401 which is handled by dFetch
       } finally {
         setLoading(false);
       }
@@ -867,7 +634,7 @@ export default function ProjectDetailPage() {
               <option value="pause" className="text-gray-900">Pause</option>
               <option value="completed" className="text-gray-900">Completed</option>
             </select>
-            {level < 5 && (
+            {level < 5 && isLead && (
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -990,6 +757,22 @@ export default function ProjectDetailPage() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-4 mb-10">
+          {isLead && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-xl text-white text-base font-medium hover:shadow-lg transition-all flex items-center gap-2"
+              onClick={() => {
+                setNewFlowParentId(null);
+                if (!newFlowDeadline) setNewFlowDeadline(formatDateKey(new Date()));
+                setNewFlowDeadlineTime(prev => prev || "09:00");
+                setShowCreateFlowModal(true);
+              }}
+            >
+              <Plus className="w-4 h-4" />
+              Create Flow
+            </motion.button>
+          )}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -997,16 +780,16 @@ export default function ProjectDetailPage() {
             onClick={() => setShowWorkspaceModal(true)}
           >
             <Layers className="w-4 h-4" />
-            Manage Workspace
+            {isLead ? "Manage Workspace" : "View Workspace"}
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-xl text-white text-base font-medium hover:shadow-lg transition-all flex items-center gap-2"
+            className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 rounded-xl text-white text-base font-medium hover:shadow-lg transition-all flex items-center gap-2"
             onClick={() => setShowDeadlineModal(true)}
           >
             <Flag className="w-4 h-4" />
-            Manager Deadline
+            {isLead ? "Manage Deadlines" : "View Deadlines"}
           </motion.button>
         </div>
 
@@ -1106,7 +889,7 @@ export default function ProjectDetailPage() {
                       <Layers className="w-8 h-8 text-gray-400" />
                     </div>
                     <p className="text-gray-500 font-medium">No workspace flows found</p>
-                    <p className="text-xs text-gray-400 mt-1">Click &quot;Create Flow&quot; to get started</p>
+                    {isLead && <p className="text-xs text-gray-400 mt-1">Click &quot;Create Flow&quot; to get started</p>}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -1114,22 +897,24 @@ export default function ProjectDetailPage() {
                   </div>
                 )}
 
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="mt-6 w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center gap-2 text-white font-medium hover:shadow-lg transition-all"
-                  onClick={() => {
-                    setNewFlowParentId(null);
-                    if (!newFlowDeadline) {
-                      setNewFlowDeadline(formatDateKey(new Date()));
-                    }
-                    setNewFlowDeadlineTime((prev) => prev || "09:00");
-                    setShowCreateFlowModal(true);
-                  }}
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Flow
-                </motion.button>
+                {isLead && (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="mt-6 w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center gap-2 text-white font-medium hover:shadow-lg transition-all"
+                    onClick={() => {
+                      setNewFlowParentId(null);
+                      if (!newFlowDeadline) {
+                        setNewFlowDeadline(formatDateKey(new Date()));
+                      }
+                      setNewFlowDeadlineTime((prev) => prev || "09:00");
+                      setShowCreateFlowModal(true);
+                    }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create Flow
+                  </motion.button>
+                )}
               </div>
 
               <div className="border-t border-gray-100 px-6 py-4 bg-white flex justify-end">

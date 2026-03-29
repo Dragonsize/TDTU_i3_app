@@ -1,7 +1,7 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import AppShell from "@/components/AppShell";
 import { dFetch } from "@/lib/api";
 import { User, Mail, Key, Bot, Link as LinkIcon, LogOut, Edit2, Check, X, Shield, Cpu } from "lucide-react";
@@ -118,10 +118,15 @@ export default function SettingsPage() {
             
             {/* Profile Avatar Card */}
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 flex flex-col items-center text-center transition-all hover:shadow-md">
-              <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-blue-100 to-indigo-100 flex items-center justify-center text-5xl font-bold text-blue-600 border-4 border-white shadow-xl overflow-hidden mb-5">
+              <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-blue-100 to-indigo-100 flex items-center justify-center text-5xl font-bold text-blue-600 border-4 border-white shadow-xl overflow-hidden mb-5 relative">
                 {profile.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                  <Image 
+                    src={profile.avatar_url} 
+                    alt="avatar" 
+                    fill
+                    sizes="128px"
+                    className="object-cover" 
+                  />
                 ) : (
                   <span>{profile.full_name ? profile.full_name[0].toUpperCase() : "U"}</span>
                 )}

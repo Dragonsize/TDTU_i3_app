@@ -1,6 +1,5 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import AppShell from "@/components/AppShell";
 import PageLoader from "@/components/PageLoader";
 import SkeletonLoader from "@/components/SkeletonLoader";
@@ -8,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { dFetch } from "@/lib/api";
 import {
   FileText, Upload, Download, Trash2, Users, Lock, Globe,
-  X, AlertCircle, Loader2, Image, File, Eye
+  X, AlertCircle, Loader2, Image, File, Eye, Plus, GitBranch
 } from "lucide-react";
 
 function FileImagePreview({ file }) {
@@ -113,6 +112,20 @@ export default function FilesPage() {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
+  const [selectedProjectMembers, setSelectedProjectMembers] = useState([]);
+  const [showCreateFlowModal, setShowCreateFlowModal] = useState(false);
+  const [newFlowName, setNewFlowName] = useState("");
+  const [newFlowDesc, setNewFlowDesc] = useState("");
+  const [selectedFlowMember, setSelectedFlowMember] = useState("");
+  const [creatingFlow, setCreatingFlow] = useState(false);
+  const [flowError, setFlowError] = useState("");
+
+  const isLead = useMemo(() => {
+    if (!currentUser || !selectedProject || selectedProjectMembers.length === 0) return false;
+    const projectMember = selectedProjectMembers.find(m => m.id === currentUser.id);
+    return projectMember && (projectMember.role === "lead" || projectMember.role === "admin");
+  }, [currentUser, selectedProject, selectedProjectMembers]);
+
   const canManageSelectedAccess = Boolean(selectedFile && currentUser && selectedFile.uploaded_by === currentUser.id);
 
   const router = useRouter();
@@ -158,6 +171,58 @@ export default function FilesPage() {
     setSelectedAccessProject(selectedFile.project_id || "");
     setAccessError("");
   }, [selectedFile]);
+
+  useEffect(() => {
+    if (!selectedProject) {
+      setSelectedProjectMembers([]);
+      return;
+    }
+    dFetch(`/api/projects/${selectedProject}/members`)
+      .then(res => res.ok ? res.json() : [])
+      .then(setSelectedProjectMembers)
+      .catch(() => setSelectedProjectMembers([]));
+  }, [selectedProject]);
+
+  const handleCreateFlow = async (e) => {
+    e.preventDefault();
+    if (!newFlowName.trim() || !selectedFlowMember || !selectedProject) return;
+    setCreatingFlow(true);
+    setFlowError("");
+    try {
+      const res = await dFetch(`/api/projects/${selectedProject}/workflows`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newFlowName.trim(),
+          description: newFlowDesc.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Failed to create flow");
+      }
+      const workflow = await res.json();
+
+      const member = selectedProjectMembers.find(m => m.id === selectedFlowMember);
+      if (member) {
+        await dFetch(`/api/workflows/${workflow.id}/members`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: member.username, role: "member" }),
+        });
+      }
+
+      setShowCreateFlowModal(false);
+      setNewFlowName("");
+      setNewFlowDesc("");
+      setSelectedFlowMember("");
+      alert("Flow created successfully!");
+    } catch (err) {
+      setFlowError(err.message);
+    } finally {
+      setCreatingFlow(false);
+    }
+  };
 
   const handleUpload = async (file) => {
     if (!file) return;
@@ -301,6 +366,17 @@ export default function FilesPage() {
                 {projects.map((p) => <option key={p.id} value={p.id}>{p.title || p.name}</option>)}
               </select>
             )}
+
+            {isLead && (
+              <button
+                onClick={() => setShowCreateFlowModal(true)}
+                className="inline-flex items-center gap-2 bg-indigo-600 dark:bg-indigo-500 text-white rounded-xl px-5 py-2.5 text-sm font-semibold hover:bg-indigo-700 transition-all active:scale-[0.98] shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Create Flow
+              </button>
+            )}
+
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
@@ -472,6 +548,86 @@ export default function FilesPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Flow Modal */}
+        {showCreateFlowModal && (
+          <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-xl flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-neutral-900 rounded-[40px] shadow-2xl p-10 w-full max-w-xl border border-white dark:border-white/10 relative">
+              <button
+                className="absolute top-8 right-8 w-12 h-12 flex items-center justify-center rounded-2xl bg-gray-50 text-gray-400 hover:text-gray-900 transition-all"
+                onClick={() => setShowCreateFlowModal(false)}
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="mb-8">
+                <span className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-3">
+                  <GitBranch className="w-3 h-3" /> New Workflow
+                </span>
+                <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Create Flow</h3>
+                <p className="text-sm text-gray-400 mt-2 font-medium">Designate a teammate to lead this new flow.</p>
+              </div>
+
+              <form onSubmit={handleCreateFlow} className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest block mb-2 ml-1">Flow Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newFlowName}
+                    onChange={(e) => setNewFlowName(e.target.value)}
+                    placeholder="Enter flow title..."
+                    className="w-full h-14 bg-gray-50 dark:bg-neutral-800 border-0 rounded-2xl px-6 text-sm font-bold text-gray-900 dark:text-white outline-none focus:bg-white dark:focus:bg-neutral-700 focus:ring-4 focus:ring-indigo-500/5 transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest block mb-2 ml-1">Assign to Member</label>
+                  <select
+                    required
+                    value={selectedFlowMember}
+                    onChange={(e) => setSelectedFlowMember(e.target.value)}
+                    className="w-full h-14 bg-gray-50 dark:bg-neutral-800 border-0 rounded-2xl px-6 text-sm font-bold text-gray-900 dark:text-white outline-none focus:bg-white dark:focus:bg-neutral-700 focus:ring-4 focus:ring-indigo-500/5 transition-all [&>option]:text-gray-900"
+                  >
+                    <option value="">Select a member...</option>
+                    {selectedProjectMembers.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.full_name || m.username} ({m.role || "member"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest block mb-2 ml-1">Description (Optional)</label>
+                  <textarea
+                    value={newFlowDesc}
+                    onChange={(e) => setNewFlowDesc(e.target.value)}
+                    placeholder="Describe the objective of this flow..."
+                    rows={3}
+                    className="w-full bg-gray-50 dark:bg-neutral-800 border-0 rounded-2xl p-6 text-sm font-bold text-gray-900 dark:text-white outline-none focus:bg-white dark:focus:bg-neutral-700 focus:ring-4 focus:ring-indigo-500/5 transition-all resize-none"
+                  />
+                </div>
+
+                {flowError && (
+                  <div className="flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    {flowError}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={creatingFlow || !newFlowName.trim() || !selectedFlowMember}
+                  className="w-full h-14 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-bold rounded-2xl hover:bg-black dark:hover:bg-gray-200 transition-all shadow-xl shadow-gray-200 dark:shadow-none disabled:opacity-20 flex items-center justify-center gap-2"
+                >
+                  {creatingFlow ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+                  Confirm and Create Flow
+                </button>
+              </form>
             </div>
           </div>
         )}

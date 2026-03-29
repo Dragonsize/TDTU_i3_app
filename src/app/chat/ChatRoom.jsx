@@ -1,8 +1,8 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { dFetch } from "@/lib/api";
 import {
   ArrowLeft,
@@ -403,8 +403,13 @@ export default function ChatRoom({ user }) {
                 <div className={`w-10 h-10 shrink-0 flex items-end justify-center ${isLastInGroup ? "opacity-100" : "opacity-0"}`}>
                   <div className="w-10 h-10 rounded-2xl bg-gray-100 border border-gray-200 flex items-center justify-center text-xs font-black text-gray-600 overflow-hidden">
                     {msg.profiles?.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={msg.profiles.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                      <Image 
+                        src={msg.profiles.avatar_url} 
+                        alt="Profile" 
+                        fill
+                        sizes="40px"
+                        className="object-cover" 
+                      />
                     ) : (msg.profiles?.username?.[0] || "U").toUpperCase()}
                   </div>
                 </div>
@@ -574,8 +579,13 @@ export default function ChatRoom({ user }) {
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-sm font-black text-gray-900 overflow-hidden border border-gray-100">
                         {m.avatar_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={m.avatar_url} alt="Av" className="w-full h-full object-cover" />
+                          <Image 
+                            src={m.avatar_url} 
+                            alt="Av" 
+                            fill
+                            sizes="48px"
+                            className="object-cover" 
+                          />
                         ) : (m.username?.[0] || "U").toUpperCase()}
                       </div>
                       <div>
