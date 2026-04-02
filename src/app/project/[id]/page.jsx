@@ -72,6 +72,7 @@ export default function ProjectDetailPage() {
   const [newFlowDeadlineTime, setNewFlowDeadlineTime] = useState("09:00");
   const [selectedFlowMembers, setSelectedFlowMembers] = useState([]);
   const [newFlowParentId, setNewFlowParentId] = useState(null);
+  const [flowCreateError, setFlowCreateError] = useState("");
   const [hoveredWorkspace, setHoveredWorkspace] = useState(null);
 
   const isLead = useMemo(() => {
@@ -90,12 +91,13 @@ export default function ProjectDetailPage() {
 
   const handleCreateFlowSubmit = async (e) => {
     e.preventDefault();
+    setFlowCreateError("");
     if (!isLead) {
-      alert("Failed to create workspace flow: Only lead can create flow!");
+      setFlowCreateError("Failed to create workspace flow: Only lead can create flow!");
       return;
     }
     if (!selectedFlowMembers || selectedFlowMembers.length === 0) {
-      alert("Please select at least one member for this flow!");
+      setFlowCreateError("Please select at least one member for this flow!");
       return;
     }
     try {
@@ -170,12 +172,12 @@ export default function ProjectDetailPage() {
         })
         .then((data) => setWorkspaces(Array.isArray(data) ? data : []))
         .catch((err) => {
-          setWorkspaceError(err.message || "Only Lead of Project can Create new flow!");
+          setWorkspaceError(err.message || "Failed to load updated workspace flows");
           setWorkspaces([]);
         })
         .finally(() => setWorkspaceLoading(false));
     } catch (err) {
-      alert("Failed to create workspace flow: " + err.message);
+      setFlowCreateError(err.message || "Failed to create flow");
     }
   };
 
@@ -911,6 +913,7 @@ export default function ProjectDetailPage() {
                     whileTap={{ scale: 0.98 }}
                     className="mt-6 w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center gap-2 text-white font-medium hover:shadow-lg transition-all"
                     onClick={() => {
+                      setFlowCreateError("");
                       setNewFlowParentId(null);
                       if (!newFlowDeadline) {
                         setNewFlowDeadline(formatDateKey(new Date()));
@@ -943,47 +946,76 @@ export default function ProjectDetailPage() {
       {/* Create Flow Modal */}
       <AnimatePresence>
         {showCreateFlowModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4">
+            <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+               onClick={() => setShowCreateFlowModal(false)}
+            />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-lg h-auto max-h-[90dvh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
+              className="relative w-full max-w-lg h-auto max-h-[90dvh] bg-white rounded-[24px] shadow-2xl overflow-hidden flex flex-col border border-white/20"
             >
-              <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center">
-                      <GitBranch className="w-4 h-4 text-white" />
+              <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/50 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-200/40 to-purple-200/40 rounded-full blur-2xl -mr-10 -mt-10" />
+                <div className="flex items-center justify-between relative z-10">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                      {newFlowParentId ? <GitBranch className="w-6 h-6 text-white" /> : <Layers className="w-6 h-6 text-white" />}
                     </div>
-                    <h2 className="text-xl font-bold text-gray-900">Create Workspace Flow</h2>
+                    <div>
+                      <h2 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-800 bg-clip-text text-transparent">
+                        {newFlowParentId ? "Create Sub-Flow" : "Create Workspace Flow"}
+                      </h2>
+                      {newFlowParentId && (
+                        <p className="text-sm font-medium text-indigo-600 mt-0.5 flex items-center gap-1">
+                          <span className="opacity-70">to</span> {workspaces.find(w => w.id === newFlowParentId)?.name || 'Parent Flow'}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <button
-                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/50 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors"
                     onClick={() => setShowCreateFlowModal(false)}
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              <form className="flex-1 overflow-y-auto p-6 space-y-4" onSubmit={handleCreateFlowSubmit}>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Flow Name *</label>
+              <form className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar bg-gray-50/30" onSubmit={handleCreateFlowSubmit}>
+                {flowCreateError && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="rounded-xl border border-red-200 bg-red-50/80 px-4 py-3 text-sm text-red-600 flex items-center gap-2"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <p className="leading-tight">{flowCreateError}</p>
+                  </motion.div>
+                )}
+                
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-semibold text-gray-700">Flow Name <span className="text-red-500">*</span></label>
                   <input
                     type="text"
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
                     value={newFlowName}
                     onChange={e => setNewFlowName(e.target.value)}
                     required
-                    placeholder="e.g., Design Review"
+                    placeholder="e.g., Q3 Design Review"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-semibold text-gray-700">Description</label>
                   <textarea
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm resize-none"
                     value={newFlowDesc}
                     onChange={e => setNewFlowDesc(e.target.value)}
                     rows={3}
@@ -991,57 +1023,68 @@ export default function ProjectDetailPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Deadline (Optional)</label>
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-semibold text-gray-700">Deadline (Optional)</label>
                   <div className="grid grid-cols-2 gap-3">
-                    <DateDropdown
-                      value={newFlowDeadline}
-                      onChange={setNewFlowDeadline}
-                    />
-                    <TimeDropdown
-                      value={newFlowDeadlineTime}
-                      onChange={setNewFlowDeadlineTime}
-                    />
+                    <div className="rounded-xl shadow-sm overflow-hidden border border-gray-200 bg-white overflow-visible">
+                      <DateDropdown value={newFlowDeadline} onChange={setNewFlowDeadline} />
+                    </div>
+                    <div className="rounded-xl shadow-sm overflow-hidden border border-gray-200 bg-white overflow-visible">
+                      <TimeDropdown value={newFlowDeadlineTime} onChange={setNewFlowDeadlineTime} />
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Assign Members</label>
-                  <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-xl p-3">
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-semibold text-gray-700">Assign Members <span className="text-red-500">*</span></label>
+                  <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 bg-white rounded-xl p-2.5 shadow-sm custom-scrollbar">
                     {members.map(member => (
-                      <label key={member.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedFlowMembers.includes(member.id)}
-                          onChange={e => handleFlowMemberToggle(member.id, e.target.checked)}
-                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span className="text-sm text-gray-700">
-                          {member.full_name || member.username}
-                        </span>
+                      <label key={member.id} className="flex items-center gap-3 p-2.5 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors group">
+                        <div className="relative flex items-center justify-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedFlowMembers.includes(member.id)}
+                            onChange={e => handleFlowMemberToggle(member.id, e.target.checked)}
+                            className="peer w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer transition-all"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 bg-gradient-to-br from-gray-100 to-gray-200 border border-gray-200 rounded-full flex items-center justify-center text-gray-600 text-xs font-bold">
+                            {(member.full_name || member.username || "?")[0].toUpperCase()}
+                          </div>
+                          <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
+                            {member.full_name || member.username}
+                          </span>
+                        </div>
                         {member.role === "lead" && (
-                          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">LEAD</span>
+                          <span className="ml-auto text-[10px] font-bold tracking-wider bg-amber-100 text-amber-700 px-2 py-1 rounded-md">LEAD</span>
                         )}
                       </label>
                     ))}
+                    {members.length === 0 && (
+                      <div className="p-4 text-center text-sm text-gray-500">No members found in project.</div>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex gap-3 pt-4">
+                <div className="flex gap-3 pt-4 border-t border-gray-100 mt-2">
                   <button
                     type="button"
                     onClick={() => setShowCreateFlowModal(false)}
-                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium hover:bg-gray-50 transition-colors"
+                    className="flex-1 px-5 py-3 rounded-xl bg-white border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 hover:text-gray-900 transition-all shadow-sm"
                   >
                     Cancel
                   </button>
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
                     type="submit"
                     disabled={!newFlowName.trim() || selectedFlowMembers.length === 0}
-                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-indigo-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Create Flow
-                  </button>
+                    <Check className="w-5 h-5" />
+                    {newFlowParentId ? "Create Sub-Flow" : "Create Flow"}
+                  </motion.button>
                 </div>
               </form>
             </motion.div>
